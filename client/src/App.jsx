@@ -1,12 +1,17 @@
-import Header from "./components/Header";
-import DashboardPage from "./pages/DashboardPage";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import LoginPage from "./pages/LoginPage";
 
 function App() {
   return (
-    <div>
-      <Header />
-      <DashboardPage />
-    </div>
+    <BrowserRouter>
+      <Routes>
+        {/* Redirect root to login */}
+        <Route path="/" element={<Navigate to="/login" />} />
+
+        {/* Login page */}
+        <Route path="/login" element={<LoginPage />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
