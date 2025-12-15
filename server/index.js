@@ -2,6 +2,13 @@ const authRoutes = require("./routes/authRoutes");
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const cycleRoutes = require("./routes/cycleRoutes");
+const dailyLogRoutes = require("./routes/dailyLogRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
+const insightsRoutes = require("./routes/insightsRoutes");
+
+
+
 require("dotenv").config();
 
 const app = express();
@@ -10,6 +17,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use("/api/auth", authRoutes);
+app.use("/api/cycles", cycleRoutes);
+app.use("/api/daily-logs", dailyLogRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/insights", insightsRoutes);
+
+
+
 
 
 // MongoDB connection

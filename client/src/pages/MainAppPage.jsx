@@ -1,8 +1,27 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import CycleTrackingForm from "../components/CycleTrackingForm";
+import { apiGet } from "../services/api";
+import InsightsPanel from "../components/InsightsPanel";
+
+
 
 function MainAppPage() {
   const navigate = useNavigate();
+  const [summary, setSummary] = useState(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await apiGet("/api/dashboard/summary");
+        setSummary(data);
+      } catch (e) {
+        // optional: show error somewhere
+      }
+    };
+    load();
+  }, [navigate]);
+
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -41,10 +60,24 @@ function MainAppPage() {
         </p>
 
         <div style={styles.cards}>
-          <div style={styles.card}>Next Period: --</div>
-          <div style={styles.card}>Cycle Length: -- days</div>
-          <div style={styles.card}>Insights Summary</div>
+          <div style={styles.card}>
+            Next Period:{" "}
+            {summary?.hasData ? new Date(summary.nextPeriodDate).toLocaleDateString() : "--"}
+          </div>
+
+          <div style={styles.card}>
+            Cycle Length: {summary?.hasData ? `${summary.avgCycleLength} days` : "--"}
+          </div>
+
+          <div style={styles.card}>
+            Phase: {summary?.hasData ? summary.currentPhase : "--"}
+          </div>
         </div>
+
+        <CycleTrackingForm />
+        <InsightsPanel />
+
+
       </main>
     </div>
   );
