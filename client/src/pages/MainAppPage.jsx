@@ -5,8 +5,8 @@ import DailyLogForm from "../components/DailyLogForm";
 import girlImg from "../assets/girl1.png";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-
+import HealthTipsPanel from "../components/HealthTipsPanel";
+import RecentActivityPanel from "../components/RecentActivityPanel";
 
 
 
@@ -138,10 +138,10 @@ function MainAppPage() {
 
         {activeTab === "tips" && (
           <>
-            <h2 style={styles.sectionTitle}>Health Tips</h2>
-            <p style={styles.muted}>Coming next — calming, science-based tips ✨</p>
+            <HealthTipsPanel />
           </>
         )}
+
 
 
 
@@ -161,8 +161,13 @@ function MainAppPage() {
         </div>
 
         <CycleTrackingForm />
+         <DailyLogForm />
         <InsightsPanel />
-        <DailyLogForm />
+        <RecentActivityPanel />
+        <div style={{ marginTop: "2rem" }}>
+          <HealthTipsPanel />
+        </div>
+
 
 
 
