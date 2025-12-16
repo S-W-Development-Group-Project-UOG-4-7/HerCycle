@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import HealthTipsPanel from "../components/HealthTipsPanel";
 import RecentActivityPanel from "../components/RecentActivityPanel";
+import PhaseCard from "../components/PhaseCard";
 
 
 
@@ -142,9 +143,6 @@ function MainAppPage() {
           </>
         )}
 
-
-
-
         <div style={styles.cards}>
           <div style={styles.card}>
             Next Period:{" "}
@@ -159,14 +157,13 @@ function MainAppPage() {
             Phase: {summary?.hasData ? summary.currentPhase : "--"}
           </div>
         </div>
+        {summary && <PhaseCard summary={summary} />}
 
         <CycleTrackingForm />
-         <DailyLogForm />
-        <InsightsPanel />
         <RecentActivityPanel />
-        <div style={{ marginTop: "2rem" }}>
-          <HealthTipsPanel />
-        </div>
+        <DailyLogForm />
+        <InsightsPanel />
+        <HealthTipsPanel />
 
 
 
