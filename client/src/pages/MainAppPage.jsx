@@ -1,14 +1,20 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import CycleTrackingForm from "../components/CycleTrackingForm";
 import { apiGet } from "../services/api";
 import InsightsPanel from "../components/InsightsPanel";
+import DailyLogForm from "../components/DailyLogForm";
+import girlImg from "../assets/girl1.png";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+
 
 
 
 function MainAppPage() {
   const navigate = useNavigate();
   const [summary, setSummary] = useState(null);
+  const [activeTab, setActiveTab] = useState("dashboard");
+
 
   useEffect(() => {
     const load = async () => {
@@ -35,12 +41,43 @@ function MainAppPage() {
       <aside style={styles.sidebar}>
         <h2 style={styles.logo}>HerCycle</h2>
 
-        <nav>
-          <p style={styles.navItem}>Dashboard</p>
-          <p style={styles.navItem}>Cycle Tracking</p>
-          <p style={styles.navItem}>Insights</p>
-          <p style={styles.navItem}>Health Tips</p>
+        <nav style={styles.nav}>
+          <button
+            onClick={() => setActiveTab("dashboard")}
+            style={{ ...styles.navBtn, ...(activeTab === "dashboard" ? styles.navBtnActive : {}) }}
+          >
+            Dashboard
+          </button>
+
+          <button
+            onClick={() => setActiveTab("cycle")}
+            style={{ ...styles.navBtn, ...(activeTab === "cycle" ? styles.navBtnActive : {}) }}
+          >
+            Cycle Tracking
+          </button>
+
+          <button
+            onClick={() => setActiveTab("daily")}
+            style={{ ...styles.navBtn, ...(activeTab === "daily" ? styles.navBtnActive : {}) }}
+          >
+            Daily Log
+          </button>
+
+          <button
+            onClick={() => setActiveTab("insights")}
+            style={{ ...styles.navBtn, ...(activeTab === "insights" ? styles.navBtnActive : {}) }}
+          >
+            Insights
+          </button>
+
+          <button
+            onClick={() => setActiveTab("tips")}
+            style={{ ...styles.navBtn, ...(activeTab === "tips" ? styles.navBtnActive : {}) }}
+          >
+            Health Tips
+          </button>
         </nav>
+
 
         <button
           style={styles.logout}
@@ -54,10 +91,59 @@ function MainAppPage() {
       </aside>
 
       <main style={styles.main}>
-        <h1>Welcome to Your Cycle Dashboard 🌸</h1>
-        <p>
-          Track your cycle, understand your body, and take care of your health.
-        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div>
+            <h1>Welcome to Your Cycle Dashboard 🌸</h1>
+            <p>Track your cycle, understand your body, and take care of your health.</p>
+          </div>
+
+          <img
+            src={girlImg}
+            alt="HerCycle character"
+            style={{
+              width: "clamp(150px, 18vw, 260px)",
+              height: "auto",
+              marginLeft: "auto",
+              filter: "drop-shadow(0 8px 14px rgba(0,0,0,0.12))",
+            }}
+          />
+
+        </div>
+        {activeTab === "dashboard" && (
+          <>
+            {/* Your current welcome + image + cards */}
+          </>
+        )}
+
+        {activeTab === "cycle" && (
+          <>
+            <h2 style={styles.sectionTitle}>Cycle Tracking</h2>
+            <CycleTrackingForm />
+          </>
+        )}
+
+        {activeTab === "daily" && (
+          <>
+            <h2 style={styles.sectionTitle}>Daily Log</h2>
+            <DailyLogForm />
+          </>
+        )}
+
+        {activeTab === "insights" && (
+          <>
+            <h2 style={styles.sectionTitle}>Insights</h2>
+            <InsightsPanel />
+          </>
+        )}
+
+        {activeTab === "tips" && (
+          <>
+            <h2 style={styles.sectionTitle}>Health Tips</h2>
+            <p style={styles.muted}>Coming next — calming, science-based tips ✨</p>
+          </>
+        )}
+
+
 
         <div style={styles.cards}>
           <div style={styles.card}>
@@ -76,6 +162,8 @@ function MainAppPage() {
 
         <CycleTrackingForm />
         <InsightsPanel />
+        <DailyLogForm />
+
 
 
       </main>
@@ -89,6 +177,37 @@ const styles = {
     minHeight: "100vh",
     background: "#fdf6ff",
   },
+  nav: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+  },
+
+  navBtn: {
+    background: "rgba(255,255,255,0.14)",
+    border: "1px solid rgba(255,255,255,0.22)",
+    color: "#fff",
+    padding: "10px 12px",
+    borderRadius: "12px",
+    cursor: "pointer",
+    textAlign: "left",
+    fontWeight: "600",
+  },
+
+  navBtnActive: {
+    background: "rgba(255,255,255,0.28)",
+    border: "1px solid rgba(255,255,255,0.45)",
+  },
+
+  sectionTitle: {
+    color: "#7b2cbf",
+    marginTop: 0,
+  },
+
+  muted: {
+    color: "#6c757d",
+  },
+
   sidebar: {
     width: "220px",
     background: "linear-gradient(180deg, #9d4edd, #f15bb5)",
