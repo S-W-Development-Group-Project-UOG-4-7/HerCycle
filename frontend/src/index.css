@@ -1,0 +1,34 @@
+/* Tailwind directives removed */
+
+:root { --bg:#f8fafc; --accent:#0ea5a4; --text:#0f172a; }
+* { box-sizing: border-box; }
+html,body,#root { height:100%; margin:0; padding:0; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+  background: var(--bg);
+  color: var(--text);
+}
+.app { width:100%; }
+.app-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.app-header h1 { margin:0; color:var(--accent); }
+.app-header nav button { margin-left:8px; padding:6px 10px; cursor:pointer; }
+.app-main { background:#fff; padding:20px; border-radius:8px; box-shadow:0 6px 18px rgba(2,6,23,0.06); }
+.page h2 { margin:0 0 8px 0; color:var(--accent); }
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ec4899;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #db2777;
+}

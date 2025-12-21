@@ -1,0 +1,4 @@
+/* ...existing code... */
+.contact-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.contact-icon { width: 20px; height: 20px; object-fit: contain; display: inline-block; vertical-align: middle; }
+/* ...existing code... */
