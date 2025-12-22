@@ -251,7 +251,7 @@ const Home = () => {
                                 </p>
                                 <div className="testimonial-footer">
                                     <div className="testimonial-info">
-                                        <div className="testimonial-name">Sarah K.</div>
+                                        <div className="testimonial-name">Amilia </div>
                                         <div className="testimonial-role">Cycle User · 8 months</div>
                                     </div>
                                     <div className="testimonial-rating">
@@ -273,7 +273,7 @@ const Home = () => {
                                 <div className="testimonial-footer">
                                     
                                     <div className="testimonial-info">
-                                        <div className="testimonial-name">Maria R.</div>
+                                        <div className="testimonial-name">Maria Roshel</div>
                                         <div className="testimonial-role">Learner · 4 months</div>
                                     </div>
                                     <div className="testimonial-rating">
@@ -295,7 +295,7 @@ const Home = () => {
                                 <div className="testimonial-footer">
                                     
                                     <div className="testimonial-info">
-                                        <div className="testimonial-name">Priya S.</div>
+                                        <div className="testimonial-name">Priyasha Perera</div>
                                         <div className="testimonial-role">Fundraiser Organizer</div>
                                     </div>
                                     <div className="testimonial-rating">
