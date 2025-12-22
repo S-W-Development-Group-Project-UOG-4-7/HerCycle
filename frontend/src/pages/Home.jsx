@@ -32,6 +32,23 @@ const Home = () => {
 
     const [hearts] = useState(generateHearts());
 
+    // Function to scroll testimonials
+    const scrollTestimonials = (scrollOffset) => {
+        const track = document.getElementById('testimonialsTrack');
+        if (track) {
+            track.scrollBy({ left: scrollOffset, behavior: 'smooth' });
+        }
+    };
+
+    // Auto-scroll testimonials
+    useEffect(() => {
+        const interval = setInterval(() => {
+            scrollTestimonials(350);
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, []);
+
     return (
         <div className="home-container">
             {/* Floating Hearts Background Animation */}
@@ -58,11 +75,10 @@ const Home = () => {
                     <h1>HerCycle</h1>
                 </div>
                 <nav className="nav">
-                    <a href="/" className="nav-link">Home</a>
-                    <a href="/contact" className="nav-link btn-signup">Contact</a>
-                    <a href="/login" className="nav-link">Login</a>
-                    <a href="/register" className="nav-link btn-signup">Sign Up</a>
-                    
+                    <a className="nav-link" href="/">Home</a>
+                    <a className="nav-link" href="/about">About</a>
+                    <a className="nav-link" href="/contact">Contact</a>
+                    <a className="nav-link btn-fundraiser" href="/fundraiser">Fundraiser</a>
                 </nav>
             </header>
 
@@ -97,9 +113,41 @@ const Home = () => {
 
                     {/* Centered Button */}
                     <div className="hero-buttons">
-                        <a href="/register" className="btn-primary">
-                            Start Your Free Trial
-                        </a>
+                        <a className="btn-primary" href="/features">Explore Features</a>
+                    </div>
+
+                    {/* NEW: User Type Selection Section */}
+                    <div className="user-type-section">
+                        <h3>Choose Your Journey</h3>
+                        <div className="user-type-cards">
+                            {/* Cycle User Card */}
+                            <div className="user-type-card">
+                                <div className="user-type-icon">👩‍🦰</div>
+                                <h4 className="user-type-title">Cycle User</h4>
+                                <p className="user-type-description">
+                                    Track your menstrual cycles, predict periods, monitor symptoms, 
+                                    and get personalized insights about your reproductive health. 
+                                    Perfect for women who want to understand their body better.
+                                </p>
+                                <a href="/register?type=cycle-user" className="user-type-btn">
+                                    Become a Cycle User
+                                </a>
+                            </div>
+
+                            {/* Learner Card */}
+                            <div className="user-type-card">
+                                <div className="user-type-icon">📚</div>
+                                <h4 className="user-type-title">Learner</h4>
+                                <p className="user-type-description">
+                                    Access educational resources about menstrual health, fertility awareness, 
+                                    and women's wellness. Learn about reproductive health through courses, 
+                                    articles, and community discussions.
+                                </p>
+                                <a href="/register?type=learner" className="user-type-btn">
+                                    Become a Learner
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -164,15 +212,123 @@ const Home = () => {
                                     <p>Join a supportive community of women sharing their journeys and experiences.</p>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </section>
 
-                            {/* Final CTA Button */}
-                            <div className="hero-buttons">
-                                <a href="/register" className="btn-primary">
-                                    Get Started - It's Free!
-                                </a>
+                {/* Testimonials Section - IMPROVED */}
+                <section className="testimonials-section">
+                    <h3>What Our Users Say</h3>
+                    <p className="testimonials-subtitle">
+                        Join thousands of women who transformed their menstrual health journey with HerCycle
+                    </p>
+                    
+                    {/* Floating Quote Marks */}
+                    <div className="floating-quotes">
+                        {[1, 2, 3, 4, 5].map(i => (
+                            <div
+                                key={i}
+                                className="floating-quote"
+                                style={{
+                                    left: `${20 * i}%`,
+                                    animationDelay: `${i * 4}s`,
+                                    animationDuration: `${15 + i * 2}s`
+                                }}
+                            >
+                                "
+                            </div>
+                        ))}
+                    </div>
+                    
+                    <div className="testimonials-container">
+                        {/* Testimonials Track */}
+                        <div className="testimonials-track" id="testimonialsTrack">
+                            {/* Testimonial 1 */}
+                            <div className="testimonial-card">
+                                <p className="testimonial-text">
+                                    "HerCycle has completely changed how I understand my body. The predictions are incredibly accurate, 
+                                    and the symptom tracking helped me identify patterns I never noticed before!"
+                                </p>
+                                <div className="testimonial-footer">
+                                    <div className="testimonial-info">
+                                        <div className="testimonial-name">Sarah K.</div>
+                                        <div className="testimonial-role">Cycle User · 8 months</div>
+                                    </div>
+                                    <div className="testimonial-rating">
+                                        <span className="star">⭐</span>
+                                        <span className="star">⭐</span>
+                                        <span className="star">⭐</span>
+                                        <span className="star">⭐</span>
+                                        <span className="star">⭐</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Testimonial 2 */}
+                            <div className="testimonial-card">
+                                <p className="testimonial-text">
+                                    "As someone new to menstrual health education, the learner resources have been invaluable. 
+                                    The courses are well-structured and the community support is amazing!"
+                                </p>
+                                <div className="testimonial-footer">
+                                    
+                                    <div className="testimonial-info">
+                                        <div className="testimonial-name">Maria R.</div>
+                                        <div className="testimonial-role">Learner · 4 months</div>
+                                    </div>
+                                    <div className="testimonial-rating">
+                                        <span className="star">⭐</span>
+                                        <span className="star">⭐</span>
+                                        <span className="star">⭐</span>
+                                        <span className="star">⭐</span>
+                                        <span className="star">⭐</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Testimonial 3 */}
+                            <div className="testimonial-card">
+                                <p className="testimonial-text">
+                                    "The fundraiser feature helped our women's health initiative reach our goals faster than expected. 
+                                    The platform made it easy to connect with donors who care about menstrual health."
+                                </p>
+                                <div className="testimonial-footer">
+                                    
+                                    <div className="testimonial-info">
+                                        <div className="testimonial-name">Priya S.</div>
+                                        <div className="testimonial-role">Fundraiser Organizer</div>
+                                    </div>
+                                    <div className="testimonial-rating">
+                                        <span className="star">⭐</span>
+                                        <span className="star">⭐</span>
+                                        <span className="star">⭐</span>
+                                        <span className="star">⭐</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
+                    
+                    {/* Stats Bar */}
+                    <div className="testimonial-stats">
+                        <div className="stat-item">
+                            <div className="stat-number">4.9/5</div>
+                            <div className="stat-label">Average Rating</div>
+                        </div>
+                        <div className="stat-item">
+                            <div className="stat-number">10K+</div>
+                            <div className="stat-label">Happy Users</div>
+                        </div>
+                        <div className="stat-item">
+                            <div className="stat-number">98%</div>
+                            <div className="stat-label">Would Recommend</div>
+                        </div>
+                    </div>
+                    
+                    {/* Add Feedback Button */}
+                    <button className="add-feedback-btn" onClick={() => window.location.href = '/contact'}>
+                        Share Your Experience
+                    </button>
                 </section>
             </main>
 
