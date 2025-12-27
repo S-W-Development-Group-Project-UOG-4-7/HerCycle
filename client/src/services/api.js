@@ -13,3 +13,13 @@ export async function apiGet(path) {
   if (!res.ok) throw new Error(data.message || "Request failed");
   return data;
 }
+
+export async function apiDelete(path) {
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Delete failed");
+  return res.json().catch(() => ({}));
+}
