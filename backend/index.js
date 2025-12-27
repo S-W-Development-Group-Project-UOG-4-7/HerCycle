@@ -6,158 +6,284 @@ require("dotenv").config();
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// Enable CORS for frontend
+app.use(cors({
+    origin: "http://localhost:3000",
+    credentials: true
+}));
+
 app.use(express.json());
 
-console.log("🔧 Environment Check:");
-console.log("- PORT:", process.env.PORT);
-console.log("- MONGODB_URI exists?", !!process.env.MONGODB_URI);
+// Mount contact routes
+const contactRoutes = require('./routes/contact');
+app.use('/api/contacts', contactRoutes);
+
+console.log("🚀 Starting HerCycle Backend...");
 
 // MongoDB Connection
-const connectDB = async () => {
-    try {
-        if (!process.env.MONGODB_URI) {
-            console.error("❌ ERROR: MONGODB_URI is missing in .env");
-            console.log("💡 Current .env keys:", Object.keys(process.env).filter(k => k.includes("MONGO")));
-            return false;
-        }
+mongoose.connect(process.env.MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+})
+.then(() => {
+    console.log("✅ MongoDB Connected!");
+    console.log(`📊 Database: ${mongoose.connection.name}`);
+})
+.catch((error) => {
+    console.error("❌ MongoDB Connection Error:", error.message);
+});
 
-        console.log("🔄 Connecting to MongoDB...");
-        
-        // Hide password in logs
-        const safeUri = process.env.MONGODB_URI.replace(/:([^:@]+)@/, ":****@");
-        console.log("📡 Connection string:", safeUri);
-        
-        await mongoose.connect(process.env.MONGODB_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-            serverSelectionTimeoutMS: 5000
-        });
-        
-        console.log("✅ MongoDB Connected Successfully!");
-        console.log(`📊 Database: ${mongoose.connection.name}`);
-        console.log(`🏠 Host: ${mongoose.connection.host}`);
-        
-        return true;
-    } catch (error) {
-        console.error("❌ MongoDB Connection Failed!");
-        console.error("Error:", error.message);
-        
-        // Specific error messages
-        if (error.message.includes("Authentication failed")) {
-            console.log("💡 Check your username/password in MONGODB_URI");
-        } else if (error.message.includes("getaddrinfo ENOTFOUND")) {
-            console.log("💡 Check your cluster URL (hercycle.8ijqlb7.mongodb.net)");
-        } else if (error.message.includes("bad auth")) {
-            console.log("💡 Authentication failed - check credentials");
-        }
-        
-        return false;
-    }
-};
+// ==================== FEEDBACK MODEL ====================
+const feedbackSchema = new mongoose.Schema({
+    userName: { type: String, required: true },
+    userEmail: { type: String, required: true },
+    rating: { type: Number, required: true, min: 1, max: 5 },
+    experience: { type: String, required: true },
+    category: { type: String, default: "general" },
+    isApproved: { type: Boolean, default: true },
+    createdAt: { type: Date, default: Date.now }
+});
 
+const Feedback = mongoose.model("Feedback", feedbackSchema);
 
-// Routes
+// ==================== ROUTES ====================
+
+// 1. Home route
 app.get("/", (req, res) => {
-    const dbStatus = mongoose.connection.readyState;
-    const statusMap = ["disconnected", "connected", "connecting", "disconnecting"];
-    const statusText = statusMap[dbStatus] || "unknown";
-    
     res.json({
-        project: "HerCycle",
-        status: "Server is running",
-        database: {
-            status: statusText,
-            connected: dbStatus === 1,
-            name: mongoose.connection.name || "Not connected"
-        },
+        message: "HerCycle Backend API",
+        status: "running",
+        database: mongoose.connection.name,
         endpoints: {
-            home: "/",
-            health: "/health",
-            databaseInfo: "/database",
-            createTestUser: "POST /api/users/test",
-            getAllUsers: "GET /api/users"
+            home: "GET /",
+            health: "GET /health",
+            collections: "GET /collections",
+            getFeedback: "GET /api/feedback",
+            submitFeedback: "POST /api/feedback",
+            feedbackStats: "GET /api/feedback/stats",
+            createSample: "GET /api/feedback/create-sample"
         }
     });
 });
 
-// Health check
+// 2. Health check
 app.get("/health", (req, res) => {
-    const dbStatus = mongoose.connection.readyState;
-    
     res.json({
-        status: dbStatus === 1 ? "healthy" : "degraded",
+        status: "healthy",
         timestamp: new Date().toISOString(),
         database: {
-            state: dbStatus,
-            connected: dbStatus === 1,
+            state: mongoose.connection.readyState,
+            connected: mongoose.connection.readyState === 1,
             name: mongoose.connection.name
         }
     });
 });
 
-// Database info
-app.get("/database", async (req, res) => {
+// 3. List collections
+app.get("/collections", async (req, res) => {
     try {
-        const collections = mongoose.connection.collections || {};
-        const collectionNames = Object.keys(collections);
+        const collections = await mongoose.connection.db.listCollections().toArray();
+        const collectionNames = collections.map(col => col.name);
         
         res.json({
             database: mongoose.connection.name,
             collections: collectionNames,
-            totalCollections: collectionNames.length,
-            connectionState: mongoose.connection.readyState,
-            host: mongoose.connection.host
+            count: collectionNames.length
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// Start server after DB connection and handle port-in-use errors with retries
-const PORT = parseInt(process.env.PORT, 10) || 5000;
+// ==================== FEEDBACK API ====================
 
-const startServerWithRetries = (startPort, maxRetries = 3) => {
-    let attempts = 0;
-
-    const tryListen = (port) => {
-        const server = app.listen(port, () => {
-            console.log("========================================");
-            console.log("🚀 HerCycle Backend Server");
-            console.log("🌐 http://localhost:" + port);
-            console.log("🔧 Port: " + port);
-            console.log("========================================");
+// 4. Get all feedback
+app.get("/api/feedback", async (req, res) => {
+    try {
+        const feedbacks = await Feedback.find({ isApproved: true })
+            .sort({ createdAt: -1 })
+            .limit(20);
+        
+        res.json({
+            success: true,
+            count: feedbacks.length,
+            feedbacks: feedbacks
         });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Error fetching feedback",
+            error: error.message
+        });
+    }
+});
 
-        server.on('error', (err) => {
-            if (err && err.code === 'EADDRINUSE') {
-                attempts += 1;
-                console.error(`❌ Port ${port} in use. Attempt ${attempts} of ${maxRetries}.`);
-                if (attempts <= maxRetries) {
-                    const nextPort = port + 1;
-                    console.log(`🔁 Trying fallback port ${nextPort}...`);
-                    tryListen(nextPort);
-                } else {
-                    console.error('🚨 All retry attempts exhausted. Exiting.');
-                    process.exit(1);
-                }
-            } else {
-                console.error('Server error:', err);
-                process.exit(1);
+// 5. Submit new feedback
+app.post("/api/feedback", async (req, res) => {
+    try {
+        const { userName, userEmail, rating, experience, category } = req.body;
+        
+        // Validation
+        if (!userName || !userEmail || !rating || !experience) {
+            return res.status(400).json({
+                success: false,
+                message: "All fields are required"
+            });
+        }
+        
+        if (rating < 1 || rating > 5) {
+            return res.status(400).json({
+                success: false,
+                message: "Rating must be between 1 and 5"
+            });
+        }
+        
+        const feedback = new Feedback({
+            userName,
+            userEmail,
+            rating,
+            experience,
+            category: category || "general"
+        });
+        
+        await feedback.save();
+        
+        res.status(201).json({
+            success: true,
+            message: "✅ Thank you for sharing your experience!",
+            feedback: {
+                id: feedback._id,
+                userName: feedback.userName,
+                rating: feedback.rating,
+                experience: feedback.experience,
+                createdAt: feedback.createdAt
             }
         });
-    };
-
-    tryListen(startPort);
-};
-
-(async () => {
-    const connected = await connectDB();
-    if (!connected) {
-        console.error('❌ Database connection failed. Not starting server.');
-        process.exit(1);
+        
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Error submitting feedback",
+            error: error.message
+        });
     }
+});
 
-    startServerWithRetries(PORT, 5);
-})();
+// 6. Get feedback statistics
+app.get("/api/feedback/stats", async (req, res) => {
+    try {
+        const stats = await Feedback.aggregate([
+            { $match: { isApproved: true } },
+            {
+                $group: {
+                    _id: null,
+                    averageRating: { $avg: "$rating" },
+                    totalFeedbacks: { $sum: 1 },
+                    happyUsers: { $sum: { $cond: [{ $gte: ["$rating", 4] }, 1, 0] } }
+                }
+            }
+        ]);
+        
+        const result = stats[0] || {
+            averageRating: 0,
+            totalFeedbacks: 0,
+            happyUsers: 0
+        };
+        
+        res.json({
+            success: true,
+            stats: {
+                averageRating: result.averageRating.toFixed(1),
+                totalFeedbacks: result.totalFeedbacks,
+                happyUsers: result.happyUsers,
+                wouldRecommend: Math.round((result.happyUsers / Math.max(result.totalFeedbacks, 1)) * 98)
+            }
+        });
+        
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Error fetching statistics",
+            error: error.message
+        });
+    }
+});
+
+// 7. Create sample feedback data
+app.get("/api/feedback/create-sample", async (req, res) => {
+    try {
+        const sampleFeedbacks = [
+            {
+                userName: "Priya Sharma",
+                userEmail: "priya@example.com",
+                rating: 5,
+                experience: "HerCycle has completely transformed my menstrual health journey. The products are eco-friendly and effective!",
+                category: "product",
+                isApproved: true
+            },
+            {
+                userName: "Anjali Patel",
+                userEmail: "anjali@example.com",
+                rating: 5,
+                experience: "The educational content is so helpful. As a mother, I appreciate having reliable information to share with my daughter.",
+                category: "app",
+                isApproved: true
+            },
+            {
+                userName: "Rohit Kumar",
+                userEmail: "rohit@example.com",
+                rating: 4,
+                experience: "Bought products for my sister. She loves them and the delivery was super fast. Great service!",
+                category: "service",
+                isApproved: true
+            },
+            {
+                userName: "Sneha Reddy",
+                userEmail: "sneha@example.com",
+                rating: 5,
+                experience: "The menstrual cup changed my life! Sustainable, comfortable, and cost-effective in the long run.",
+                category: "product",
+                isApproved: true
+            },
+            {
+                userName: "Meera Iyer",
+                userEmail: "meera@example.com",
+                rating: 4,
+                experience: "App is user-friendly and the community support is amazing. Would recommend to every woman!",
+                category: "app",
+                isApproved: true
+            }
+        ];
+        
+        // Clear existing and insert new
+        await Feedback.deleteMany({});
+        await Feedback.insertMany(sampleFeedbacks);
+        
+        res.json({
+            success: true,
+            message: "✅ Sample feedback data created!",
+            count: sampleFeedbacks.length
+        });
+        
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Error creating sample data",
+            error: error.message
+        });
+    }
+});
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+    console.log("========================================");
+    console.log("🚀 HerCycle Backend Server Started");
+    console.log("🌐 http://localhost:" + PORT);
+    console.log("========================================");
+    console.log("📝 Available Endpoints:");
+    console.log("   GET  /api/feedback");
+    console.log("   POST /api/feedback");
+    console.log("   GET  /api/feedback/stats");
+    console.log("   GET  /api/feedback/create-sample");
+});

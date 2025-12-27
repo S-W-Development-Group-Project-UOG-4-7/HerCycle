@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Home.css';
+import ShareExperience from '../components/ShareExperience';
 
 const Home = () => {
     const [stats, setStats] = useState({
@@ -7,6 +8,9 @@ const Home = () => {
         accuracy: 95,
         days: 30
     });
+    const [list, setList] = useState([]);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     const handleStatClick = (stat) => {
         setStats(prev => ({
@@ -48,6 +52,28 @@ const Home = () => {
 
         return () => clearInterval(interval);
     }, []);
+
+    const fetchList = async () => {
+		setLoading(true);
+		try {
+			const res = await fetch('/api/experiences');
+			if (res.ok) {
+				const data = await res.json();
+				setList(data);
+			} else {
+				const res = await fetch('http://localhost:5000/api/experiences');
+			}
+		} catch (err) {
+			console.error(err);
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	useEffect(() => { fetchList(); }, []);
+
+    const total = list.length;
+	const avgRating = total ? (list.reduce((s, i) => s + (i.rating || 0), 0) / total).toFixed(1) : '0.0';
 
     return (
         <div className="home-container">
@@ -326,9 +352,35 @@ const Home = () => {
                     </div>
                     
                     {/* Add Feedback Button */}
-                    <button className="add-feedback-btn" onClick={() => window.location.href = '/contact'}>
+                    <button className="add-feedback-btn" onClick={() => setModalOpen(true)}>
                         Share Your Experience
                     </button>
+
+                    <ShareExperience
+						open={modalOpen}
+						onClose={() => setModalOpen(false)}
+						onAdded={fetchList}
+					/>
+
+					<section>
+						
+						{loading && <p>Loading...</p>}
+						{!loading && list.length === 0 && <p>No feedback yet.</p>}
+						{list.map(item => (
+							<article key={item._id} style={{ borderBottom: '1px solid #eee', padding: 12 }}>
+								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+									<strong>{item.user || 'Anonymous'}</strong>
+									<small style={{ color: '#666' }}>{new Date(item.createdAt).toLocaleString()}</small>
+								</div>
+								<div style={{ color: '#f5b301', marginTop: 6 }}>
+									{Array.from({ length: 5 }, (_, i) => (
+										<span key={i} style={{ color: i < (item.rating || 0) ? '#f5b301' : '#ddd', marginRight: 2 }}>★</span>
+									))}
+								</div>
+								<p style={{ marginTop: 8 }}>{item.message}</p>
+							</article>
+						))}
+					</section>
                 </section>
             </main>
 
@@ -337,7 +389,6 @@ const Home = () => {
                 <p>&copy; 2024 HerCycle. All rights reserved.</p>
             </footer>
         </div>
-    );
 };
 
 export default Home;

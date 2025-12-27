@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './Contact.css';
+import api from '../services/api';
 
 
 
@@ -20,13 +21,29 @@ const Contact = () => {
         });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Here you would typically send data to a backend
-        console.log('Form submitted:', formData);
-        setIsSubmitted(true);
-        setTimeout(() => setIsSubmitted(false), 3000);
-        setFormData({ name: '', email: '', subject: '', message: '' });
+        try {
+            const payload = {
+                name: formData.name,
+                email: formData.email,
+                subject: formData.subject,
+                message: formData.message
+            };
+
+            const res = await api.post('/contacts', payload);
+            if (res && (res.status === 201 || res.status === 200)) {
+                setIsSubmitted(true);
+                setTimeout(() => setIsSubmitted(false), 3000);
+                setFormData({ name: '', email: '', subject: '', message: '' });
+            } else {
+                console.error('Contact submit failed', res);
+                alert('Unable to send message. Please try again later.');
+            }
+        } catch (err) {
+            console.error('Contact submit error', err);
+            alert('Unable to send message. Please try again later.');
+        }
     };
 
     const contactDetails = [
@@ -103,9 +120,10 @@ const Contact = () => {
                 </div>
                 <nav className="nav">
                     <a href="/" className="nav-link">Home</a>
+                     <a href="/about" className="nav-link">About</a>
                     <a href="/contact" className="nav-link active">Contact</a>
-                    <a href="/login" className="nav-link">Login</a>
-                    <a href="/register" className="nav-link btn-signup">Sign Up</a>
+                    <a className="nav-link btn-fundraiser" href="/fundraiser">Fundraiser</a>
+                    
                 </nav>
             </header>
 
@@ -258,10 +276,18 @@ const Contact = () => {
                     {/* CTA Section */}
                     <div className="contact-cta">
                         <h3>Need Immediate Help?</h3>
-                        <p>Check our <a href="/help-center" className="cta-link">Help Center</a> for instant answers or join our community forum to connect with other users.</p>
+                        <p>Check our <a href="/help-center" className="cta-link">Help Center</a> for instant answers or contact us directly via WhatsApp for quick support.</p>
                         <div className="cta-buttons">
+                            <a 
+                                href="https://wa.me/94702909871?text=Hi%2C%20I%20need%20help%20with%20HerCycle.%20Can%20you%20assist%20me%3F" 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="btn-primary whatsapp-btn"
+                                style={{ backgroundColor: '#25D366', borderColor: '#25D366' }}
+                            >
+                                 Chat on WhatsApp
+                            </a>
                             <a href="/help-center" className="btn-secondary">Visit Help Center</a>
-                            <a href="/community" className="btn-primary">Join Community</a>
                         </div>
                     </div>
                 </section>
