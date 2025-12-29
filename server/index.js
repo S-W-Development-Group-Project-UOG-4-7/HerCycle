@@ -21,6 +21,7 @@ app.use("/api/cycles", cycleRoutes);
 app.use("/api/daily-logs", dailyLogRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/insights", insightsRoutes);
+app.use("/api/profile", require("./routes/profileRoutes"));
 
 
 

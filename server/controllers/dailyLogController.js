@@ -42,3 +42,20 @@ exports.getDailyLogs = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
+exports.deleteDailyLogById = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { id } = req.params;
+
+    const deleted = await DailyLog.findOneAndDelete({ _id: id, userId });
+    if (!deleted) return res.status(404).json({ message: "Daily log not found" });
+
+    res.json({ message: "Daily log deleted successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+

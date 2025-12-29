@@ -12,6 +12,8 @@ import RecentActivityPanel from "../components/RecentActivityPanel";
 import PhaseCard from "../components/PhaseCard";
 import HistoryPanel from "../components/HistoryPanel";
 import StatusCard from "../components/StatusCard";
+import ProfilePanel from "../components/ProfilePanel";
+
 
 function MainAppPage() {
   const navigate = useNavigate();
@@ -56,6 +58,13 @@ function MainAppPage() {
           <h2 style={styles.logo}>HerCycle</h2>
 
           <nav style={styles.nav}>
+            <button
+              onClick={() => setActiveTab("profile")}
+              style={{ ...styles.navBtn, ...(activeTab === "profile" ? styles.navBtnActive : {}) }}
+            >
+              Profile
+            </button>
+
             <button
               onClick={() => setActiveTab("dashboard")}
               style={{
@@ -151,7 +160,12 @@ function MainAppPage() {
           />
         </div>
 
-        {/* ✅ Tabs */}
+        {activeTab === "profile" && (
+          <>
+            <ProfilePanel />
+          </>
+        )}
+
         {activeTab === "dashboard" && (
           <>
             <h2 style={styles.sectionTitle}>Dashboard</h2>
@@ -182,7 +196,7 @@ function MainAppPage() {
                 </div>
 
                 {summary && <PhaseCard summary={summary} />}
-                {/* ✅ refresh panels when a save happens */}
+                {/*refresh panels when a save happens */}
                 <RecentActivityPanel key={refreshTick} />
               </>
             )}
