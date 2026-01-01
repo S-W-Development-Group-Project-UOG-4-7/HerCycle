@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import './Contact.css';
-import api from '../services/api';
-
-
+import { contactAPI } from '../services/api';
 
 const Contact = () => {
     const [formData, setFormData] = useState({
@@ -13,6 +11,7 @@ const Contact = () => {
     });
 
     const [isSubmitted, setIsSubmitted] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleChange = (e) => {
         setFormData({
@@ -23,56 +22,75 @@ const Contact = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setIsLoading(true);
+        
         try {
+            // Prepare the payload
             const payload = {
-                name: formData.name,
-                email: formData.email,
-                subject: formData.subject,
-                message: formData.message
+                name: formData.name.trim(),
+                email: formData.email.trim(),
+                subject: formData.subject.trim() || 'General Inquiry',
+                message: formData.message.trim()
             };
 
-            const res = await api.post('/contacts', payload);
-            if (res && (res.status === 201 || res.status === 200)) {
+            // Use the contactAPI from your api.js
+            const response = await contactAPI.submitContact(payload);
+            
+            // Check if successful
+            if (response.data && response.data.success) {
                 setIsSubmitted(true);
                 setTimeout(() => setIsSubmitted(false), 3000);
                 setFormData({ name: '', email: '', subject: '', message: '' });
+                
+                // Show success message
+                alert('Message sent successfully! We will get back to you soon.');
             } else {
-                console.error('Contact submit failed', res);
+                console.error('Contact submit failed', response);
+                alert(response.data?.message || 'Unable to send message. Please try again later.');
+            }
+        } catch (error) {
+            console.error('Contact submit error:', error);
+            
+            // Handle different types of errors
+            if (error.response) {
+                // Server responded with error status
+                const errorMessage = error.response.data?.message || 'Server error occurred';
+                alert(`Error: ${errorMessage}`);
+            } else if (error.request) {
+                // Request made but no response
+                alert('Network error. Please check if backend server is running on port 5000.');
+            } else {
+                // Something else went wrong
                 alert('Unable to send message. Please try again later.');
             }
-        } catch (err) {
-            console.error('Contact submit error', err);
-            alert('Unable to send message. Please try again later.');
+        } finally {
+            setIsLoading(false);
         }
     };
 
     const contactDetails = [
-    {
-        
-        title: 'Email Us',
-        detail: 'hercycle2025@gmail.com',
-        description: 'For general inquiries and support'
-    },
-    {
-        
-        title: 'Call Us',
-        detail: '011-25554422 HER-CYCLE',
-        description: 'Mon-Fri, 9AM-6PM EST'
-    },
-    {
-        
-        title: 'Visit Us',
-        detail: '155 High Level Road, Maharagama',
-        detail2: 'Maharagama, Sri Lanka',
-        description: 'By appointment only'
-    },
-    {
-        
-        title: 'Response Time',
-        detail: 'Within 24 hours',
-        description: 'For all email inquiries'
-    }
-];
+        {
+            title: 'Email Us',
+            detail: 'hercycle2025@gmail.com',
+            description: 'For general inquiries and support'
+        },
+        {
+            title: 'Call Us',
+            detail: '011-25554422 HER-CYCLE',
+            description: 'Mon-Fri, 9AM-6PM EST'
+        },
+        {
+            title: 'Visit Us',
+            detail: '155 High Level Road, Maharagama',
+            detail2: 'Maharagama, Sri Lanka',
+            description: 'By appointment only'
+        },
+        {
+            title: 'Response Time',
+            detail: 'Within 24 hours',
+            description: 'For all email inquiries'
+        }
+    ];
 
     const faqs = [
         {
@@ -120,10 +138,9 @@ const Contact = () => {
                 </div>
                 <nav className="nav">
                     <a href="/" className="nav-link">Home</a>
-                     <a href="/about" className="nav-link">About</a>
+                    <a href="/about" className="nav-link">About</a>
                     <a href="/contact" className="nav-link active">Contact</a>
                     <a className="nav-link btn-fundraiser" href="/fundraiser">Fundraiser</a>
-                    
                 </nav>
             </header>
 
@@ -157,6 +174,7 @@ const Contact = () => {
                                         placeholder="Your Name"
                                         required
                                         className="form-input"
+                                        disabled={isLoading}
                                     />
                                 </div>
                                 <div className="form-group">
@@ -168,6 +186,7 @@ const Contact = () => {
                                         placeholder="Your Email"
                                         required
                                         className="form-input"
+                                        disabled={isLoading}
                                     />
                                 </div>
                                 <div className="form-group">
@@ -177,8 +196,8 @@ const Contact = () => {
                                         value={formData.subject}
                                         onChange={handleChange}
                                         placeholder="Subject"
-                                        required
                                         className="form-input"
+                                        disabled={isLoading}
                                     />
                                 </div>
                                 <div className="form-group">
@@ -190,10 +209,22 @@ const Contact = () => {
                                         rows="5"
                                         required
                                         className="form-textarea"
+                                        disabled={isLoading}
                                     ></textarea>
                                 </div>
-                                <button type="submit" className="btn-primary contact-btn">
-                                    Send Message
+                                <button 
+                                    type="submit" 
+                                    className="btn-primary contact-btn"
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <span className="spinner"></span>
+                                            Sending...
+                                        </>
+                                    ) : (
+                                        'Send Message'
+                                    )}
                                 </button>
                             </form>
                         </div>
@@ -285,7 +316,7 @@ const Contact = () => {
                                 className="btn-primary whatsapp-btn"
                                 style={{ backgroundColor: '#25D366', borderColor: '#25D366' }}
                             >
-                                 Chat on WhatsApp
+                                💬 Chat on WhatsApp
                             </a>
                             <a href="/help-center" className="btn-secondary">Visit Help Center</a>
                         </div>

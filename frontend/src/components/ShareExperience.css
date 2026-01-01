@@ -1,0 +1,282 @@
+/* ShareExperience.css */
+.share-experience-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.share-experience-modal {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    width: 420px;
+    max-width: 90vw;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+
+.share-experience-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.share-experience-header h3 {
+    margin: 0;
+    color: #333;
+}
+
+.share-experience-close-btn {
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    color: #666;
+}
+
+.share-experience-close-btn:hover {
+    color: #333;
+}
+
+.share-experience-form-group {
+    margin-bottom: 16px;
+}
+
+.share-experience-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #333;
+}
+
+.share-experience-input,
+.share-experience-textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.share-experience-textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.share-experience-stars {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.share-experience-star-btn {
+    border: none;
+    background: transparent;
+    font-size: 32px;
+    cursor: pointer;
+    padding: 4px;
+    color: #E0E0E0;
+    transition: color 0.2s;
+}
+
+.share-experience-star-btn.active {
+    color: #FFD700;
+}
+
+.share-experience-star-btn:hover {
+    color: #FFD700;
+}
+
+.share-experience-error {
+    color: #D32F2F;
+    background-color: #FFEBEE;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 14px;
+}
+
+.share-experience-success {
+    color: #2E7D32;
+    background-color: #E8F5E9;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 14px;
+}
+
+.share-experience-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.share-experience-btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: opacity 0.2s;
+}
+
+.share-experience-btn:hover {
+    opacity: 0.9;
+}
+
+.share-experience-btn.delete {
+    background: #DC3545;
+    color: white;
+}
+
+.share-experience-btn.cancel {
+    background: #6C757D;
+    color: white;
+}
+
+.share-experience-btn.submit {
+    background: #28A745;
+    color: white;
+    font-weight: 600;
+    padding: 10px 24px;
+}
+
+.share-experience-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ========== NEW STYLES ADDED BELOW ========== */
+
+/* Verification Section */
+.verification-section {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid #e9ecef;
+}
+
+.verification-section .share-experience-label {
+    color: #495057;
+    font-weight: 600;
+}
+
+/* Disabled fields style */
+.share-experience-input:disabled,
+.share-experience-textarea:disabled,
+.share-experience-star-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    background-color: #f8f9fa;
+}
+
+/* Verification notice */
+.verification-notice {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 15px;
+}
+
+/* Original email display */
+.original-email {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+    padding: 4px 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+/* Verification success message */
+.verification-success {
+    color: #155724;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+/* Step indicator */
+.step-indicator {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.step {
+    text-align: center;
+    flex: 1;
+    position: relative;
+    z-index: 1;
+}
+
+.step-number {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #e9ecef;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+    font-weight: bold;
+}
+
+.step.active .step-number {
+    background: #28A745;
+    color: white;
+}
+
+.step.completed .step-number {
+    background: #6C757D;
+    color: white;
+}
+
+.step-label {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.step.active .step-label {
+    color: #28A745;
+    font-weight: 500;
+}
+
+/* Connector line between steps */
+.step-indicator::before {
+    content: '';
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    right: 15px;
+    height: 2px;
+    background: #e9ecef;
+    z-index: 0;
+}
+
+/* Add to ShareExperience.css */
+.share-experience-input[readonly] {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+    border-color: #ddd;
+}

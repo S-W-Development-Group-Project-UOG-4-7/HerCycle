@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './Home.css';
 import ShareExperience from '../components/ShareExperience';
+import StaffLoginModal from '../components/StaffLoginModal';
 
 const Home = () => {
     const [stats, setStats] = useState({
@@ -10,7 +11,11 @@ const Home = () => {
     });
     const [list, setList] = useState([]);
     const [modalOpen, setModalOpen] = useState(false);
+    const [editingFeedback, setEditingFeedback] = useState(null); // For editing
     const [loading, setLoading] = useState(false);
+
+    // NEW: staff modal state
+    const [staffModalOpen, setStaffModalOpen] = useState(false);
 
     const handleStatClick = (stat) => {
         setStats(prev => ({
@@ -54,26 +59,80 @@ const Home = () => {
     }, []);
 
     const fetchList = async () => {
-		setLoading(true);
-		try {
-			const res = await fetch('/api/experiences');
-			if (res.ok) {
-				const data = await res.json();
-				setList(data);
-			} else {
-				const res = await fetch('http://localhost:5000/api/experiences');
-			}
-		} catch (err) {
-			console.error(err);
-		} finally {
-			setLoading(false);
-		}
-	};
+        setLoading(true);
+        try {
+            const res = await fetch('http://localhost:5000/api/experiences');
+            if (res.ok) {
+                const data = await res.json();
+                console.log('Fetched data:', data);
+                setList(data);
+            } else {
+                console.error('Failed to fetch:', res.status);
+            }
+        } catch (err) {
+            console.error('Fetch error:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-	useEffect(() => { fetchList(); }, []);
+    useEffect(() => { 
+        fetchList(); 
+    }, []);
+
+    const handleEditClick = (feedback) => {
+        setEditingFeedback(feedback);
+        setModalOpen(true);
+    };
+
+    const handleDeleteClick = async (id) => {
+        if (window.confirm('Are you sure you want to delete this feedback?')) {
+            try {
+                const response = await fetch(`http://localhost:5000/api/experiences/${id}`, {
+                    method: 'DELETE',
+                });
+                
+                if (response.ok) {
+                    // Remove from local state
+                    setList(prevList => prevList.filter(item => item._id !== id));
+                    alert('Feedback deleted successfully!');
+                } else {
+                    alert('Failed to delete feedback');
+                }
+            } catch (error) {
+                console.error('Error deleting feedback:', error);
+                alert('Error deleting feedback');
+            }
+        }
+    };
+
+    const handleCloseModal = () => {
+        setModalOpen(false);
+        setEditingFeedback(null);
+    };
+
+    const handleFeedbackAdded = (newFeedback) => {
+        // If editing, update the existing item
+        if (editingFeedback) {
+            setList(prevList => 
+                prevList.map(item => 
+                    item._id === newFeedback._id ? newFeedback : item
+                )
+            );
+        } else {
+            // If new, add to the beginning of the list
+            setList(prevList => [newFeedback, ...prevList]);
+        }
+        setEditingFeedback(null);
+    };
+
+    const handleFeedbackDeleted = (deletedId) => {
+        setList(prevList => prevList.filter(item => item._id !== deletedId));
+        setEditingFeedback(null);
+    };
 
     const total = list.length;
-	const avgRating = total ? (list.reduce((s, i) => s + (i.rating || 0), 0) / total).toFixed(1) : '0.0';
+    const avgRating = total ? (list.reduce((s, i) => s + (i.rating || 0), 0) / total).toFixed(1) : '0.0';
 
     return (
         <div className="home-container">
@@ -104,7 +163,13 @@ const Home = () => {
                     <a className="nav-link" href="/">Home</a>
                     <a className="nav-link" href="/about">About</a>
                     <a className="nav-link" href="/contact">Contact</a>
-                    <a className="nav-link btn-fundraiser" href="/fundraiser">Fundraiser</a>
+                    {/* changed: open staff login modal instead of direct href */}
+                    <button
+                        className="nav-link btn-fundraiser"
+                        onClick={(e) => { e.preventDefault(); setStaffModalOpen(true); }}
+                    >
+                        Fundraiser
+                    </button>
                 </nav>
             </header>
 
@@ -357,38 +422,96 @@ const Home = () => {
                     </button>
 
                     <ShareExperience
-						open={modalOpen}
-						onClose={() => setModalOpen(false)}
-						onAdded={fetchList}
-					/>
+                        open={modalOpen}
+                        onClose={handleCloseModal}
+                        onAdded={handleFeedbackAdded}
+                        onDeleted={handleFeedbackDeleted}
+                        initialData={editingFeedback}
+                    />
 
-					<section>
-						
-						{loading && <p>Loading...</p>}
-						{!loading && list.length === 0 && <p>No feedback yet.</p>}
-						{list.map(item => (
-							<article key={item._id} style={{ borderBottom: '1px solid #eee', padding: 12 }}>
-								<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-									<strong>{item.user || 'Anonymous'}</strong>
-									<small style={{ color: '#666' }}>{new Date(item.createdAt).toLocaleString()}</small>
-								</div>
-								<div style={{ color: '#f5b301', marginTop: 6 }}>
-									{Array.from({ length: 5 }, (_, i) => (
-										<span key={i} style={{ color: i < (item.rating || 0) ? '#f5b301' : '#ddd', marginRight: 2 }}>★</span>
-									))}
-								</div>
-								<p style={{ marginTop: 8 }}>{item.message}</p>
-							</article>
-						))}
-					</section>
+                    {/* User Feedback Section */}
+                    <section className="user-feedback-section">
+                        <h3>Recent User Feedback</h3>
+                        <p className="feedback-subtitle">
+                            Read what our community members are saying about their experiences
+                        </p>
+                        
+                        {loading && <p className="loading-text">Loading...</p>}
+                        {!loading && list.length === 0 && <p className="no-feedback">No feedback yet. Be the first to share!</p>}
+                        
+                        <div className="feedback-list">
+                            {list.map(item => (
+                                <div key={item._id} className="feedback-card">
+                                    <div className="feedback-header">
+                                        <div className="feedback-user">
+                                            <div className="feedback-avatar">
+                                                {item.name?.charAt(0) || 'A'}
+                                            </div>
+                                            <div className="feedback-user-info">
+                                                <strong className="feedback-name">{item.name || 'Anonymous'}</strong>
+                                                <small className="feedback-date">
+                                                    {new Date(item.createdAt).toLocaleDateString('en-US', {
+                                                        year: 'numeric',
+                                                        month: 'short',
+                                                        day: 'numeric'
+                                                    })}
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div className="feedback-actions">
+                                            <button 
+                                                className="edit-btn"
+                                                onClick={() => handleEditClick(item)}
+                                                title="Edit feedback"
+                                            >
+                                                ✏️ Edit
+                                            </button>
+                                            <button 
+                                                className="delete-btn"
+                                                onClick={() => handleDeleteClick(item._id)}
+                                                title="Delete feedback"
+                                            >
+                                                🗑️ Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="feedback-rating">
+                                        {Array.from({ length: 5 }, (_, i) => (
+                                            <span 
+                                                key={i} 
+                                                className={`star ${i < (item.rating || 0) ? 'filled' : 'empty'}`}
+                                            >
+                                                ★
+                                            </span>
+                                        ))}
+                                        <span className="rating-number">{item.rating || 0}/5</span>
+                                    </div>
+                                    
+                                    <p className="feedback-content">{item.experience}</p>
+                                    
+                                    <div className="feedback-email">
+                                        <small>Email: {item.email}</small>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
                 </section>
             </main>
+
+            {/* Staff login modal for CMS access */}
+            <StaffLoginModal
+                open={staffModalOpen}
+                onClose={() => setStaffModalOpen(false)}
+            />
 
             {/* Footer */}
             <footer className="footer">
                 <p>&copy; 2024 HerCycle. All rights reserved.</p>
             </footer>
         </div>
+    )
 };
 
 export default Home;

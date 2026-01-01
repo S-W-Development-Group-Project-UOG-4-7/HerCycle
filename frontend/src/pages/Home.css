@@ -279,6 +279,23 @@
     animation: floatHeart 15s linear infinite;
 }
 
+@keyframes floatHeart {
+    0% {
+        transform: translateY(100vh) rotate(0deg);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-100px) rotate(360deg);
+        opacity: 0;
+    }
+}
+
 /* ========== PAGE 2 - FEATURES ========== */
 .page-2 {
     padding: 5rem 0;
@@ -393,12 +410,6 @@
     background: linear-gradient(90deg, #ec4899, #8b5cf6);
 }
 
-.feature-icon {
-    font-size: 3rem;
-    margin-bottom: 1.5rem;
-    display: inline-block;
-}
-
 /* Add hover effect instead of auto-scrolling */
 .feature-icon:hover {
     animation: gentleBounce 0.5s ease;
@@ -443,23 +454,6 @@
     to {
         opacity: 1;
         transform: translateY(0);
-    }
-}
-
-@keyframes floatHeart {
-    0% {
-        transform: translateY(100vh) rotate(0deg);
-        opacity: 0;
-    }
-    10% {
-        opacity: 1;
-    }
-    90% {
-        opacity: 1;
-    }
-    100% {
-        transform: translateY(-100px) rotate(360deg);
-        opacity: 0;
     }
 }
 
@@ -584,7 +578,6 @@
 .user-type-btn:hover {
     transform: translateY(-3px) scale(1.05);
     box-shadow: 0 8px 25px rgba(236, 72, 153, 0.4);
-    border-color: rgba(255, 255, 255, 0.5);
 }
 
 /* ========== TESTIMONIALS SECTION ========== */
@@ -911,10 +904,502 @@
     font-size: 1rem;
 }
 
+/* ========== ENHANCED USER FEEDBACK SECTION ========== */
+.user-feedback-section {
+    margin-top: 5rem;
+    padding: 3rem 2rem;
+    background: linear-gradient(135deg, 
+        rgba(252, 231, 243, 0.9) 0%, 
+        rgba(240, 244, 255, 0.9) 50%, 
+        rgba(243, 232, 255, 0.9) 100%);
+    border-radius: 30px;
+    box-shadow: 
+        0 20px 60px rgba(236, 72, 153, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    position: relative;
+    overflow: hidden;
+    border: 2px solid rgba(236, 72, 153, 0.2);
+}
+
+.user-feedback-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: linear-gradient(90deg, 
+        #ec4899, 
+        #d946ef, 
+        #a855f7, 
+        #8b5cf6);
+    border-radius: 30px 30px 0 0;
+}
+
+.user-feedback-section h3 {
+    text-align: center;
+    font-size: 2.8rem;
+    margin-bottom: 1rem;
+    color: transparent;
+    background: linear-gradient(135deg, #ec4899, #8b5cf6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    font-weight: 800;
+    text-shadow: 0 2px 10px rgba(236, 72, 153, 0.2);
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+.user-feedback-section h3::after {
+    content: '💖';
+    position: absolute;
+    top: -10px;
+    right: calc(50% - 180px);
+    font-size: 2rem;
+    animation: heartFloat 3s ease-in-out infinite;
+}
+
+@keyframes heartFloat {
+    0%, 100% { 
+        transform: translateY(0) rotate(0deg); 
+    }
+    25% { 
+        transform: translateY(-5px) rotate(5deg); 
+    }
+    75% { 
+        transform: translateY(5px) rotate(-5deg); 
+    }
+}
+
+.feedback-subtitle {
+    text-align: center;
+    color: #7c3aed;
+    margin-bottom: 3rem;
+    font-size: 1.2rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    font-weight: 500;
+    opacity: 0.9;
+}
+
+/* Feedback List Container */
+.feedback-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Enhanced Feedback Card */
+.feedback-card {
+    background: linear-gradient(145deg, 
+        rgba(255, 255, 255, 0.95) 0%, 
+        rgba(255, 245, 250, 0.95) 100%);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 
+        0 15px 35px rgba(236, 72, 153, 0.15),
+        0 5px 15px rgba(139, 92, 246, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(236, 72, 153, 0.1);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(10px);
+    animation: slideInUp 0.5s ease-out forwards;
+}
+
+.feedback-card:nth-child(1) { animation-delay: 0.1s; }
+.feedback-card:nth-child(2) { animation-delay: 0.2s; }
+.feedback-card:nth-child(3) { animation-delay: 0.3s; }
+.feedback-card:nth-child(4) { animation-delay: 0.4s; }
+.feedback-card:nth-child(5) { animation-delay: 0.5s; }
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.feedback-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    background: linear-gradient(90deg, #ec4899, #a855f7);
+    border-radius: 20px 20px 0 0;
+}
+
+.feedback-card::after {
+    content: '❤️';
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    font-size: 1.5rem;
+    opacity: 0.1;
+    transform: rotate(20deg);
+}
+
+.feedback-card:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 
+        0 25px 50px rgba(236, 72, 153, 0.25),
+        0 10px 25px rgba(139, 92, 246, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    border-color: rgba(236, 72, 153, 0.3);
+}
+
+/* Feedback Header with Gradient Background */
+.feedback-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid rgba(236, 72, 153, 0.1);
+    position: relative;
+}
+
+.feedback-header::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(90deg, #ec4899, #a855f7);
+    border-radius: 2px;
+}
+
+.feedback-user {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+}
+
+.feedback-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ec4899, #a855f7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 1.5rem;
+    box-shadow: 
+        0 8px 20px rgba(236, 72, 153, 0.4),
+        inset 0 2px 0 rgba(255, 255, 255, 0.3);
+    border: 3px solid rgba(255, 255, 255, 0.8);
+    transition: transform 0.3s ease;
+}
+
+.feedback-card:hover .feedback-avatar {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.feedback-user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.feedback-name {
+    color: #7c3aed;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+    text-shadow: 0 1px 2px rgba(124, 58, 237, 0.1);
+}
+
+.feedback-date {
+    color: #a855f7;
+    font-size: 0.9rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.feedback-date::before {
+    content: '📅';
+    font-size: 0.8rem;
+}
+
+/* Enhanced Feedback Actions */
+.feedback-actions {
+    display: flex;
+    gap: 0.8rem;
+    position: relative;
+    z-index: 2;
+}
+
+.edit-btn, .delete-btn {
+    padding: 0.6rem 1.2rem;
+    border-radius: 25px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    position: relative;
+    overflow: hidden;
+}
+
+.edit-btn::before, .delete-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.edit-btn:hover::before, .delete-btn:hover::before {
+    left: 100%;
+}
+
+.edit-btn {
+    background: linear-gradient(135deg, #ec4899, #d946ef);
+    color: white;
+    border: 2px solid rgba(236, 72, 153, 0.3);
+}
+
+.edit-btn:hover {
+    background: linear-gradient(135deg, #db2777, #c026d3);
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 20px rgba(236, 72, 153, 0.4);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.delete-btn {
+    background: linear-gradient(135deg, #f472b6, #ec4899);
+    color: white;
+    border: 2px solid rgba(244, 114, 182, 0.3);
+}
+
+.delete-btn:hover {
+    background: linear-gradient(135deg, #f43f5e, #e11d48);
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 20px rgba(244, 63, 94, 0.4);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Enhanced Feedback Rating */
+.feedback-rating {
+    margin: 1.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, 
+        rgba(236, 72, 153, 0.05), 
+        rgba(168, 85, 247, 0.05));
+    border-radius: 15px;
+    border: 1px solid rgba(236, 72, 153, 0.1);
+}
+
+.feedback-rating .star {
+    font-size: 1.5rem;
+    transition: transform 0.2s ease;
+}
+
+.feedback-rating .star.filled {
+    color: #fbbf24;
+    text-shadow: 0 2px 4px rgba(251, 191, 36, 0.3);
+    animation: starGlow 2s ease-in-out infinite;
+}
+
+@keyframes starGlow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
+
+.feedback-rating .star.empty {
+    color: #e5e7eb;
+}
+
+.feedback-card:hover .star.filled {
+    animation: starTwinkle 0.5s ease;
+}
+
+@keyframes starTwinkle {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+
+.rating-number {
+    margin-left: 1rem;
+    color: #7c3aed;
+    font-weight: 700;
+    font-size: 1.1rem;
+    background: rgba(124, 58, 237, 0.1);
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    border: 1px solid rgba(124, 58, 237, 0.2);
+}
+
+/* Enhanced Feedback Content */
+.feedback-content {
+    color: #4b5563;
+    line-height: 1.7;
+    margin: 1.5rem 0;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, 
+        rgba(255, 255, 255, 0.9), 
+        rgba(249, 250, 251, 0.9));
+    border-radius: 15px;
+    border-left: 4px solid #ec4899;
+    position: relative;
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.05),
+        0 1px 0 rgba(255, 255, 255, 0.8);
+    font-size: 1.05rem;
+}
+
+.feedback-content::before {
+    content: '💬';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, #ec4899, #a855f7);
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 8px rgba(236, 72, 153, 0.3);
+}
+
+/* Enhanced Feedback Email */
+.feedback-email {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid rgba(236, 72, 153, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.feedback-email::before {
+    content: '📧';
+    font-size: 1.2rem;
+    color: #ec4899;
+}
+
+.feedback-email small {
+    color: #7c3aed;
+    font-size: 0.9rem;
+    font-weight: 500;
+    opacity: 0.9;
+}
+
+/* Loading and No Feedback with Enhanced Design */
+.loading-text {
+    text-align: center;
+    color: #7c3aed;
+    font-size: 1.3rem;
+    padding: 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.loading-text::before {
+    content: '✨';
+    font-size: 2rem;
+    animation: loadingSpin 1.5s linear infinite;
+}
+
+@keyframes loadingSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.no-feedback {
+    text-align: center;
+    color: #a855f7;
+    font-size: 1.2rem;
+    padding: 3rem;
+    background: linear-gradient(135deg, 
+        rgba(236, 72, 153, 0.05), 
+        rgba(168, 85, 247, 0.05));
+    border-radius: 20px;
+    border: 2px dashed rgba(236, 72, 153, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.no-feedback::before {
+    content: '💭';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 4rem;
+    opacity: 0.1;
+}
+
+/* Floating Hearts in Feedback Section */
+.user-feedback-section .floating-hearts {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.user-feedback-section .heart {
+    color: rgba(236, 72, 153, 0.2);
+    animation: floatHeartFeedback 20s linear infinite;
+}
+
+@keyframes floatHeartFeedback {
+    0% {
+        transform: translateY(100vh) rotate(0deg);
+        opacity: 0;
+    }
+    10% {
+        opacity: 0.3;
+    }
+    90% {
+        opacity: 0.3;
+    }
+    100% {
+        transform: translateY(-100px) rotate(360deg);
+        opacity: 0;
+    }
+}
+
 /* ========== RESPONSIVE DESIGN ========== */
 @media (max-width: 1200px) {
     .testimonial-card {
         flex: 0 0 320px;
+    }
+    .feedback-list {
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     }
 }
 
@@ -1024,6 +1509,43 @@
     .user-type-description {
         font-size: 1rem;
     }
+    
+    /* Responsive for User Feedback Section */
+    .user-feedback-section {
+        padding: 2rem 1.5rem;
+        border-radius: 25px;
+    }
+    
+    .user-feedback-section h3 {
+        font-size: 2.2rem;
+    }
+    
+    .feedback-list {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .feedback-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .feedback-actions {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+    
+    .edit-btn, .delete-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .feedback-avatar {
+        width: 50px;
+        height: 50px;
+        font-size: 1.3rem;
+    }
 }
 
 @media (max-width: 480px) {
@@ -1047,4 +1569,132 @@
         flex-direction: column;
         gap: 1.5rem;
     }
+    
+    /* Responsive for User Feedback Section */
+    .user-feedback-section {
+        padding: 1.5rem 1rem;
+    }
+    
+    .user-feedback-section h3 {
+        font-size: 1.8rem;
+    }
+    
+    .feedback-card {
+        padding: 1.5rem;
+    }
+    
+    .feedback-user {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.8rem;
+    }
+    
+    .feedback-actions {
+        justify-content: center;
+    }
+    
+    .feedback-rating {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+
+/* Modal (staff login) */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    animation: fadeInUp 0.18s ease;
+}
+
+.modal {
+    width: 420px;
+    max-width: calc(100% - 32px);
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border: 2px solid rgba(236,72,153,0.08);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.2rem;
+    background: linear-gradient(90deg, rgba(236,72,153,0.06), rgba(139,92,246,0.04));
+    border-bottom: 1px solid rgba(236,72,153,0.06);
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #7c3aed;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: #6b7280;
+}
+
+.modal-body {
+    padding: 1rem 1.2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.modal-body label {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.95rem;
+    color: #374151;
+    gap: 0.4rem;
+}
+
+.modal-body input {
+    padding: 0.8rem 0.9rem;
+    border-radius: 8px;
+    border: 1px solid rgba(124,58,237,0.12);
+    outline: none;
+    font-size: 0.95rem;
+}
+
+.modal-error {
+    color: #b91c1c;
+    background: rgba(249, 115, 22, 0.04);
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    margin-top: 0.2rem;
+}
+
+.modal-submit {
+    margin-top: 0.6rem;
+    background: linear-gradient(135deg, #ec4899, #8b5cf6);
+    color: white;
+    padding: 0.9rem 1rem;
+    border-radius: 10px;
+    border: none;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(236,72,153,0.18);
+}
+
+.modal-footer {
+    padding: 0.8rem 1.2rem;
+    border-top: 1px solid rgba(236,72,153,0.04);
+    text-align: center;
+    font-size: 0.85rem;
+    color: #6b7280;
 }

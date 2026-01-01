@@ -1,108 +1,256 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import './ShareExperience.css';
 
-export default function ShareExperience({ open, onClose, onAdded }) {
-	const [user, setUser] = useState('');
-	const [message, setMessage] = useState('');
-	const [rating, setRating] = useState(0);
-	const [submitting, setSubmitting] = useState(false);
-	const [error, setError] = useState('');
-	const [success, setSuccess] = useState('');
+export default function ShareExperience({ open, onClose, onAdded, onDeleted, initialData = null }) {
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [experience, setExperience] = useState('');
+    const [rating, setRating] = useState(0);
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
 
-	if (!open) return null;
+    const API_URL = 'http://localhost:5000/api/experiences';
 
-	const submit = async (e) => {
-		e.preventDefault();
-		setError('');
-		setSuccess('');
-		if (!message.trim()) { setError('Please enter feedback'); return; }
-		if (rating < 1) { setError('Please select a rating'); return; }
-		setSubmitting(true);
-		try {
-			const res = await fetch('http://localhost:5000/api/experiences', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ user: user.trim() || 'Anonymous', message: message.trim(), rating })
-			});
-			const bodyText = await res.text().catch(()=>'');
-			let json;
-			try { json = bodyText ? JSON.parse(bodyText) : null; } catch { json = null; }
+    useEffect(() => {
+        if (open && initialData) {
+            setName(initialData.name || '');
+            setEmail(initialData.email || '');
+            setExperience(initialData.experience || '');
+            setRating(initialData.rating || 0);
+            setError(''); 
+            setSuccess('');
+        } else if (open && !initialData) {
+            setName(''); 
+            setEmail(''); 
+            setExperience(''); 
+            setRating(0); 
+            setError(''); 
+            setSuccess('');
+        }
+    }, [open, initialData]);
 
-			if (res.ok) {
-				setSuccess('Feedback submitted successfully.');
-				setUser(''); setMessage(''); setRating(0);
-				if (onAdded) onAdded();
-				// keep success visible briefly then close
-				setTimeout(() => {
-					setSuccess('');
-					if (onClose) onClose();
-				}, 900);
-			} else {
-				const serverMsg = (json && (json.message || json.error)) || bodyText || 'Submit failed';
-				setError(serverMsg);
-			}
-		} catch (err) {
-			console.error('Network error:', err);
-			setError('Network error - cannot reach server');
-		} finally {
-			setSubmitting(false);
-		}
-	};
+    if (!open) return null;
 
-	// simple colored modal styles
-	const overlayStyle = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
-	const boxStyle = { background: '#fff', padding: 20, borderRadius: 12, width: 420, boxShadow: '0 8px 30px rgba(0,0,0,0.2)' };
-	const headerStyle = { marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' };
-	const btnPrimary = { background: '#28a745', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' };
-	const btnSecondary = { background: '#f0f0f0', border: 'none', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' };
+    const submit = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSuccess('');
+        
+        // Basic validation
+        if (!experience.trim()) { 
+            setError('Please enter your experience'); 
+            return; 
+        }
+        if (!email.trim()) { 
+            setError('Please enter your email'); 
+            return; 
+        }
+        if (rating < 1) { 
+            setError('Please select a rating'); 
+            return; 
+        }
+        
+        setSubmitting(true);
+        try {
+            const payload = {
+                name: name.trim() || 'Anonymous',
+                email: email.trim(),
+                experience: experience.trim(),
+                rating: rating
+            };
 
-	return (
-		<div style={overlayStyle}>
-			<form onSubmit={submit} style={boxStyle}>
-				<div style={headerStyle}>
-					<h3 style={{ margin: 0 }}>Share your experience</h3>
-					<button type="button" onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 20, cursor: 'pointer' }}>✕</button>
-				</div>
+            console.log('Submitting:', payload);
 
-				<label style={{ display: 'block', marginBottom: 8 }}>
-					<span style={{ fontSize: 13, color: '#333' }}>Name (optional)</span>
-					<input value={user} onChange={e => setUser(e.target.value)} style={{ width: '100%', padding: 8, marginTop: 6, borderRadius: 6, border: '1px solid #ddd' }} />
-				</label>
+            let response;
+            
+            if (initialData && initialData._id) {
+                // UPDATE existing feedback
+                response = await axios.put(`${API_URL}/${initialData._id}`, payload);
+                setSuccess('Feedback updated successfully!');
+            } else {
+                // CREATE new feedback
+                response = await axios.post(API_URL, payload);
+                setSuccess('Feedback submitted successfully!');
+            }
+            
+            console.log('Response:', response.data);
+            
+            if (onAdded) onAdded(response.data);
+            
+            // Reset form and close after success
+            setTimeout(() => {
+                setSuccess('');
+                if (onClose) onClose();
+                // Reset form
+                if (!initialData) {
+                    setName('');
+                    setEmail('');
+                    setExperience('');
+                    setRating(0);
+                }
+            }, 1500);
+            
+        } catch (err) {
+            console.error('Error:', err);
+            setError(err.response?.data?.error || err.response?.data?.message || 'Failed to save. Please try again.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
-				<label style={{ display: 'block', marginBottom: 8 }}>
-					<span style={{ fontSize: 13, color: '#333' }}>Feedback</span>
-					<textarea value={message} onChange={e => setMessage(e.target.value)} rows={4} style={{ width: '100%', padding: 8, marginTop: 6, borderRadius: 6, border: '1px solid #ddd' }} />
-				</label>
+    const handleDelete = async () => {
+        if (!(initialData && initialData._id)) return;
+        if (!window.confirm('Are you sure you want to delete this review?')) return;
+        
+        try {
+            await axios.delete(`${API_URL}/${initialData._id}`);
+            if (onDeleted) onDeleted(initialData._id);
+            if (onClose) onClose();
+        } catch (err) {
+            console.error('Delete Error:', err);
+            setError('Failed to delete: ' + err.message);
+        }
+    };
 
-				<label style={{ display: 'block', marginBottom: 12 }}>
-					<span style={{ fontSize: 13, color: '#333' }}>Rating</span>
-					<div style={{ marginTop: 6 }}>
-						{[1, 2, 3, 4, 5].map(n => (
-							<button
-								type="button"
-								key={n}
-								onClick={() => setRating(n)}
-								style={{
-									border: 'none',
-									background: 'transparent',
-									fontSize: 24,
-									cursor: 'pointer',
-									color: n <= rating ? '#f5b301' : '#ddd',
-									marginRight: 6
-								}}
-								aria-label={`Rate ${n}`}
-							>★</button>
-						))}
-					</div>
-				</label>
+    return (
+        <div className="share-experience-overlay">
+            <form onSubmit={submit} className="share-experience-modal">
+                <div className="share-experience-header">
+                    <h3>{initialData ? 'Edit Your Review' : 'Share Your Experience'}</h3>
+                    <button 
+                        type="button" 
+                        onClick={onClose} 
+                        className="share-experience-close-btn"
+                    >
+                        ×
+                    </button>
+                </div>
 
-				{error && <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>}
-				{success && <div style={{ color: 'green', marginBottom: 8 }}>{success}</div>}
+                {/* Show original email reference when editing */}
+                {initialData && initialData._id && (
+                    <div style={{ 
+                        backgroundColor: '#f8f9fa', 
+                        padding: '10px', 
+                        borderRadius: '6px',
+                        marginBottom: '15px',
+                        fontSize: '14px'
+                    }}>
+                        <strong>Original Email:</strong> {initialData.email}
+                        <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
+                            You can update your name, experience, and rating.
+                        </div>
+                    </div>
+                )}
 
-				<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
-					<button type="button" onClick={onClose} disabled={submitting} style={btnSecondary}>Cancel</button>
-					<button type="submit" disabled={submitting} style={btnPrimary}>{submitting ? 'Submitting...' : 'Submit'}</button>
-				</div>
-			</form>
-		</div>
-	);
+                <div className="share-experience-form-group">
+                    <label className="share-experience-label">
+                        Name (optional)
+                    </label>
+                    <input 
+                        type="text"
+                        value={name} 
+                        onChange={e => setName(e.target.value)}
+                        placeholder="Your name"
+                        className="share-experience-input"
+                    />
+                </div>
+
+                <div className="share-experience-form-group">
+                    <label className="share-experience-label">
+                        Email *
+                    </label>
+                    <input 
+                        type="email"
+                        value={email} 
+                        onChange={e => setEmail(e.target.value)}
+                        placeholder="your@email.com"
+                        required
+                        className="share-experience-input"
+                        readOnly={initialData && initialData._id} // Can't change email when editing
+                        style={initialData && initialData._id ? { backgroundColor: '#f5f5f5' } : {}}
+                    />
+                    {initialData && initialData._id && (
+                        <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
+                            Email cannot be changed when updating.
+                        </div>
+                    )}
+                </div>
+
+                <div className="share-experience-form-group">
+                    <label className="share-experience-label">
+                        Your Experience *
+                    </label>
+                    <textarea 
+                        value={experience} 
+                        onChange={e => setExperience(e.target.value)}
+                        placeholder="Share your experience..."
+                        rows="4"
+                        required
+                        className="share-experience-textarea"
+                    />
+                </div>
+
+                <div className="share-experience-form-group">
+                    <label className="share-experience-label">
+                        Rating *
+                    </label>
+                    <div className="share-experience-stars">
+                        {[1, 2, 3, 4, 5].map(n => (
+                            <button
+                                type="button"
+                                key={n}
+                                onClick={() => setRating(n)}
+                                className={`share-experience-star-btn ${n <= rating ? 'active' : ''}`}
+                                aria-label={`Rate ${n} stars`}
+                            >
+                                ★
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {error && (
+                    <div className="share-experience-error">
+                        {error}
+                    </div>
+                )}
+                
+                {success && (
+                    <div className="share-experience-success">
+                        {success}
+                    </div>
+                )}
+
+                <div className="share-experience-actions">
+                    {initialData && initialData._id && (
+                        <button 
+                            type="button" 
+                            onClick={handleDelete} 
+                            disabled={submitting}
+                            className="share-experience-btn delete"
+                        >
+                            Delete
+                        </button>
+                    )}
+                    <button 
+                        type="button" 
+                        onClick={onClose} 
+                        disabled={submitting}
+                        className="share-experience-btn cancel"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        type="submit" 
+                        disabled={submitting}
+                        className="share-experience-btn submit"
+                    >
+                        {submitting ? 'Saving...' : (initialData ? 'Update' : 'Submit')}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
 }

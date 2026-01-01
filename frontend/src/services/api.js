@@ -1,4 +1,3 @@
-
 import axios from "axios";
 
 const API_BASE_URL = "http://localhost:5000/api";
@@ -10,7 +9,26 @@ const api = axios.create({
     },
 });
 
-// Feedback API calls
+// ========== CONTACT API ==========
+export const contactAPI = {
+    // Submit new contact message
+    submitContact: (contactData) => 
+        api.post("/contacts", contactData),
+    
+    // Get all contact messages (for admin)
+    getAllContacts: () => 
+        api.get("/contacts"),
+    
+    // Update contact status (for admin)
+    updateContactStatus: (id, status) => 
+        api.put(`/contacts/${id}`, { status }),
+    
+    // Delete contact message (for admin)
+    deleteContact: (id) => 
+        api.delete(`/contacts/${id}`),
+};
+
+// ========== FEEDBACK API ==========
 export const feedbackAPI = {
     // Submit new feedback
     submitFeedback: (feedbackData) => 
@@ -33,7 +51,42 @@ export const feedbackAPI = {
         api.get("/feedback/create-sample"),
 };
 
-// Product API calls
+// ========== EXPERIENCE API ==========
+// Note: You might need this for your feedback/experience feature
+export const experienceAPI = {
+    // Submit new experience/feedback
+    submitExperience: (experienceData) => 
+        api.post("/experiences", experienceData),
+    
+    // Get all experiences
+    getAllExperiences: () => 
+        api.get("/experiences"),
+    
+    // Update experience
+    updateExperience: (id, experienceData) => 
+        api.put(`/experiences/${id}`, experienceData),
+    
+    // Delete experience
+    deleteExperience: (id) => 
+        api.delete(`/experiences/${id}`),
+};
+
+// ========== STAFF API ==========
+export const staffAPI = {
+    // Staff login
+    login: (credentials) => 
+        api.post("/staff/login", credentials),
+    
+    // Staff registration
+    register: (staffData) => 
+        api.post("/staff/register", staffData),
+    
+    // Get all staff (admin only)
+    getAllStaff: () => 
+        api.get("/staff"),
+};
+
+// ========== PRODUCT API ==========
 export const productAPI = {
     getAllProducts: () => 
         api.get("/products"),
@@ -42,7 +95,7 @@ export const productAPI = {
         api.post("/products", productData),
 };
 
-// User API calls
+// ========== USER API ==========
 export const userAPI = {
     getAllUsers: () => 
         api.get("/users"),
@@ -51,4 +104,23 @@ export const userAPI = {
         api.post("/users", userData),
 };
 
+// ========== TEST API ==========
+export const testAPI = {
+    // Test endpoint to check if backend is working
+    testBackend: () => 
+        api.get("/test"),
+};
+
+// Export all APIs together (optional)
+export const API = {
+    contact: contactAPI,
+    feedback: feedbackAPI,
+    experience: experienceAPI,
+    staff: staffAPI,
+    product: productAPI,
+    user: userAPI,
+    test: testAPI,
+};
+
+// Default export
 export default api;
