@@ -1,0 +1,290 @@
+================================================================================
+                    HERCYCLE EDUCATIONAL PLATFORM
+                          USE CASE SUMMARY
+================================================================================
+
+PROJECT: Hercycle - Period & Sex Education Platform for Children (Ages 10-18)
+TECH STACK: React + Node.js + MongoDB
+STATUS: Phases 1-2 Complete, Phase 3+ Planned
+
+================================================================================
+                              ACTORS
+================================================================================
+
+1. STUDENT/CHILD (Primary Actor)
+   - Age Range: 10-18 years
+   - Role: Main user of the educational platform
+   - Goals: Learn about health, complete modules, earn points
+
+2. SYSTEM (Secondary Actor)
+   - Role: Automated processes
+   - Functions: Validate tokens, track progress, award points/badges
+
+================================================================================
+                      USE CASES BY CATEGORY
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ AUTHENTICATION SYSTEM (✅ Implemented)                                  │
+├─────────────────────────────────────────────────────────────────────────┤
+│ UC1  │ Sign Up with Age Verification      │ Student → System            │
+│      │ - Validate age 10-18               │ - Creates account           │
+│      │ - Collect: username, age, birthday │ - Generates JWT token       │
+│      │ - Optional: email, gender          │                             │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC2  │ Login                              │ Student → System            │
+│      │ - Validate credentials             │ - JWT token (7-day expiry)  │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC3  │ Logout                             │ Student → System            │
+│      │ - Clear JWT token                  │ - Redirect to home          │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC4  │ Verify Authentication Token        │ System (Automated)          │
+│      │ - Check token on protected routes  │ - Authorize/deny access     │
+└──────┴────────────────────────────────────┴─────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ PROFILE MANAGEMENT (✅ Implemented)                                     │
+├─────────────────────────────────────────────────────────────────────────┤
+│ UC5  │ View Profile                       │ Student → System            │
+│      │ - Display user info, stats, badges│ - Shows points, level       │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC6  │ Update Profile Information         │ Student → System            │
+│      │ - Edit optional fields (email)     │ - Validate and save         │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC7  │ View Personal Statistics           │ Student → System            │
+│      │ - Points, level, streak, progress  │ - Real-time calculations    │
+└──────┴────────────────────────────────────┴─────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ MODULE LEARNING SYSTEM (✅ Implemented)                                 │
+├─────────────────────────────────────────────────────────────────────────┤
+│ UC8  │ Browse All Modules                 │ Student → System            │
+│      │ - Display 12 modules in grid       │ - Show icon, title, status  │
+│      │ - Modules: Body, Puberty, Periods, │ - Points: 50 per module     │
+│      │   Hygiene, Emotions, Safety, etc.  │                             │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC9  │ Filter Modules by Category         │ Student → System            │
+│      │ - 8 categories + "All"             │ - Dynamic filtering         │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC10 │ View Module Details                │ Student → System            │
+│      │ - Full content, time, points       │ - Display sections          │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC11 │ Read Module Content                │ Student → System            │
+│      │ - Text sections, tips, takeaways   │ - Scrollable content        │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC12 │ Start Module                       │ Student + System            │
+│      │ - First time opening module        │ - Status: "In Progress"     │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC13 │ Complete Module                    │ Student → System            │
+│      │ - Click "Mark as Complete"         │ - Award 50 points           │
+│      │ - Celebration animation            │ - Check for level up/badges │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC14 │ Track Module Progress              │ System (Automated)          │
+│      │ - Record status changes            │ - Not Started/In Progress/  │
+│      │ - Update timestamps, time spent    │   Completed                 │
+└──────┴────────────────────────────────────┴─────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ QUIZ SYSTEM (⏳ Planned - Phase 3)                                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│ UC15 │ Take Quiz                          │ Student → System            │
+│      │ - 8-10 multiple choice questions   │ - A/B/C/D options           │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC16 │ Submit Quiz Answers                │ Student → System            │
+│      │ - Grade answers, calculate score   │ - 10 pts/question           │
+│      │ - Pass: 60%, Bonuses: +20 perfect  │ - Award points              │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC17 │ View Quiz Results                  │ Student → System            │
+│      │ - Score, percentage, pass/fail     │ - Show correct/incorrect    │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC18 │ View Quiz Explanations             │ Student → System            │
+│      │ - Explanation for each answer      │ - Educational feedback      │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC19 │ Retry Quiz                         │ Student → System            │
+│      │ - Allow multiple attempts          │ - Increment attempt number  │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC20 │ View Quiz History                  │ Student → System            │
+│      │ - All attempts with scores/dates   │ - Track improvement         │
+└──────┴────────────────────────────────────┴─────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ DASHBOARD & PROGRESS (✅ Implemented)                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│ UC21 │ View Dashboard                     │ Student → System            │
+│      │ - Welcome message, stats cards     │ - Points, level, streak     │
+│      │ - Progress bar, module list        │ - Recent activity           │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC22 │ View Overall Progress              │ Student → System            │
+│      │ - Completion percentage            │ - Completed/Total modules   │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC23 │ View Recent Activity               │ Student → System            │
+│      │ - Last 3 accessed modules          │ - Quick access links        │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC24 │ View Next Recommended Module       │ Student → System            │
+│      │ - Suggest next module              │ - Prioritize in-progress    │
+└──────┴────────────────────────────────────┴─────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ GAMIFICATION SYSTEM (✅ Partial / ⏳ Full in Phase 4)                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│ UC25 │ Earn Points                        │ System (Automated)          │
+│      │ - Module: 50 pts, Quiz: 10/q      │ - Triggered by completion   │
+│      │ - Perfect: +20, First: +10        │ - Add to totalPoints        │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC26 │ Level Up                           │ System (Automated)          │
+│      │ - Calculate level from points      │ - 7 levels (Beginner →     │
+│      │ - Display celebration              │   Champion)                 │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC27 │ View Current Level                 │ Student → System            │
+│      │ - Level badge on dashboard         │ - Progress to next level    │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC28 │ Maintain Daily Streak              │ System (Automated)          │
+│      │ - Track consecutive login days     │ - Reset if gap > 1 day      │
+│      │ - Unlock streak badges             │ - 3/7/14/30 day milestones  │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC29 │ Earn Badges/Achievements           │ System (Automated)          │
+│      │ - Check criteria after actions     │ - 5 badge categories        │
+│      │ - Unlock & display celebration     │ - Award bonus points        │
+├──────┼────────────────────────────────────┼─────────────────────────────┤
+│ UC30 │ View Badge Collection              │ Student → System            │
+│      │ - Display all badges (earned +     │ - Show rarity, date earned  │
+│      │   locked)                          │ - Common → Legendary        │
+└──────┴────────────────────────────────────┴─────────────────────────────┘
+
+================================================================================
+                         KEY RELATIONSHIPS
+================================================================================
+
+INCLUDE (Required):
+  UC1 (Sign Up)       --includes--> UC4 (Verify Token)
+  UC2 (Login)         --includes--> UC4 (Verify Token)
+  UC11 (Read Content) --includes--> UC10 (View Details)
+  UC13 (Complete)     --includes--> UC25 (Earn Points)
+  UC13 (Complete)     --includes--> UC29 (Earn Badges)
+  UC16 (Submit Quiz)  --includes--> UC25 (Earn Points)
+  UC17 (View Results) --includes--> UC18 (View Explanations)
+  UC21 (Dashboard)    --includes--> UC7, UC22, UC23 (Stats/Progress)
+
+EXTEND (Optional):
+  UC9 (Filter)        --extends-->  UC8 (Browse Modules)
+  UC25 (Earn Points)  --extends-->  UC26 (Level Up)
+
+================================================================================
+                         12 EDUCATIONAL MODULES
+================================================================================
+
+Module 1:  Welcome to Your Body           [Category: Body]
+Module 2:  Understanding Puberty          [Category: Puberty]
+Module 3:  All About Periods              [Category: Periods]
+Module 4:  Period Products 101            [Category: Periods]
+Module 5:  Managing Period Symptoms       [Category: Periods]
+Module 6:  Hygiene and Self-Care          [Category: Hygiene]
+Module 7:  Emotional Changes & Mental     [Category: Emotions]
+Module 8:  Your Changing Body             [Category: Body]
+Module 9:  Healthy Relationships          [Category: Relationships]
+Module 10: Body Safety and Consent        [Category: Safety]
+Module 11: Nutrition and Exercise         [Category: General]
+Module 12: Your Questions Answered        [Category: General]
+
+================================================================================
+                      GAMIFICATION BREAKDOWN
+================================================================================
+
+POINTS SYSTEM:
+  ┌────────────────────────────────┬──────────────────┐
+  │ Action                         │ Points Earned    │
+  ├────────────────────────────────┼──────────────────┤
+  │ Complete Module (first time)   │ 50 points        │
+  │ Quiz Question (correct)        │ 10 points        │
+  │ Perfect Quiz Bonus             │ +20 points       │
+  │ First Attempt Bonus            │ +10 points       │
+  │ Badge Unlock                   │ 10-100 points    │
+  └────────────────────────────────┴──────────────────┘
+
+LEVEL SYSTEM (7 Levels):
+  ┌────────┬─────────────────┬────────────────────┐
+  │ Level  │ Points Required │ Title              │
+  ├────────┼─────────────────┼────────────────────┤
+  │ 1      │ 0 - 199         │ Beginner           │
+  │ 2      │ 200 - 499       │ Explorer           │
+  │ 3      │ 500 - 999       │ Learner            │
+  │ 4      │ 1000 - 1999     │ Scholar            │
+  │ 5      │ 2000 - 3499     │ Expert             │
+  │ 6      │ 3500 - 5499     │ Master             │
+  │ 7      │ 5500+           │ Champion           │
+  └────────┴─────────────────┴────────────────────┘
+
+BADGE CATEGORIES (5 Types):
+  1. MILESTONE: Module completion (1, 3, 6, 9, 12 modules)
+  2. PERFECT SCORE: Perfect quiz scores (1, 5, 10 perfect)
+  3. STREAK: Daily login streaks (3, 7, 14, 30 days)
+  4. POINTS: Total points milestones (500, 1000, 2500, 5000)
+  5. SPECIAL: Time-based achievements (Early Bird, Night Owl, etc.)
+
+================================================================================
+                      IMPLEMENTATION STATUS
+================================================================================
+
+✅ PHASE 1-2 COMPLETE (Foundation & Modules):
+   - User authentication with JWT
+   - Age verification (10-18)
+   - 12 educational modules with content
+   - Module browsing and filtering
+   - Module completion tracking
+   - Dashboard with progress
+   - Points and level system
+   - Profile management
+
+⏳ PHASE 3 (Quiz System):
+   - Quiz creation for all 12 modules
+   - Quiz-taking interface
+   - Answer submission and grading
+   - Results display with explanations
+   - Quiz history tracking
+
+⏳ PHASE 4 (Gamification):
+   - Badge/achievement system
+   - Badge unlocking logic
+   - Celebration animations
+   - Streak tracking
+   - Leaderboards (optional)
+
+⏳ PHASE 5 (UI Polish):
+   - Enhanced animations
+   - Child-friendly illustrations
+   - Responsive design improvements
+   - Accessibility enhancements
+
+⏳ PHASE 6 (Content & Testing):
+   - Complete all module content
+   - Write all quiz questions
+   - End-to-end testing
+   - Bug fixes and optimization
+
+================================================================================
+                       SECURITY & VALIDATION
+================================================================================
+
+Age Verification:    Enforced at signup (must be 10-18 years)
+Authentication:      JWT tokens with 7-day expiry
+Password Security:   Bcrypt hashing with 10 salt rounds
+Data Privacy:        Email and gender are optional fields
+Input Validation:    All inputs validated on backend
+Protected Routes:    JWT required for dashboard, modules, profile
+
+================================================================================
+                          CONTACT & LINKS
+================================================================================
+
+Project Location: C:\Users\omalj\Desktop\New folder\hercycle
+Frontend URL:     http://localhost:5175/
+Backend URL:      http://localhost:5000
+Database:         MongoDB (localhost)
+
+Documentation:    /docs/use-case-diagram.md (detailed)
+                  /docs/use-case-diagram.puml (visual)
+                  /docs/README.md (how to view)
+
+================================================================================
+Last Updated: December 29, 2025
+================================================================================
