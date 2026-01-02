@@ -240,3 +240,399 @@ h6 {
     transform: scale(1);
   }
 }
+
+/* --- BEGINNER PLATFORM ANIMATIONS --- */
+
+/* 3D Perspective Container */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+/* Blob floating animation */
+@keyframes blob {
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+}
+
+.animate-blob {
+  animation: blob 7s ease-in-out infinite;
+}
+
+/* Confetti animation */
+@keyframes confetti {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.animate-confetti {
+  animation: confetti 3s ease-out forwards;
+}
+
+/* Shine sweep effect */
+@keyframes shine {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(100%);
+    opacity: 1;
+  }
+}
+
+.animate-shine {
+  animation: shine 0.8s ease-out forwards;
+}
+
+/* Bounce in animation */
+@keyframes bounce-in {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
+
+  70% {
+    transform: scale(0.9);
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.6s ease-out;
+}
+
+/* Slow bounce for badges */
+@keyframes bounce-slow {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 2s ease-in-out infinite;
+}
+
+/* Animation delays */
+.animation-delay-1000 {
+  animation-delay: 1s;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* 3D Card Transforms */
+.transform-3d {
+  transform-style: preserve-3d;
+}
+
+/* Glow effects */
+.drop-shadow-glow {
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+.shadow-glow-purple {
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+}
+
+.shadow-glow-pink {
+  box-shadow: 0 0 20px rgba(236, 72, 153, 0.4);
+}
+
+/* Scale on hover */
+.hover\:scale-102:hover {
+  transform: scale(1.02);
+}
+
+/* --- KID-FRIENDLY ANIMATIONS --- */
+
+/* Playful wiggle animation */
+@keyframes wiggle {
+
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+
+  25% {
+    transform: rotate(3deg);
+  }
+
+  50% {
+    transform: rotate(-3deg);
+  }
+
+  75% {
+    transform: rotate(3deg);
+  }
+}
+
+.animate-wiggle {
+  animation: wiggle 0.5s ease-in-out;
+}
+
+/* Float around animation for decorations */
+@keyframes float-around {
+
+  0%,
+  100% {
+    transform: translateY(0) translateX(0) rotate(0deg);
+    opacity: 0.6;
+  }
+
+  25% {
+    transform: translateY(-30px) translateX(10px) rotate(5deg);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: translateY(-10px) translateX(-10px) rotate(-3deg);
+    opacity: 0.6;
+  }
+
+  75% {
+    transform: translateY(-25px) translateX(5px) rotate(3deg);
+    opacity: 0.9;
+  }
+}
+
+.animate-float-around {
+  animation: float-around 8s ease-in-out infinite;
+}
+
+/* Rainbow text animation */
+@keyframes rainbow-shift {
+  0% {
+    background-position: 0% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.animate-rainbow-text {
+  background: linear-gradient(90deg, #ff6ec7, #b794f6, #06b6d4, #22c55e, #eab308, #ff6ec7);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: rainbow-shift 3s linear infinite;
+}
+
+/* Sparkle burst animation */
+@keyframes sparkle-burst {
+  0% {
+    transform: scale(0) rotate(0deg);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.5) rotate(180deg);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: scale(0) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+.animate-sparkle-burst {
+  animation: sparkle-burst 0.6s ease-out forwards;
+}
+
+/* Pop elastic animation */
+@keyframes pop-elastic {
+  0% {
+    transform: scale(0);
+  }
+
+  50% {
+    transform: scale(1.2);
+  }
+
+  70% {
+    transform: scale(0.9);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-pop-elastic {
+  animation: pop-elastic 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Pulse glow for buttons */
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 40px rgba(236, 72, 153, 0.6), 0 0 60px rgba(168, 85, 247, 0.3);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Card wobble on hover */
+@keyframes card-wobble {
+
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  25% {
+    transform: rotate(-1deg);
+  }
+
+  75% {
+    transform: rotate(1deg);
+  }
+}
+
+.hover\:animate-wobble:hover {
+  animation: card-wobble 0.3s ease-in-out;
+}
+
+/* Color cycling for backgrounds */
+@keyframes color-cycle {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+
+  100% {
+    filter: hue-rotate(360deg);
+  }
+}
+
+.animate-color-cycle {
+  animation: color-cycle 10s linear infinite;
+}
+
+/* Jelly bounce effect */
+@keyframes jelly {
+
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+
+  25% {
+    transform: scale(0.95, 1.05);
+  }
+
+  50% {
+    transform: scale(1.05, 0.95);
+  }
+
+  75% {
+    transform: scale(0.98, 1.02);
+  }
+}
+
+.animate-jelly {
+  animation: jelly 0.5s ease-in-out;
+}
+
+/* Floating hearts effect */
+@keyframes float-up {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(-100px) scale(0);
+    opacity: 0;
+  }
+}
+
+.animate-float-up {
+  animation: float-up 1.5s ease-out forwards;
+}
+
+/* Twinkle for stars */
+@keyframes twinkle {
+
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.animate-twinkle {
+  animation: twinkle 2s ease-in-out infinite;
+}
+
+/* Gradient border animation */
+@keyframes gradient-border {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient-border {
+  background: linear-gradient(90deg, #ff6ec7, #b794f6, #06b6d4, #22c55e, #eab308, #ff6ec7);
+  background-size: 300% 300%;
+  animation: gradient-border 3s ease infinite;
+}

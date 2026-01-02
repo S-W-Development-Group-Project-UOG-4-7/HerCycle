@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Users, GraduationCap, BookOpen, Activity } from 'lucide-react';
 import CreateLecturerForm from '../components/CreateLecturerForm';
 import StudentsProgressTable from '../components/StudentsProgressTable';
@@ -14,11 +14,7 @@ export default function AdminDashboard({ showToast }) {
     const [isLoading, setIsLoading] = useState(true);
     const [activeView, setActiveView] = useState('overview'); // overview, students, lecturers, courses
 
-    useEffect(() => {
-        fetchAnalytics();
-    }, []);
-
-    const fetchAnalytics = async () => {
+    const fetchAnalytics = useCallback(async () => {
         try {
             setIsLoading(true);
             const response = await fetch('http://localhost:5000/api/admin/analytics');
@@ -30,7 +26,11 @@ export default function AdminDashboard({ showToast }) {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [showToast]);
+
+    useEffect(() => {
+        fetchAnalytics();
+    }, [fetchAnalytics]);
 
     const stats = [
         {
@@ -169,8 +169,8 @@ export default function AdminDashboard({ showToast }) {
                         key={tab.id}
                         onClick={() => setActiveView(tab.id)}
                         className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${activeView === tab.id
-                                ? 'bg-primary text-white'
-                                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                            ? 'bg-primary text-white'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
                             }`}
                     >
                         {tab.label}

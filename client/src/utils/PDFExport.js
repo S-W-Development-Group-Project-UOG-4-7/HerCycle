@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 // Export Students Report
 export const exportStudentsPDF = async () => {
@@ -31,7 +31,7 @@ export const exportStudentsPDF = async () => {
             new Date(s.joinedDate).toLocaleDateString()
         ]);
 
-        doc.autoTable({
+        autoTable(doc, {
             startY: 45,
             head: [['Name', 'Email', 'Courses', 'Progress', 'Joined']],
             body: tableData,
@@ -101,7 +101,7 @@ export const exportCoursesPDF = async () => {
             new Date(c.createdAt).toLocaleDateString()
         ]);
 
-        doc.autoTable({
+        autoTable(doc, {
             startY: 50,
             head: [['Title', 'Instructor', 'Creator', 'Topic', 'Content', 'Created']],
             body: tableData,
@@ -176,7 +176,7 @@ export const exportModificationsPDF = async () => {
             new Date(m.date).toLocaleDateString()
         ]);
 
-        doc.autoTable({
+        autoTable(doc, {
             startY: 50,
             head: [['Course', 'Action', 'Modified By', 'Creator', 'Reason', 'Date']],
             body: tableData,
@@ -248,7 +248,8 @@ export const exportFullHistoryPDF = async () => {
         const summary = [
             `Total Students: ${data.students.length}`,
             `Total Courses: ${data.courses.length}`,
-            `Total Modifications: ${data.modifications.length}`
+            `Total Modifications: ${data.modifications.length}`,
+            `Deleted Students: ${data.studentDeletions?.length || 0}`
         ];
 
         let yPos = 145;
@@ -269,7 +270,7 @@ export const exportFullHistoryPDF = async () => {
             `${s.progress}%`
         ]);
 
-        doc.autoTable({
+        autoTable(doc, {
             startY: 30,
             head: [['Name', 'Email', 'Progress']],
             body: studentData,
@@ -289,7 +290,7 @@ export const exportFullHistoryPDF = async () => {
             c.topic
         ]);
 
-        doc.autoTable({
+        autoTable(doc, {
             startY: 30,
             head: [['Title', 'Instructor', 'Topic']],
             body: courseData,
@@ -311,12 +312,48 @@ export const exportFullHistoryPDF = async () => {
                 new Date(m.date).toLocaleDateString()
             ]);
 
-            doc.autoTable({
+            autoTable(doc, {
                 startY: 30,
                 head: [['Course', 'Action', 'Modified By', 'Date']],
                 body: modData,
                 theme: 'grid',
                 headStyles: { fillColor: [236, 72, 153] }
+            });
+        }
+
+        // Deleted Students Section
+        if (data.studentDeletions && data.studentDeletions.length > 0) {
+            doc.addPage();
+            doc.setFontSize(16);
+            doc.setTextColor(236, 72, 153);
+            doc.text('Deleted Students', 14, 20);
+
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Total Deleted: ${data.studentDeletions.length}`, 14, 28);
+
+            const deletionData = data.studentDeletions.map(d => [
+                d.studentName,
+                d.studentEmail,
+                d.deletedBy,
+                d.reason.substring(0, 40) + (d.reason.length > 40 ? '...' : ''),
+                new Date(d.date).toLocaleDateString()
+            ]);
+
+            autoTable(doc, {
+                startY: 35,
+                head: [['Student Name', 'Email', 'Deleted By', 'Reason', 'Date']],
+                body: deletionData,
+                theme: 'grid',
+                headStyles: { fillColor: [236, 72, 153] },
+                styles: {
+                    fontSize: 8,
+                    cellPadding: 3
+                },
+                columnStyles: {
+                    1: { cellWidth: 45 },
+                    3: { cellWidth: 45 }
+                }
             });
         }
 

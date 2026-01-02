@@ -1,24 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Download, History, Filter, Search, FileText, Trash2, Edit, Calendar } from 'lucide-react';
 import { exportStudentsPDF, exportCoursesPDF, exportModificationsPDF, exportFullHistoryPDF } from '../utils/PDFExport';
 
 export default function HistoryView({ showToast }) {
     const [activeTab, setActiveTab] = useState('all');
-    const [history, setHistory] = useState({ users: [], courses: [], modifications: [] });
+    const [history, setHistory] = useState({ users: [], courses: [], modifications: [], studentDeletions: [] });
     const [filteredData, setFilteredData] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
     const [exporting, setExporting] = useState(false);
 
-    useEffect(() => {
-        fetchHistory();
-    }, []);
-
-    useEffect(() => {
-        filterData();
-    }, [activeTab, searchTerm, history]);
-
-    const fetchHistory = async () => {
+    // Define fetchHistory with useCallback
+    const fetchHistory = useCallback(async () => {
         try {
             setLoading(true);
             const response = await fetch('http://localhost:5000/api/admin/history');
@@ -30,9 +23,10 @@ export default function HistoryView({ showToast }) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [showToast]);
 
-    const filterData = () => {
+    // Define filterData with useCallback
+    const filterData = useCallback(() => {
         let data = [];
 
         switch (activeTab) {
@@ -42,12 +36,12 @@ export default function HistoryView({ showToast }) {
             case 'courses':
                 data = history.courses;
                 break;
-            case 'modifications':
-                data = history.modifications;
+            case 'deletions':
+                data = history.studentDeletions;
                 break;
             default: // 'all'
                 data = [
-                    ...history.modifications.map(m => ({ ...m, type: 'modification' })),
+                    ...history.studentDeletions.map(d => ({ ...d, type: 'studentDeletion' })),
                     ...history.courses.map(c => ({ ...c, type: 'course' })),
                     ...history.users.filter(u => u.role === 'student').map(u => ({ ...u, type: 'student' }))
                 ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -60,7 +54,25 @@ export default function HistoryView({ showToast }) {
         }
 
         setFilteredData(data);
-    };
+    }, [activeTab, searchTerm, history]);
+
+    // Fetch history data on component mount
+    useEffect(() => {
+        fetchHistory();
+    }, [fetchHistory]);
+
+    // Real-time polling - refresh every 5 seconds for new deletions
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchHistory();
+        }, 5000);
+        return () => clearInterval(interval);
+    }, [fetchHistory]);
+
+    // Filter data when dependencies change
+    useEffect(() => {
+        filterData();
+    }, [filterData]);
 
     const handleExport = async (type) => {
         setExporting(true);
@@ -130,11 +142,14 @@ export default function HistoryView({ showToast }) {
                     </div>
                     <div className="text-slate-400 text-sm font-bold">Total Courses</div>
                 </div>
-                <div className="bg-bg-card border border-slate-800 rounded-3xl p-6">
-                    <div className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r from-orange-500 to-red-500 mb-2">
-                        {history.modifications.length}
+                <div className={`bg-bg-card border rounded-3xl p-6 transition-all duration-500 ${history.studentDeletions?.some(d => !d.notificationRead)
+                    ? 'border-red-500 shadow-lg shadow-red-500/30 animate-pulse'
+                    : 'border-slate-800'
+                    }`}>
+                    <div className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r from-red-500 to-rose-500 mb-2">
+                        {history.studentDeletions?.length || 0}
                     </div>
-                    <div className="text-slate-400 text-sm font-bold">Modifications</div>
+                    <div className="text-slate-400 text-sm font-bold">Deleted Students</div>
                 </div>
                 <div className="bg-bg-card border border-slate-800 rounded-3xl p-6">
                     <div className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-pink-500 mb-2">
@@ -153,15 +168,15 @@ export default function HistoryView({ showToast }) {
                             { id: 'all', label: 'All Activity' },
                             { id: 'students', label: 'Students' },
                             { id: 'courses', label: 'Courses' },
-                            { id: 'modifications', label: 'Modifications' }
+                            { id: 'deletions', label: 'Student Deletions' }
                         ].map(tab => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === tab.id
-                                        ? 'bg-primary text-white'
-                                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                                    }`}
+                                className={`px - 4 py - 2 rounded - xl font - bold text - sm transition - all ${activeTab === tab.id
+                                    ? 'bg-primary text-white'
+                                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                    } `}
                             >
                                 {tab.label}
                             </button>
@@ -208,41 +223,37 @@ export default function HistoryView({ showToast }) {
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        {activeTab === 'modifications' || (activeTab === 'all' && filteredData.some(d => d.type === 'modification')) ? (
-                            // Modifications View
+                        {activeTab === 'deletions' || (activeTab === 'all' && filteredData.some(d => d.type === 'studentDeletion')) ? (
+                            // Student Deletions View
                             <table className="w-full">
                                 <thead>
                                     <tr className="border-b border-slate-800">
                                         <th className="text-left py-3 px-4 text-slate-400 font-bold text-sm">Date</th>
-                                        <th className="text-left py-3 px-4 text-slate-400 font-bold text-sm">Course</th>
-                                        <th className="text-left py-3 px-4 text-slate-400 font-bold text-sm">Action</th>
-                                        <th className="text-left py-3 px-4 text-slate-400 font-bold text-sm">Modified By</th>
-                                        <th className="text-left py-3 px-4 text-slate-400 font-bold text-sm">Creator</th>
+                                        <th className="text-left py-3 px-4 text-slate-400 font-bold text-sm">Student Name</th>
+                                        <th className="text-left py-3 px-4 text-slate-400 font-bold text-sm">Student Email</th>
+                                        <th className="text-left py-3 px-4 text-slate-400 font-bold text-sm">Deleted By</th>
                                         <th className="text-left py-3 px-4 text-slate-400 font-bold text-sm">Reason</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredData.filter(d => !d.type || d.type === 'modification').map((mod, idx) => (
-                                        <tr key={idx} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                                    {filteredData.filter(d => !d.type || d.type === 'studentDeletion').map((deletion, idx) => (
+                                        <tr
+                                            key={idx}
+                                            className={`border-b border-slate-800/50 hover:bg-slate-800/20 transition-all ${!deletion.notificationRead
+                                                    ? 'bg-red-500/10 border-l-4 border-l-red-500 animate-pulse'
+                                                    : ''
+                                                }`}
+                                        >
                                             <td className="py-4 px-4 text-slate-400 text-sm">
                                                 <div className="flex items-center gap-2">
                                                     <Calendar size={14} />
-                                                    {formatDate(mod.createdAt)}
+                                                    {formatDate(deletion.createdAt)}
                                                 </div>
                                             </td>
-                                            <td className="py-4 px-4 text-white font-bold">{mod.courseTitle}</td>
-                                            <td className="py-4 px-4">
-                                                <span className={`px-3 py-1 rounded-lg text-xs font-bold ${mod.action === 'delete'
-                                                        ? 'bg-red-500/20 text-red-400'
-                                                        : 'bg-blue-500/20 text-blue-400'
-                                                    }`}>
-                                                    {mod.action === 'delete' ? <Trash2 size={12} className="inline mr-1" /> : <Edit size={12} className="inline mr-1" />}
-                                                    {mod.action.toUpperCase()}
-                                                </span>
-                                            </td>
-                                            <td className="py-4 px-4 text-white">{mod.modifierName}</td>
-                                            <td className="py-4 px-4 text-slate-400">{mod.originalCreatorName || 'N/A'}</td>
-                                            <td className="py-4 px-4 text-slate-400 text-sm max-w-xs truncate">{mod.reason}</td>
+                                            <td className="py-4 px-4 text-white font-bold">{deletion.studentName}</td>
+                                            <td className="py-4 px-4 text-slate-400">{deletion.studentEmail}</td>
+                                            <td className="py-4 px-4 text-orange-400 font-medium">{deletion.lecturerName}</td>
+                                            <td className="py-4 px-4 text-slate-400 text-sm max-w-xs truncate">{deletion.reason}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -297,31 +308,64 @@ export default function HistoryView({ showToast }) {
                                     ))}
                                 </tbody>
                             </table>
+                        ) : activeTab === 'deletions' ? (
+                            // Student Deletions View
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="border-b border-slate-800">
+                                        <th className="text-left py-3 px-4 text-slate-400 font-bold text-sm">Date</th>
+                                        <th className="text-left py-3 px-4 text-slate-400 font-bold text-sm">Student Name</th>
+                                        <th className="text-left py-3 px-4 text-slate-400 font-bold text-sm">Student Email</th>
+                                        <th className="text-left py-3 px-4 text-slate-400 font-bold text-sm">Deleted By</th>
+                                        <th className="text-left py-3 px-4 text-slate-400 font-bold text-sm">Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredData.map((deletion, idx) => (
+                                        <tr key={idx} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                                            <td className="py-4 px-4 text-slate-400 text-sm">
+                                                <div className="flex items-center gap-2">
+                                                    <Calendar size={14} />
+                                                    {formatDate(deletion.createdAt)}
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-4 text-white font-bold">{deletion.studentName}</td>
+                                            <td className="py-4 px-4 text-slate-400">{deletion.studentEmail}</td>
+                                            <td className="py-4 px-4 text-orange-400 font-medium">{deletion.lecturerName}</td>
+                                            <td className="py-4 px-4 text-slate-400 text-sm max-w-xs truncate">{deletion.reason}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         ) : (
                             // All Activity Timeline View
                             <div className="space-y-4">
                                 {filteredData.slice(0, 50).map((item, idx) => (
                                     <div key={idx} className="flex gap-4 p-4 bg-slate-800/20 rounded-2xl hover:bg-slate-800/40 transition-colors">
-                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${item.type === 'modification' ? 'bg-orange-500/20' :
+                                        <div className={`w - 12 h - 12 rounded - xl flex items - center justify - center ${item.type === 'modification' ? 'bg-orange-500/20' :
+                                            item.type === 'studentDeletion' ? 'bg-red-500/20' :
                                                 item.type === 'course' ? 'bg-green-500/20' :
                                                     'bg-blue-500/20'
-                                            }`}>
+                                            } `}>
                                             {item.type === 'modification' ? <Edit className="text-orange-400" size={20} /> :
-                                                item.type === 'course' ? <FileText className="text-green-400" size={20} /> :
-                                                    <FileText className="text-blue-400" size={20} />}
+                                                item.type === 'studentDeletion' ? <Trash2 className="text-red-400" size={20} /> :
+                                                    item.type === 'course' ? <FileText className="text-green-400" size={20} /> :
+                                                        <FileText className="text-blue-400" size={20} />}
                                         </div>
                                         <div className="flex-1">
                                             <div className="flex items-start justify-between">
                                                 <div>
                                                     <p className="text-white font-bold">
-                                                        {item.type === 'modification' ? `Course ${item.action}: ${item.courseTitle}` :
-                                                            item.type === 'course' ? `Course Created: ${item.title}` :
-                                                                `Student Joined: ${item.name}`}
+                                                        {item.type === 'modification' ? `Course ${item.action}: ${item.courseTitle} ` :
+                                                            item.type === 'studentDeletion' ? `Student Deleted: ${item.studentName} ` :
+                                                                item.type === 'course' ? `Course Created: ${item.title} ` :
+                                                                    `Student Joined: ${item.name} `}
                                                     </p>
                                                     <p className="text-slate-400 text-sm mt-1">
-                                                        {item.type === 'modification' ? `By ${item.modifierName} - ${item.reason}` :
-                                                            item.type === 'course' ? `By ${item.createdBy?.name || 'Unknown'}` :
-                                                                item.email}
+                                                        {item.type === 'modification' ? `By ${item.modifierName} - ${item.reason} ` :
+                                                            item.type === 'studentDeletion' ? `By ${item.lecturerName} - ${item.reason} ` :
+                                                                item.type === 'course' ? `By ${item.createdBy?.name || 'Unknown'} ` :
+                                                                    item.email}
                                                     </p>
                                                 </div>
                                                 <span className="text-slate-500 text-xs">{formatDate(item.createdAt)}</span>

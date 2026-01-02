@@ -9,6 +9,9 @@ import User from './models/User.js';
 import Note from './models/Note.js';
 import Message from './models/Message.js';
 import ModificationLog from './models/ModificationLog.js';
+import StudentDeletionLog from './models/StudentDeletionLog.js';
+import BeginnerLesson from './models/BeginnerLesson.js';
+import BeginnerProgress from './models/BeginnerProgress.js';
 
 dotenv.config();
 
@@ -99,7 +102,7 @@ app.post('/api/login', async (req, res) => {
 
 // --- USER MANAGEMENT ROUTES ---
 
-// 1. GET ALL STUDENTS
+// 1. GET ALL STUDENTS (for Student Management page)
 app.get('/api/users', async (req, res) => {
   try {
     const students = await User.find({ role: 'student' }).populate('completedCourses', 'title');
@@ -109,11 +112,79 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-// 2. DELETE USER
+// 1b. GET ALL CONTACTS FOR MESSAGING (admin + lecturers)
+app.get('/api/users/contacts', async (req, res) => {
+  try {
+    // Return admin and lecturers for messaging purposes
+    const users = await User.find({
+      role: { $in: ['admin', 'lecturer'] }
+    }).select('_id name email role profilePic');
+
+    // Map _id to id for frontend compatibility
+    const usersWithId = users.map(user => ({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      profilePic: user.profilePic
+    }));
+
+    res.json(usersWithId);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2. DELETE USER (Simple deletion - used by admin)
 app.delete('/api/users/:id', async (req, res) => {
   try {
     await User.findByIdAndDelete(req.params.id);
     res.json({ message: 'Student removed successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2b. LECTURER DELETE STUDENT WITH REASON (Notifies Admin)
+app.delete('/api/lecturer/students/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason, lecturerId, lecturerName } = req.body;
+
+
+    // Validate reason
+    if (!reason || reason.length < 10) {
+      return res.status(400).json({ message: 'Reason must be at least 10 characters' });
+    }
+
+    // Get student data before deletion
+    const student = await User.findById(id);
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    if (student.role !== 'student') {
+      return res.status(400).json({ message: 'Can only delete student accounts' });
+    }
+
+    // Create deletion log for admin notification
+    await StudentDeletionLog.create({
+      studentId: id,
+      studentName: student.name,
+      studentEmail: student.email,
+      deletedBy: lecturerId,
+      lecturerName,
+      reason,
+      notificationRead: false
+    });
+
+    // Delete the student
+    await User.findByIdAndDelete(id);
+
+    res.json({
+      message: 'Student removed successfully. Admin has been notified.',
+      notifiedAdmin: true
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -394,6 +465,7 @@ app.post('/api/messages', async (req, res) => {
 
     res.json(newMessage);
   } catch (err) {
+    console.error('❌ Error saving message:', err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -416,6 +488,7 @@ app.get('/api/messages/:userId', async (req, res) => {
 
     res.json(messages);
   } catch (err) {
+    console.error('❌ Error fetching messages:', err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -624,6 +697,18 @@ app.put('/api/courses/:id/admin-edit', async (req, res) => {
       $push: { modificationHistory: log._id }
     });
 
+    // Send message notification to the course creator (lecturer)
+    if (originalCourse.createdBy?._id && originalCourse.createdBy._id.toString() !== modifiedBy) {
+      await Message.create({
+        senderId: modifiedBy,
+        senderRole: modifierRole,
+        recipientId: originalCourse.createdBy._id,
+        recipientRole: 'lecturer',
+        message: `📝 Your course "${originalCourse.title}" has been edited by ${modifierName} (Admin).\n\nReason: ${reason}\n\nPlease review the changes in your course content.`,
+        read: false
+      });
+    }
+
     res.json({
       course: updatedCourse,
       log,
@@ -665,6 +750,18 @@ app.delete('/api/courses/:id/admin-delete', async (req, res) => {
       notificationSent: true
     });
 
+    // Send message notification to the course creator (lecturer) before deletion
+    if (course.createdBy?._id && course.createdBy._id.toString() !== modifiedBy) {
+      await Message.create({
+        senderId: modifiedBy,
+        senderRole: modifierRole,
+        recipientId: course.createdBy._id,
+        recipientRole: 'lecturer',
+        message: `🗑️ Your course "${course.title}" has been deleted by ${modifierName} (Admin).\n\nReason: ${reason}\n\nIf you have questions about this action, please contact the administrator.`,
+        read: false
+      });
+    }
+
     // Delete the course
     await Course.findByIdAndDelete(id);
 
@@ -682,23 +779,26 @@ app.delete('/api/courses/:id/admin-delete', async (req, res) => {
 // 1. GET COMPREHENSIVE HISTORY (Admin only)
 app.get('/api/admin/history', async (req, res) => {
   try {
-    const [users, courses, modifications] = await Promise.all([
+    const [users, courses, modifications, studentDeletions] = await Promise.all([
       User.find().sort({ createdAt: -1 }),
       Course.find().populate('createdBy', 'name email').sort({ createdAt: -1 }),
       ModificationLog.find()
         .populate('modifiedBy', 'name email role')
         .populate('originalCreator', 'name email role')
-        .sort({ createdAt: -1 })
+        .sort({ createdAt: -1 }),
+      StudentDeletionLog.find().sort({ createdAt: -1 })
     ]);
 
     res.json({
       users,
       courses,
       modifications,
+      studentDeletions,
       summary: {
         totalUsers: users.length,
         totalCourses: courses.length,
         totalModifications: modifications.length,
+        totalStudentDeletions: studentDeletions.length,
         generatedAt: new Date()
       }
     });
@@ -763,12 +863,439 @@ app.get('/api/admin/export-data', async (req, res) => {
       }));
     }
 
+    // Include student deletions for 'deletions' or 'full' type
+    if (type === 'deletions' || type === 'full') {
+      const deletions = await StudentDeletionLog.find()
+        .sort({ createdAt: -1 });
+
+      data.studentDeletions = deletions.map(d => ({
+        studentName: d.studentName,
+        studentEmail: d.studentEmail,
+        deletedBy: d.lecturerName,
+        reason: d.reason,
+        date: d.createdAt
+      }));
+    }
+
     res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
+
+// --- STUDENT DELETION LOG ROUTES ---
+
+// 1. GET ALL STUDENT DELETION LOGS (Admin only)
+app.get('/api/student-deletion-logs/admin', async (req, res) => {
+  try {
+    const logs = await StudentDeletionLog.find()
+      .populate('deletedBy', 'name email role')
+      .sort({ createdAt: -1 });
+
+    res.json(logs);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2. GET UNREAD STUDENT DELETION COUNT (Admin)
+app.get('/api/student-deletion-logs/unread-count', async (req, res) => {
+  try {
+    const count = await StudentDeletionLog.countDocuments({
+      notificationRead: false
+    });
+    res.json({ count });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. MARK STUDENT DELETION LOG AS READ
+app.put('/api/student-deletion-logs/:logId/read', async (req, res) => {
+  try {
+    const { logId } = req.params;
+    const log = await StudentDeletionLog.findByIdAndUpdate(
+      logId,
+      { notificationRead: true },
+      { new: true }
+    );
+    res.json(log);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- BEGINNER EDUCATION PLATFORM ROUTES ---
+
+// Achievement definitions
+const ACHIEVEMENTS = [
+  { id: 'first_steps', name: 'First Steps', description: 'Complete your first lesson', icon: '🌟', xpBonus: 50 },
+  { id: 'on_fire_3', name: 'On Fire', description: '3-day learning streak', icon: '🔥', xpBonus: 100 },
+  { id: 'unstoppable_7', name: 'Unstoppable', description: '7-day learning streak', icon: '⚡', xpBonus: 200 },
+  { id: 'perfect_score', name: 'Perfect Score', description: 'Get 100% on a quiz', icon: '🎯', xpBonus: 75 },
+  { id: 'category_master', name: 'Category Master', description: 'Complete all lessons in a category', icon: '📚', xpBonus: 300 },
+  { id: 'level_up', name: 'Level Up', description: 'Reach a new level', icon: '🏆', xpBonus: 50 },
+  { id: 'five_lessons', name: 'Getting Started', description: 'Complete 5 lessons', icon: '🎓', xpBonus: 100 },
+  { id: 'ten_lessons', name: 'Knowledge Builder', description: 'Complete 10 lessons', icon: '💪', xpBonus: 200 },
+  { id: 'quiz_master', name: 'Quiz Master', description: 'Pass 10 quizzes', icon: '🧠', xpBonus: 150 }
+];
+
+// 1. GET ALL BEGINNER LESSONS (published only for students, all for lecturers/admin)
+app.get('/api/beginner/lessons', async (req, res) => {
+  try {
+    const { role, userId, category } = req.query;
+
+    let query = {};
+
+    // Students only see published lessons
+    if (role === 'student') {
+      query.isPublished = true;
+    }
+
+    // Lecturers see only their own lessons
+    if (role === 'lecturer' && userId) {
+      query.createdBy = userId;
+    }
+
+    // Filter by category if provided
+    if (category && category !== 'All') {
+      query.category = category;
+    }
+
+    const lessons = await BeginnerLesson.find(query)
+      .populate('createdBy', 'name email')
+      .sort({ category: 1, order: 1 });
+
+    res.json(lessons);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2. GET SINGLE BEGINNER LESSON
+app.get('/api/beginner/lessons/:id', async (req, res) => {
+  try {
+    const lesson = await BeginnerLesson.findById(req.params.id)
+      .populate('createdBy', 'name email');
+
+    if (!lesson) {
+      return res.status(404).json({ message: 'Lesson not found' });
+    }
+
+    res.json(lesson);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. CREATE BEGINNER LESSON (lecturer/admin)
+app.post('/api/beginner/lessons', async (req, res) => {
+  try {
+    const lesson = new BeginnerLesson(req.body);
+    await lesson.save();
+    res.json(lesson);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 4. UPDATE BEGINNER LESSON
+app.put('/api/beginner/lessons/:id', async (req, res) => {
+  try {
+    const lesson = await BeginnerLesson.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    res.json(lesson);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 5. DELETE BEGINNER LESSON
+app.delete('/api/beginner/lessons/:id', async (req, res) => {
+  try {
+    await BeginnerLesson.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Lesson deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 6. GET USER PROGRESS
+app.get('/api/beginner/progress/:userId', async (req, res) => {
+  try {
+    let progress = await BeginnerProgress.findOne({ userId: req.params.userId })
+      .populate('completedLessons.lessonId', 'title category');
+
+    // Create progress record if doesn't exist
+    if (!progress) {
+      progress = await BeginnerProgress.create({ userId: req.params.userId });
+    }
+
+    // Calculate level info
+    const level = progress.level;
+    const levelTitle = BeginnerProgress.getLevelTitle(level);
+    const currentLevelXP = BeginnerProgress.getLevelThresholds()[level - 1] || 0;
+    const nextLevelXP = BeginnerProgress.getXPForNextLevel(level);
+    const xpInCurrentLevel = progress.totalXP - currentLevelXP;
+    const xpNeededForLevel = nextLevelXP - currentLevelXP;
+
+    res.json({
+      ...progress.toObject(),
+      levelTitle,
+      currentLevelXP,
+      nextLevelXP,
+      xpInCurrentLevel,
+      xpNeededForLevel,
+      levelProgress: Math.min(100, Math.round((xpInCurrentLevel / xpNeededForLevel) * 100))
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 7. COMPLETE A LESSON (Award XP, check achievements)
+app.post('/api/beginner/complete-lesson', async (req, res) => {
+  try {
+    const { userId, lessonId, quizScore } = req.body;
+
+    // Get lesson details
+    const lesson = await BeginnerLesson.findById(lessonId);
+    if (!lesson) {
+      return res.status(404).json({ message: 'Lesson not found' });
+    }
+
+    // Get or create progress
+    let progress = await BeginnerProgress.findOne({ userId });
+    if (!progress) {
+      progress = await BeginnerProgress.create({ userId });
+    }
+
+    // Check if already completed
+    const alreadyCompleted = progress.completedLessons.some(
+      cl => cl.lessonId.toString() === lessonId
+    );
+
+    if (alreadyCompleted) {
+      return res.json({ message: 'Already completed', progress, newAchievements: [] });
+    }
+
+    // Calculate XP (bonus for perfect score)
+    let xpEarned = lesson.xpReward;
+    if (quizScore === 100) {
+      xpEarned += 25; // Perfect score bonus
+    }
+
+    const oldLevel = progress.level;
+    const newAchievements = [];
+
+    // Update progress
+    progress.completedLessons.push({
+      lessonId,
+      xpEarned,
+      quizScore: quizScore || 0
+    });
+    progress.totalXP += xpEarned;
+    progress.totalLessonsCompleted += 1;
+
+    if (quizScore >= 70) {
+      progress.totalQuizzesPassed += 1;
+    }
+    if (quizScore === 100) {
+      progress.perfectScores += 1;
+    }
+
+    // Update streak
+    const today = new Date().toDateString();
+    const lastActivity = progress.lastActivityDate ? new Date(progress.lastActivityDate).toDateString() : null;
+
+    if (lastActivity !== today) {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      if (lastActivity === yesterday.toDateString()) {
+        progress.currentStreak += 1;
+      } else if (lastActivity !== today) {
+        progress.currentStreak = 1;
+      }
+
+      if (progress.currentStreak > progress.longestStreak) {
+        progress.longestStreak = progress.currentStreak;
+      }
+      progress.lastActivityDate = new Date();
+    }
+
+    // Calculate new level
+    const newLevel = BeginnerProgress.calculateLevel(progress.totalXP);
+    progress.level = newLevel;
+
+    // Check achievements
+    // First Steps
+    if (progress.totalLessonsCompleted === 1 && !progress.achievements.some(a => a.id === 'first_steps')) {
+      const achievement = ACHIEVEMENTS.find(a => a.id === 'first_steps');
+      progress.achievements.push({ ...achievement, unlockedAt: new Date() });
+      progress.totalXP += achievement.xpBonus;
+      newAchievements.push(achievement);
+    }
+
+    // Five Lessons
+    if (progress.totalLessonsCompleted >= 5 && !progress.achievements.some(a => a.id === 'five_lessons')) {
+      const achievement = ACHIEVEMENTS.find(a => a.id === 'five_lessons');
+      progress.achievements.push({ ...achievement, unlockedAt: new Date() });
+      progress.totalXP += achievement.xpBonus;
+      newAchievements.push(achievement);
+    }
+
+    // Ten Lessons
+    if (progress.totalLessonsCompleted >= 10 && !progress.achievements.some(a => a.id === 'ten_lessons')) {
+      const achievement = ACHIEVEMENTS.find(a => a.id === 'ten_lessons');
+      progress.achievements.push({ ...achievement, unlockedAt: new Date() });
+      progress.totalXP += achievement.xpBonus;
+      newAchievements.push(achievement);
+    }
+
+    // Perfect Score
+    if (quizScore === 100 && !progress.achievements.some(a => a.id === 'perfect_score')) {
+      const achievement = ACHIEVEMENTS.find(a => a.id === 'perfect_score');
+      progress.achievements.push({ ...achievement, unlockedAt: new Date() });
+      progress.totalXP += achievement.xpBonus;
+      newAchievements.push(achievement);
+    }
+
+    // Streak achievements
+    if (progress.currentStreak >= 3 && !progress.achievements.some(a => a.id === 'on_fire_3')) {
+      const achievement = ACHIEVEMENTS.find(a => a.id === 'on_fire_3');
+      progress.achievements.push({ ...achievement, unlockedAt: new Date() });
+      progress.totalXP += achievement.xpBonus;
+      newAchievements.push(achievement);
+    }
+
+    if (progress.currentStreak >= 7 && !progress.achievements.some(a => a.id === 'unstoppable_7')) {
+      const achievement = ACHIEVEMENTS.find(a => a.id === 'unstoppable_7');
+      progress.achievements.push({ ...achievement, unlockedAt: new Date() });
+      progress.totalXP += achievement.xpBonus;
+      newAchievements.push(achievement);
+    }
+
+    // Level Up achievement
+    if (newLevel > oldLevel && !progress.achievements.some(a => a.id === 'level_up')) {
+      const achievement = ACHIEVEMENTS.find(a => a.id === 'level_up');
+      progress.achievements.push({ ...achievement, unlockedAt: new Date() });
+      progress.totalXP += achievement.xpBonus;
+      newAchievements.push(achievement);
+    }
+
+    // Quiz Master
+    if (progress.totalQuizzesPassed >= 10 && !progress.achievements.some(a => a.id === 'quiz_master')) {
+      const achievement = ACHIEVEMENTS.find(a => a.id === 'quiz_master');
+      progress.achievements.push({ ...achievement, unlockedAt: new Date() });
+      progress.totalXP += achievement.xpBonus;
+      newAchievements.push(achievement);
+    }
+
+    // Update category progress
+    const categoryLessons = await BeginnerLesson.countDocuments({
+      category: lesson.category,
+      isPublished: true
+    });
+    const completedInCategory = progress.completedLessons.filter(async cl => {
+      const l = await BeginnerLesson.findById(cl.lessonId);
+      return l && l.category === lesson.category;
+    }).length;
+
+    progress.categoryProgress[lesson.category] = Math.round((completedInCategory / categoryLessons) * 100);
+
+    // Recalculate level after bonus XP
+    progress.level = BeginnerProgress.calculateLevel(progress.totalXP);
+
+    await progress.save();
+
+    res.json({
+      message: 'Lesson completed!',
+      xpEarned,
+      totalXP: progress.totalXP,
+      level: progress.level,
+      levelTitle: BeginnerProgress.getLevelTitle(progress.level),
+      newAchievements,
+      leveledUp: newLevel > oldLevel
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 8. GET ALL ACHIEVEMENTS (available)
+app.get('/api/beginner/achievements', async (req, res) => {
+  try {
+    res.json(ACHIEVEMENTS);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 9. GET LEADERBOARD (Top students by XP)
+app.get('/api/beginner/leaderboard', async (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+
+    const leaderboard = await BeginnerProgress.find()
+      .populate('userId', 'name profilePic')
+      .sort({ totalXP: -1 })
+      .limit(parseInt(limit));
+
+    const formattedLeaderboard = leaderboard.map((entry, index) => ({
+      rank: index + 1,
+      name: entry.userId?.name || 'Anonymous',
+      profilePic: entry.userId?.profilePic || '',
+      totalXP: entry.totalXP,
+      level: entry.level,
+      levelTitle: BeginnerProgress.getLevelTitle(entry.level),
+      lessonsCompleted: entry.totalLessonsCompleted,
+      currentStreak: entry.currentStreak
+    }));
+
+    res.json(formattedLeaderboard);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 10. GET CATEGORY STATS
+app.get('/api/beginner/categories', async (req, res) => {
+  try {
+    const categories = ['Body Basics', 'Emotions & Feelings', 'Healthy Habits', 'Growing Up', 'Staying Safe'];
+
+    const stats = await Promise.all(categories.map(async (category) => {
+      const count = await BeginnerLesson.countDocuments({ category, isPublished: true });
+      return { name: category, lessonCount: count };
+    }));
+
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 11. GET LEVEL INFO
+app.get('/api/beginner/levels', async (req, res) => {
+  try {
+    const thresholds = BeginnerProgress.getLevelThresholds();
+    const titles = BeginnerProgress.getLevelTitles();
+
+    const levels = thresholds.map((xp, index) => ({
+      level: index + 1,
+      xpRequired: xp,
+      title: titles[index]
+    }));
+
+    res.json(levels);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

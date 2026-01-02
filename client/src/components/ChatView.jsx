@@ -15,7 +15,7 @@ export default function ChatView({ user, showToast }) {
     /**
      * Fetch available users based on role
      * - Admin sees all lecturers
-     * - Lecturer sees admin only
+     * - Lecturer sees admin + all other lecturers
      */
     const fetchUsers = useCallback(async () => {
         try {
@@ -24,18 +24,48 @@ export default function ChatView({ user, showToast }) {
                 const data = await response.json();
                 setLecturers(data);
             } else if (user.role === 'lecturer') {
-                const response = await fetch('http://localhost:5000/api/users');
+                const response = await fetch('http://localhost:5000/api/users/contacts');
                 const allUsers = await response.json();
-                const admin = allUsers.find(u => u.role === 'admin');
+
+                // Get admin and all other lecturers (excluding self)
+                const availableUsers = allUsers.filter(u =>
+                    (u.role === 'admin' || u.role === 'lecturer') && u.id !== user.id
+                );
+
+                setLecturers(availableUsers);
+
+                // Auto-select admin if available, otherwise first lecturer
+                const admin = availableUsers.find(u => u.role === 'admin');
                 if (admin) {
-                    setLecturers([admin]);
-                    setSelectedUser(admin); // Auto-connect lecturer to admin
+                    setSelectedUser(admin);
+                } else if (availableUsers.length > 0) {
+                    setSelectedUser(availableUsers[0]);
                 }
             }
         } catch (error) {
             console.error('Error fetching users:', error);
         }
-    }, [user.role]);
+    }, [user.role, user.id]);
+
+
+    /**
+     * Mark unread messages as read
+     */
+    const markMessagesAsRead = useCallback(async (msgs) => {
+        const unreadMessages = msgs.filter(m =>
+            m.recipientId._id.toString() === user.id.toString() && !m.read
+        );
+
+        for (const msg of unreadMessages) {
+            try {
+                await fetch(`http://localhost:5000/api/messages/${msg._id}/read`, {
+                    method: 'PUT'
+                });
+            } catch (error) {
+                console.error('Error marking message as read:', error);
+            }
+        }
+    }, [user.id]);
 
     /**
      * Fetch messages for current conversation
@@ -49,37 +79,29 @@ export default function ChatView({ user, showToast }) {
             const data = await response.json();
 
             // Filter messages for current conversation only
-            const filtered = data.filter(msg =>
-                (msg.senderId._id === selectedUser.id && msg.recipientId._id === user.id) ||
-                (msg.recipientId._id === selectedUser.id && msg.senderId._id === user.id)
-            );
-            setMessages(filtered.reverse());
+            // Convert all IDs to strings for proper comparison
+            const filtered = data.filter(msg => {
+                const senderIdStr = msg.senderId._id.toString();
+                const recipientIdStr = msg.recipientId._id.toString();
+                const userIdStr = user.id.toString();
+                const selectedUserIdStr = selectedUser.id.toString();
+
+                const senderMatch = senderIdStr === selectedUserIdStr && recipientIdStr === userIdStr;
+                const recipientMatch = recipientIdStr === selectedUserIdStr && senderIdStr === userIdStr;
+                return senderMatch || recipientMatch;
+            });
+
+            // Sort by createdAt to ensure proper order
+            const sorted = filtered.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+            setMessages(sorted);
 
             // Auto-mark received messages as read
-            markMessagesAsRead(filtered);
+            markMessagesAsRead(sorted);
         } catch (error) {
             console.error('Error fetching messages:', error);
         }
-    }, [user?.id, selectedUser]);
+    }, [user?.id, selectedUser, markMessagesAsRead]);
 
-    /**
-     * Mark unread messages as read
-     */
-    const markMessagesAsRead = async (msgs) => {
-        const unreadMessages = msgs.filter(m =>
-            m.recipientId._id === user.id && !m.read
-        );
-
-        for (const msg of unreadMessages) {
-            try {
-                await fetch(`http://localhost:5000/api/messages/${msg._id}/read`, {
-                    method: 'PUT'
-                });
-            } catch (error) {
-                console.error('Error marking message as read:', error);
-            }
-        }
-    };
 
     // ==================== EFFECTS ====================
 
@@ -166,7 +188,7 @@ export default function ChatView({ user, showToast }) {
             <div className="w-full md:w-80 bg-bg-card border border-slate-800 rounded-3xl p-4 md:p-6 flex flex-col max-h-64 md:max-h-full">
                 <h3 className="text-lg md:text-xl font-black text-white mb-4 flex items-center gap-2">
                     <MessageCircle className="text-primary" size={20} />
-                    {user.role === 'admin' ? 'Lecturers' : 'Messages'}
+                    {user.role === 'admin' ? 'Lecturers' : 'Contacts'}
                 </h3>
 
                 <div className="flex-1 overflow-y-auto space-y-2">
@@ -180,8 +202,8 @@ export default function ChatView({ user, showToast }) {
                                 key={lecturer.id}
                                 onClick={() => setSelectedUser(lecturer)}
                                 className={`w-full text-left p-3 md:p-4 rounded-2xl transition-all ${selectedUser?.id === lecturer.id
-                                        ? 'bg-primary/20 border border-primary'
-                                        : 'bg-slate-800/30 hover:bg-slate-800/50 border border-transparent'
+                                    ? 'bg-primary/20 border border-primary'
+                                    : 'bg-slate-800/30 hover:bg-slate-800/50 border border-transparent'
                                     }`}
                             >
                                 <div className="flex items-center gap-3">
@@ -226,7 +248,7 @@ export default function ChatView({ user, showToast }) {
                                 </div>
                             ) : (
                                 messages.map((msg, idx) => {
-                                    const isOwn = msg.senderId._id === user.id;
+                                    const isOwn = msg.senderId._id.toString() === user.id.toString();
                                     return (
                                         <div
                                             key={idx}
@@ -234,8 +256,8 @@ export default function ChatView({ user, showToast }) {
                                         >
                                             <div
                                                 className={`max-w-[85%] md:max-w-[70%] rounded-2xl px-4 py-3 break-words ${isOwn
-                                                        ? 'bg-gradient-to-r from-primary to-secondary text-white'
-                                                        : 'bg-slate-800 text-white'
+                                                    ? 'bg-gradient-to-r from-primary to-secondary text-white'
+                                                    : 'bg-slate-800 text-white'
                                                     }`}
                                             >
                                                 <p className="text-sm">{msg.message}</p>
@@ -279,7 +301,7 @@ export default function ChatView({ user, showToast }) {
                         <div className="text-center">
                             <MessageCircle className="text-slate-600 mx-auto mb-4" size={48} />
                             <p className="text-slate-500 text-sm md:text-base">
-                                Select a {user.role === 'admin' ? 'lecturer' : 'conversation'} to start chatting
+                                Select a {user.role === 'admin' ? 'lecturer' : 'contact'} to start chatting
                             </p>
                         </div>
                     </div>

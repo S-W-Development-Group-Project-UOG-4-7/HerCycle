@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
 /**
  * NotificationBadge - Displays unread count for messages or modifications
@@ -7,6 +7,7 @@ import { useEffect, useState, useCallback } from 'react';
  */
 export default function NotificationBadge({ userId, type = 'messages' }) {
     const [count, setCount] = useState(0);
+    const isMounted = useRef(true);
 
     /**
      * Fetch unread count from API
@@ -22,7 +23,9 @@ export default function NotificationBadge({ userId, type = 'messages' }) {
 
             const response = await fetch(endpoint);
             const data = await response.json();
-            setCount(data.count || 0);
+            if (isMounted.current) {
+                setCount(data.count || 0);
+            }
         } catch (error) {
             console.error('Error fetching notification count:', error);
         }
@@ -30,9 +33,18 @@ export default function NotificationBadge({ userId, type = 'messages' }) {
 
     // Poll for updates every 5 seconds
     useEffect(() => {
-        fetchCount(); // Initial fetch
+        isMounted.current = true;
+
+        // Use async IIFE to handle initial fetch properly
+        (async () => {
+            await fetchCount();
+        })();
+
         const interval = setInterval(fetchCount, 5000);
-        return () => clearInterval(interval);
+        return () => {
+            isMounted.current = false;
+            clearInterval(interval);
+        };
     }, [fetchCount]);
 
     // Hide badge if no notifications

@@ -14,13 +14,41 @@ import AdminDashboard from './AdminDashboard';
 import ChatView from '../components/ChatView';
 import HistoryView from '../components/HistoryView';
 import ModificationModal from '../components/ModificationModal';
-import NotificationsPanel from '../components/NotificationsPanel';
+import BeginnerEducationView from '../components/BeginnerEducationView';
+import BeginnerProgressDashboard from '../components/BeginnerProgressDashboard';
+import BeginnerLessonDetail from '../components/BeginnerLessonDetail';
+import BeginnerLessonForm from '../components/BeginnerLessonForm';
+import BeginnerWelcome from '../components/BeginnerWelcome';
 import { BookOpen, UserCircle, UploadCloud, Edit, Trash2, Filter, Layers, Users, Menu } from 'lucide-react';
 
+// Calculate age helper
+const calculateUserAge = (dobString) => {
+  if (!dobString) return 18;
+  const birthday = new Date(dobString);
+  const today = new Date();
+  let age = today.getFullYear() - birthday.getFullYear();
+  const m = today.getMonth() - birthday.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthday.getDate())) { age--; }
+  return age;
+};
+
 export default function Dashboard({ user, onLogout }) {
+  // Determine if student should see beginner platform based on age
+  const userAgeInit = calculateUserAge(user.dob);
+  const isBeginnerStudentInit = user.role === 'student' && userAgeInit < 15;
+
   const [activeTab, setActiveTab] = useState(
-    user.role === 'admin' ? 'dashboard' : user.role === 'lecturer' ? 'upload' : 'education'
+    user.role === 'admin' ? 'dashboard'
+      : user.role === 'lecturer' ? 'upload'
+        : isBeginnerStudentInit ? 'beginner-education'
+          : 'education'
   );
+
+  // Beginner platform state
+  const [selectedBeginnerLesson, setSelectedBeginnerLesson] = useState(null);
+  const [beginnerProgress, setBeginnerProgress] = useState(null);
+  const [editingBeginnerLesson, setEditingBeginnerLesson] = useState(null);
+  const [showBeginnerWelcome, setShowBeginnerWelcome] = useState(isBeginnerStudentInit);
 
 
   const [currentUser, setCurrentUser] = useState(user);
@@ -36,7 +64,7 @@ export default function Dashboard({ user, onLogout }) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Modification modal state
-  const [modificationModal, setModificationModal] = useState({ isOpen: false, action: null, courseId: null, courseTitle: '' });
+  const [modificationModal, setModificationModal] = useState({ isOpen: false, action: null, courseId: null, courseTitle: '', pendingData: null });
 
   const showToast = (message, type = 'success') => setToast({ message, type });
 
@@ -68,6 +96,20 @@ export default function Dashboard({ user, onLogout }) {
   const handleSaveCourse = async (courseData) => {
     try {
       if (editingCourse) {
+        // Check if admin is editing someone else's course - require reason
+        if (currentUser.role === 'admin' && editingCourse.createdBy && editingCourse.createdBy !== currentUser.id) {
+          // Store pending edit data and show modal for reason
+          setModificationModal({
+            isOpen: true,
+            action: 'edit',
+            courseId: editingCourse._id,
+            courseTitle: editingCourse.title,
+            pendingData: courseData
+          });
+          return; // Don't proceed until modal confirms
+        }
+
+        // Normal edit (own course or no createdBy)
         const response = await fetch(`http://localhost:5000/api/courses/${editingCourse._id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -92,7 +134,7 @@ export default function Dashboard({ user, onLogout }) {
         setCourses([...courses, newCourse]);
         showToast("New module published successfully!");
       }
-      setActiveTab('education');
+      setActiveTab(currentUser.role === 'admin' ? 'manage-courses' : 'education');
     } catch (error) {
       console.error(error);
       showToast("Something went wrong.", "error");
@@ -129,7 +171,7 @@ export default function Dashboard({ user, onLogout }) {
   };
 
   const handleModificationConfirm = async (reason) => {
-    const { action, courseId } = modificationModal;
+    const { action, courseId, pendingData } = modificationModal;
 
     try {
       if (action === 'delete') {
@@ -150,12 +192,35 @@ export default function Dashboard({ user, onLogout }) {
         } else {
           throw new Error('Failed to delete');
         }
+      } else if (action === 'edit' && pendingData) {
+        // Handle admin edit with reason
+        const response = await fetch(`http://localhost:5000/api/courses/${courseId}/admin-edit`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...pendingData,
+            reason,
+            modifiedBy: currentUser.id,
+            modifierName: currentUser.name,
+            modifierRole: currentUser.role
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setCourses(courses.map(c => c._id === courseId ? data.course : c));
+          setEditingCourse(null);
+          showToast("Course updated successfully. Creator has been notified.", "success");
+          setActiveTab('manage-courses');
+        } else {
+          throw new Error('Failed to update');
+        }
       }
     } catch (error) {
       console.error(error);
       showToast("Failed to complete action.", "error");
     } finally {
-      setModificationModal({ isOpen: false, action: null, courseId: null, courseTitle: '' });
+      setModificationModal({ isOpen: false, action: null, courseId: null, courseTitle: '', pendingData: null });
     }
   };
 
@@ -215,6 +280,11 @@ export default function Dashboard({ user, onLogout }) {
 
       case 'education': {
         const visibleCourses = courses.filter(course => {
+          // LECTURER FILTER: Only show courses created by this lecturer
+          if (currentUser.role === 'lecturer' && course.createdBy !== currentUser.id) {
+            return false;
+          }
+
           if (currentUser.role === 'student' && userAge < 15 && course.isRestricted) return false;
           if (currentUser.role === 'student') {
             const isCompleted = completedIds.includes(course._id);
@@ -230,9 +300,13 @@ export default function Dashboard({ user, onLogout }) {
             <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
               <div>
                 <h2 className="text-3xl font-bold font-display text-white mb-2">
-                  {currentUser.role === 'lecturer' ? 'Published Modules' : 'My Courses'}
+                  {currentUser.role === 'lecturer' ? 'My Content' : 'My Courses'}
                 </h2>
-                <p className="text-slate-400">Browse and manage your learning materials.</p>
+                <p className="text-slate-400">
+                  {currentUser.role === 'lecturer'
+                    ? 'Manage content you have created.'
+                    : 'Browse and manage your learning materials.'}
+                </p>
               </div>
               {currentUser.role === 'student' && (
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -262,7 +336,7 @@ export default function Dashboard({ user, onLogout }) {
 
                 return (
                   <div key={course._id} className="relative group/card">
-                    {currentUser.role === 'lecturer' && canEdit && (
+                    {(currentUser.role === 'lecturer' || currentUser.role === 'admin') && canEdit && (
                       <div className="absolute top-4 right-4 z-30 flex gap-2 opacity-0 group-hover/card:opacity-100 transition-opacity">
                         <button onClick={(e) => { e.stopPropagation(); handleEditClick(course); }} className="bg-white/90 p-2 rounded-full text-slate-800 shadow-lg hover:bg-primary hover:text-white"><Edit size={16} /></button>
                         <button onClick={(e) => { e.stopPropagation(); handleDeleteCourse(course._id, course.title); }} className="bg-white/90 p-2 rounded-full text-red-600 shadow-lg hover:bg-red-600 hover:text-white"><Trash2 size={16} /></button>
@@ -372,6 +446,101 @@ export default function Dashboard({ user, onLogout }) {
       case 'history':
         return <HistoryView showToast={showToast} />;
 
+      // --- BEGINNER PLATFORM ROUTES ---
+      case 'beginner-education':
+        // Show welcome screen first for beginner students
+        if (showBeginnerWelcome) {
+          return (
+            <BeginnerWelcome
+              user={currentUser}
+              progress={beginnerProgress}
+              onContinue={() => {
+                setShowBeginnerWelcome(false);
+                // Fetch progress for welcome stats
+                fetch(`http://localhost:5000/api/beginner/progress/${currentUser.id}`)
+                  .then(res => res.json())
+                  .then(data => setBeginnerProgress(data))
+                  .catch(() => { });
+              }}
+            />
+          );
+        }
+        if (selectedBeginnerLesson) {
+          return (
+            <BeginnerLessonDetail
+              lesson={selectedBeginnerLesson}
+              userProgress={beginnerProgress}
+              onBack={() => setSelectedBeginnerLesson(null)}
+              onComplete={(data) => {
+                setBeginnerProgress(prev => ({ ...prev, ...data }));
+                showToast(`🎉 +${data.xpEarned} XP earned!`);
+              }}
+            />
+          );
+        }
+        return (
+          <BeginnerEducationView
+            user={currentUser}
+            onSelectLesson={(lesson) => {
+              setSelectedBeginnerLesson(lesson);
+              // Fetch latest progress
+              fetch(`http://localhost:5000/api/beginner/progress/${currentUser.id}`)
+                .then(res => res.json())
+                .then(data => setBeginnerProgress(data));
+            }}
+            onShowProgress={() => setActiveTab('beginner-progress')}
+          />
+        );
+
+      case 'beginner-progress':
+        return (
+          <BeginnerProgressDashboard
+            user={currentUser}
+            onBack={() => setActiveTab('beginner-education')}
+          />
+        );
+
+      case 'beginner-achievements':
+        return (
+          <BeginnerProgressDashboard
+            user={currentUser}
+            onBack={() => setActiveTab('beginner-education')}
+          />
+        );
+
+      case 'beginner-upload':
+        return (
+          <div className="animate-fade-up max-w-4xl mx-auto">
+            <BeginnerLessonForm
+              initialData={editingBeginnerLesson}
+              onSave={async (lessonData) => {
+                try {
+                  const url = editingBeginnerLesson
+                    ? `http://localhost:5000/api/beginner/lessons/${editingBeginnerLesson._id}`
+                    : 'http://localhost:5000/api/beginner/lessons';
+                  const method = editingBeginnerLesson ? 'PUT' : 'POST';
+
+                  await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...lessonData, createdBy: currentUser.id })
+                  });
+
+                  setEditingBeginnerLesson(null);
+                  showToast(editingBeginnerLesson ? 'Lesson updated!' : 'Lesson created!');
+                  setActiveTab('beginner-upload');
+                } catch (error) {
+                  showToast('Failed to save lesson', 'error');
+                }
+              }}
+              onCancel={() => setEditingBeginnerLesson(null)}
+            />
+          </div>
+        );
+
+      case 'beginner-manage':
+        return <PlaceholderView title="Manage Beginner Lessons" />;
+
       default: return null;
     }
   };
@@ -421,18 +590,11 @@ export default function Dashboard({ user, onLogout }) {
         {/* Modification Modal */}
         <ModificationModal
           isOpen={modificationModal.isOpen}
-          onClose={() => setModificationModal({ isOpen: false, action: null, courseId: null, courseTitle: '' })}
+          onClose={() => setModificationModal({ isOpen: false, action: null, courseId: null, courseTitle: '', pendingData: null })}
           onConfirm={handleModificationConfirm}
           action={modificationModal.action}
           courseTitle={modificationModal.courseTitle}
         />
-
-        {/* Notifications Panel (for admin and lecturers) */}
-        {(currentUser.role === 'admin' || currentUser.role === 'lecturer') && (
-          <div className="fixed bottom-6 right-6 z-50">
-            <NotificationsPanel userId={currentUser.id} role={currentUser.role} />
-          </div>
-        )}
       </main>
     </div>
   );

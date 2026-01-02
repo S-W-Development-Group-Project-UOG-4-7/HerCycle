@@ -1,30 +1,54 @@
-import { LayoutDashboard, UploadCloud, Users, Settings, LogOut, BookOpen, Layers, PenTool, MessageCircle, UserPlus, TrendingUp, Shield, X, History } from 'lucide-react';
+import { LayoutDashboard, UploadCloud, Users, Settings, LogOut, BookOpen, Layers, PenTool, MessageCircle, UserPlus, TrendingUp, Shield, X, History, Sparkles, Trophy, Award, Rocket } from 'lucide-react';
 import NotificationBadge from './NotificationBadge';
 
-export default function Sidebar({ user, activeTab, setActiveTab, onLogout, isMobileOpen, setIsMobileOpen }) {
+// Calculate age from DOB
+const calculateAge = (dobString) => {
+  if (!dobString) return 18; // Default to adult if no DOB
+  const birthday = new Date(dobString);
+  const today = new Date();
+  let age = today.getFullYear() - birthday.getFullYear();
+  const m = today.getMonth() - birthday.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthday.getDate())) { age--; }
+  return age;
+};
 
-  // Define menu items based on Role
+export default function Sidebar({ user, activeTab, setActiveTab, onLogout, isMobileOpen, setIsMobileOpen }) {
+  const userAge = calculateAge(user.dob);
+  const isBeginnerStudent = user.role === 'student' && userAge < 15;
+
+  // Define menu items based on Role and Age
   const menuItems = user.role === 'admin'
     ? [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { id: 'students', label: 'Students Analytics', icon: TrendingUp },
       { id: 'manage-courses', label: 'All Courses', icon: BookOpen },
+      { id: 'beginner-manage', label: 'Beginner Lessons', icon: Sparkles },
       { id: 'messages', label: 'Messages', icon: MessageCircle, showBadge: true },
       { id: 'history', label: 'History & Reports', icon: History },
     ]
     : user.role === 'lecturer'
       ? [
         { id: 'upload', label: 'Upload Content', icon: UploadCloud },
+        { id: 'beginner-upload', label: 'Beginner Content', icon: Sparkles },
         { id: 'education', label: 'My Content', icon: BookOpen },
         { id: 'topics', label: 'Topics', icon: Layers },
         { id: 'students', label: 'Students', icon: Users },
         { id: 'messages', label: 'Messages', icon: MessageCircle, showBadge: true },
       ]
-      : [
-        { id: 'education', label: 'Education', icon: BookOpen },
-        { id: 'notes', label: 'My Notes', icon: PenTool },
-        { id: 'community', label: 'Community', icon: MessageCircle },
-      ];
+      : isBeginnerStudent
+        ? [
+          // BEGINNER STUDENT MENU (Under 15)
+          { id: 'beginner-education', label: '🚀 Learn', icon: Rocket },
+          { id: 'beginner-progress', label: 'My Progress', icon: Trophy },
+          { id: 'beginner-achievements', label: 'Badges', icon: Award },
+          { id: 'notes', label: 'My Notes', icon: PenTool },
+        ]
+        : [
+          // ADVANCED STUDENT MENU (15+)
+          { id: 'education', label: 'Education', icon: BookOpen },
+          { id: 'notes', label: 'My Notes', icon: PenTool },
+          { id: 'community', label: 'Community', icon: MessageCircle },
+        ];
 
   // Common items (Settings)
   const commonItems = [
