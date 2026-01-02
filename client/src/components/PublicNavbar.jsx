@@ -14,6 +14,8 @@ export default function PublicNavbar({ user, onLogout }) {
       <div className="hidden md:flex gap-10">
         <NavLink to="/" className={linkClass}>Home</NavLink>
         <NavLink to="/about" className={linkClass}>Mission</NavLink>
+        <NavLink to="/contact" className={linkClass}>Contact</NavLink>
+        <NavLink to="/fundraiser" className={linkClass}>Fundraiser</NavLink>
       </div>
 
       <div className="flex gap-4">
@@ -37,7 +39,7 @@ export default function PublicNavbar({ user, onLogout }) {
               Login
             </Link>
             <Link to="/signup" className="bg-secondary hover:bg-secondary-dark text-white px-6 py-2 rounded-full font-bold transition-all shadow-[0_0_15px_rgba(183,148,246,0.5)] hover:shadow-[0_0_25px_rgba(183,148,246,0.7)]">
-              Sign Up
+              Become a Student
             </Link>
           </>
         )}

@@ -9,7 +9,7 @@ export default function Auth({ onLogin, isRegister }) {
   const navigate = useNavigate();
   const [toast, setToast] = useState(null);
 
-  
+
   const handleRegisterSubmit = async (name, email, password, dob) => {
     try {
       const res = await fetch('http://localhost:5000/api/register', {
@@ -17,9 +17,9 @@ export default function Auth({ onLogin, isRegister }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password, dob }),
       });
-      
+
       const data = await res.json();
-      
+
       if (res.ok) {
         setToast({ message: "Registration successful! Please log in.", type: "success" });
         setTimeout(() => navigate('/login'), 1500); // Delay switch to let toast show
@@ -39,9 +39,9 @@ export default function Auth({ onLogin, isRegister }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      
+
       const data = await res.json();
-      
+
       if (res.ok) {
         setToast({ message: "Login successful!", type: "success" });
         setTimeout(() => onLogin(data), 1000); // Pass user data up to App.jsx
@@ -57,19 +57,19 @@ export default function Auth({ onLogin, isRegister }) {
   return (
     <>
       {toast && (
-        <Toast 
-          message={toast.message} 
-          type={toast.type} 
-          onClose={() => setToast(null)} 
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
         />
       )}
       {!isRegister ? (
-        <Login 
-          onLogin={handleLoginSubmit} 
+        <Login
+          onLogin={handleLoginSubmit}
         />
       ) : (
-        <Register 
-          onRegister={handleRegisterSubmit} 
+        <Register
+          onRegister={handleRegisterSubmit}
         />
       )}
     </>

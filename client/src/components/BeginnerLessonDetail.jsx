@@ -1,20 +1,36 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ChevronLeft, Star, Zap, CheckCircle, XCircle, Award, Sparkles, PartyPopper } from 'lucide-react';
+
+// Generate confetti particles data (stable across renders)
+const generateConfettiParticles = () => {
+    const colors = ['#f43f5e', '#8b5cf6', '#06b6d4', '#eab308', '#22c55e'];
+    return [...Array(50)].map((_, i) => ({
+        id: i,
+        left: `${Math.random() * 100}%`,
+        background: colors[Math.floor(Math.random() * 5)],
+        animationDelay: `${Math.random() * 2}s`,
+        animationDuration: `${2 + Math.random() * 2}s`,
+        borderRadius: Math.random() > 0.5 ? '50%' : '0'
+    }));
+};
 
 // Celebration Confetti Component
 function Confetti() {
+    // useMemo ensures particles are generated once and stay stable
+    const particles = useMemo(() => generateConfettiParticles(), []);
+
     return (
         <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-            {[...Array(50)].map((_, i) => (
+            {particles.map((particle) => (
                 <div
-                    key={i}
+                    key={particle.id}
                     className="absolute w-3 h-3 animate-confetti"
                     style={{
-                        left: `${Math.random() * 100}%`,
-                        background: ['#f43f5e', '#8b5cf6', '#06b6d4', '#eab308', '#22c55e'][Math.floor(Math.random() * 5)],
-                        animationDelay: `${Math.random() * 2}s`,
-                        animationDuration: `${2 + Math.random() * 2}s`,
-                        borderRadius: Math.random() > 0.5 ? '50%' : '0'
+                        left: particle.left,
+                        background: particle.background,
+                        animationDelay: particle.animationDelay,
+                        animationDuration: particle.animationDuration,
+                        borderRadius: particle.borderRadius
                     }}
                 />
             ))}
@@ -27,7 +43,6 @@ function BeginnerQuiz({ quiz, onComplete }) {
     const [currentQuestion, setCurrentQuestion] = useState(0);
     const [selectedAnswer, setSelectedAnswer] = useState(null);
     const [answers, setAnswers] = useState([]);
-    const [showResult, setShowResult] = useState(false);
     const [isCorrect, setIsCorrect] = useState(null);
 
     const question = quiz[currentQuestion];
@@ -63,10 +78,10 @@ function BeginnerQuiz({ quiz, onComplete }) {
                         <div
                             key={i}
                             className={`w-8 h-2 rounded-full transition-all duration-300 ${i < currentQuestion
-                                    ? answers[i]?.correct ? 'bg-green-500' : 'bg-red-500'
-                                    : i === currentQuestion
-                                        ? 'bg-purple-500'
-                                        : 'bg-slate-700'
+                                ? answers[i]?.correct ? 'bg-green-500' : 'bg-red-500'
+                                : i === currentQuestion
+                                    ? 'bg-purple-500'
+                                    : 'bg-slate-700'
                                 }`}
                         />
                     ))}

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Trophy, Flame, Star, Zap, Target, Award, ChevronLeft, Crown, Medal, Sparkles, TrendingUp, Calendar, BookOpen } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Trophy, Flame, Star, Zap, Target, Award, ChevronLeft, Crown, Medal, Sparkles, TrendingUp, BookOpen } from 'lucide-react';
 
 // Level configurations
 const LEVELS = [
@@ -160,43 +160,61 @@ export default function BeginnerProgressDashboard({ user, onBack }) {
     const [allAchievements, setAllAchievements] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    const fetchProgress = async () => {
+    const fetchProgress = useCallback(async () => {
         try {
             const response = await fetch(`http://localhost:5000/api/beginner/progress/${user.id}`);
             const data = await response.json();
-            setProgress(data);
+            return data;
         } catch (error) {
             console.error('Error fetching progress:', error);
+            return null;
         }
-    };
+    }, [user.id]);
 
-    const fetchLeaderboard = async () => {
+    const fetchLeaderboard = useCallback(async () => {
         try {
             const response = await fetch('http://localhost:5000/api/beginner/leaderboard?limit=10');
             const data = await response.json();
-            setLeaderboard(data);
+            return data;
         } catch (error) {
             console.error('Error fetching leaderboard:', error);
+            return [];
         }
-    };
+    }, []);
 
-    const fetchAchievements = async () => {
+    const fetchAchievements = useCallback(async () => {
         try {
             const response = await fetch('http://localhost:5000/api/beginner/achievements');
             const data = await response.json();
-            setAllAchievements(data);
+            return data;
         } catch (error) {
             console.error('Error fetching achievements:', error);
+            return [];
         }
-    };
+    }, []);
 
     useEffect(() => {
-        Promise.all([
-            fetchProgress(),
-            fetchLeaderboard(),
-            fetchAchievements()
-        ]).finally(() => setLoading(false));
-    }, []);
+        let isMounted = true;
+
+        const loadData = async () => {
+            const [progressData, leaderboardData, achievementsData] = await Promise.all([
+                fetchProgress(),
+                fetchLeaderboard(),
+                fetchAchievements()
+            ]);
+
+            if (isMounted) {
+                setProgress(progressData);
+                setLeaderboard(leaderboardData);
+                setAllAchievements(achievementsData);
+                setLoading(false);
+            }
+        };
+
+        loadData();
+
+        return () => { isMounted = false; };
+    }, [fetchProgress, fetchLeaderboard, fetchAchievements]);
 
     const currentLevel = LEVELS.find(l => l.level === (progress?.level || 1)) || LEVELS[0];
     const unlockedAchievementIds = progress?.achievements?.map(a => a.id) || [];

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Heart, ShieldCheck, BookOpen, ChevronRight, Sparkles, Users, Globe, Award, ArrowRight, Instagram, Twitter, Facebook } from 'lucide-react';
 import { useState } from 'react';
 import HeartLogo from '../components/HeartLogo';
+import ReviewSection from '../components/ReviewSection';
 
 // Floating Elements Component
 const FloatingElements = () => {
@@ -62,19 +63,20 @@ const FloatingElements = () => {
 };
 
 
-export default function LandingPage() {
+export default function LandingPage({ user }) {
     return (
         <div className="min-h-screen bg-bg-dark selection:bg-primary selection:text-white overflow-x-hidden font-sans relative">
 
             {/* HERO SECTION */}
-            <section className="relative pt-32 pb-20 px-6 text-center overflow-hidden">
+            <section className="relative pt-32 pb-20 px-6 text-center overflow-hidden mesh-gradient">
 
                 {/* Floating Animated Elements */}
                 <FloatingElements />
 
-                {/* Animated Background Glows */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-primary/10 rounded-full blur-[120px] animate-pulse pointer-events-none"></div>
-                <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-secondary/10 rounded-full blur-[120px] animate-pulse delay-1000 pointer-events-none"></div>
+                {/* Enhanced Animated Background Glows with pulse animation */}
+                <div className="glow-orb top-0 left-1/4 w-[600px] h-[600px] bg-primary/20 pointer-events-none"></div>
+                <div className="glow-orb bottom-20 right-1/4 w-[500px] h-[500px] bg-secondary/20 animation-delay-2000 pointer-events-none"></div>
+                <div className="glow-orb top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-pink-500/10 animation-delay-4000 pointer-events-none"></div>
 
                 <div className="max-w-5xl mx-auto relative z-10">
                     <div className="inline-flex items-center gap-2 bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm rounded-full px-4 py-1.5 mb-8 animate-fade-up hover:bg-slate-800 transition-colors cursor-default hover:scale-105">
@@ -138,7 +140,7 @@ export default function LandingPage() {
 
                 <div className="grid md:grid-cols-3 gap-8">
                     {/* Card 1 */}
-                    <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-800 hover:border-primary/50 transition-all group hover:-translate-y-2 duration-300 relative overflow-hidden">
+                    <div className="glass-card hover-lift p-8 rounded-3xl border border-slate-800 hover:border-primary/50 transition-all group duration-300 relative overflow-hidden">
                         <div className="absolute top-4 right-4 w-3 h-3 bg-primary rounded-full animate-pulse"></div>
                         <div className="bg-slate-800 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-primary group-hover:rotate-6 transition-all duration-300 shadow-lg shadow-black/50 group-hover:animate-[bounce-gentle_1s_infinite]">
                             <Heart className="w-7 h-7 text-primary group-hover:text-white" />
@@ -153,7 +155,7 @@ export default function LandingPage() {
                     </div>
 
                     {/* Card 2 */}
-                    <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-800 hover:border-secondary/50 transition-all group hover:-translate-y-2 duration-300 delay-100 relative overflow-hidden">
+                    <div className="glass-card hover-lift p-8 rounded-3xl border border-slate-800 hover:border-secondary/50 transition-all group duration-300 delay-100 relative overflow-hidden">
                         <div className="absolute top-4 right-4 w-3 h-3 bg-secondary rounded-full animate-pulse delay-100"></div>
                         <div className="bg-slate-800 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-secondary group-hover:-rotate-6 transition-all duration-300 shadow-lg shadow-black/50 group-hover:animate-[bounce-gentle_1s_infinite]">
                             <BookOpen className="w-7 h-7 text-secondary group-hover:text-white" />
@@ -168,7 +170,7 @@ export default function LandingPage() {
                     </div>
 
                     {/* Card 3 */}
-                    <div className="bg-slate-900/50 p-8 rounded-3xl border border-slate-800 hover:border-primary/50 transition-all group hover:-translate-y-2 duration-300 delay-200 relative overflow-hidden">
+                    <div className="glass-card hover-lift p-8 rounded-3xl border border-slate-800 hover:border-primary/50 transition-all group duration-300 delay-200 relative overflow-hidden">
                         <div className="absolute top-4 right-4 w-3 h-3 bg-white rounded-full animate-pulse delay-200"></div>
                         <div className="bg-slate-800 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-white group-hover:scale-110 transition-all duration-300 shadow-lg shadow-black/50 group-hover:animate-[bounce-gentle_1s_infinite]">
                             <ShieldCheck className="w-7 h-7 text-primary group-hover:text-slate-900" />
@@ -183,6 +185,107 @@ export default function LandingPage() {
                     </div>
                 </div>
             </section>
+
+            {/* USER TYPE SELECTION SECTION */}
+            <section className="max-w-7xl mx-auto py-20 px-6 relative z-20">
+                <div className="text-center mb-16">
+                    <div className="inline-flex items-center gap-2 bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm rounded-full px-4 py-1.5 mb-6">
+                        <Sparkles size={14} className="text-primary animate-pulse" />
+                        <span className="text-xs font-bold text-primary tracking-widest uppercase">Choose Your Path</span>
+                    </div>
+                    <h2 className="text-3xl md:text-5xl font-black text-white mb-6">Two ways to get started</h2>
+                    <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+                        Whether you want to learn or track your cycle, HerCycle has you covered.
+                    </p>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                    {/* Student Path */}
+                    <div className="bg-gradient-to-br from-primary/10 to-secondary/10 p-8 rounded-3xl border border-primary/30 hover:border-primary/60 transition-all group relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-40 h-40 bg-primary/20 rounded-full blur-3xl"></div>
+                        <div className="relative z-10">
+                            <div className="bg-slate-800 w-16 h-16 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-all duration-300">
+                                <BookOpen className="w-8 h-8 text-primary" />
+                            </div>
+                            <h3 className="text-3xl font-black text-white mb-4">For Students</h3>
+                            <p className="text-slate-300 leading-relaxed mb-6">
+                                Access comprehensive educational content about menstrual health, reproductive health, and wellness. Perfect for learners of all ages.
+                            </p>
+                            <ul className="space-y-3 mb-8">
+                                <li className="flex items-start gap-3 text-slate-400">
+                                    <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5 shrink-0">
+                                        <ChevronRight size={14} className="text-primary" />
+                                    </div>
+                                    <span>Interactive learning modules & quizzes</span>
+                                </li>
+                                <li className="flex items-start gap-3 text-slate-400">
+                                    <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5 shrink-0">
+                                        <ChevronRight size={14} className="text-primary" />
+                                    </div>
+                                    <span>Expert-verified educational content</span>
+                                </li>
+                                <li className="flex items-start gap-3 text-slate-400">
+                                    <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5 shrink-0">
+                                        <ChevronRight size={14} className="text-primary" />
+                                    </div>
+                                    <span>Community support & discussions</span>
+                                </li>
+                            </ul>
+                            <Link
+                                to="/signup"
+                                className="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-bold px-8 py-4 rounded-full transition-all hover:scale-105 shadow-lg shadow-primary/30"
+                            >
+                                Become a Student
+                                <ArrowRight size={20} />
+                            </Link>
+                        </div>
+                    </div>
+
+                    {/* Cycle User Path */}
+                    <div className="bg-gradient-to-br from-pink-500/10 to-rose-500/10 p-8 rounded-3xl border border-pink-500/30 hover:border-pink-500/60 transition-all group relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-40 h-40 bg-pink-500/20 rounded-full blur-3xl"></div>
+                        <div className="relative z-10">
+                            <div className="bg-slate-800 w-16 h-16 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-all duration-300">
+                                <Heart className="w-8 h-8 text-pink-400" />
+                            </div>
+                            <h3 className="text-3xl font-black text-white mb-4">For Cycle Trackers</h3>
+                            <p className="text-slate-300 leading-relaxed mb-6">
+                                Track your menstrual cycle, log symptoms, and get personalized insights. Take control of your reproductive health journey.
+                            </p>
+                            <ul className="space-y-3 mb-8">
+                                <li className="flex items-start gap-3 text-slate-400">
+                                    <div className="w-5 h-5 rounded-full bg-pink-500/20 flex items-center justify-center mt-0.5 shrink-0">
+                                        <ChevronRight size={14} className="text-pink-400" />
+                                    </div>
+                                    <span>Accurate period predictions & reminders</span>
+                                </li>
+                                <li className="flex items-start gap-3 text-slate-400">
+                                    <div className="w-5 h-5 rounded-full bg-pink-500/20 flex items-center justify-center mt-0.5 shrink-0">
+                                        <ChevronRight size={14} className="text-pink-400" />
+                                    </div>
+                                    <span>Symptom tracking & health insights</span>
+                                </li>
+                                <li className="flex items-start gap-3 text-slate-400">
+                                    <div className="w-5 h-5 rounded-full bg-pink-500/20 flex items-center justify-center mt-0.5 shrink-0">
+                                        <ChevronRight size={14} className="text-pink-400" />
+                                    </div>
+                                    <span>Privacy-first data encryption</span>
+                                </li>
+                            </ul>
+                            <Link
+                                to="/signup?type=cycle-user"
+                                className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold px-8 py-4 rounded-full transition-all hover:scale-105 shadow-lg shadow-pink-500/30"
+                            >
+                                Become a Cycle-User
+                                <ArrowRight size={20} />
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* REVIEW SECTION */}
+            <ReviewSection user={user} />
 
             {/* QUOTE SECTION */}
             <section className="py-24 bg-gradient-to-b from-slate-900 to-bg-dark relative overflow-hidden">

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Users, GraduationCap, BookOpen, Activity } from 'lucide-react';
-import CreateLecturerForm from '../components/CreateLecturerForm';
+import CreateUserForm from '../components/CreateLecturerForm';
 import StudentsProgressTable from '../components/StudentsProgressTable';
 import LecturersTable from '../components/LecturersTable';
+import StaffsTable from '../components/StaffsTable';
 
 export default function AdminDashboard({ showToast }) {
     const [analytics, setAnalytics] = useState({
@@ -79,6 +80,9 @@ export default function AdminDashboard({ showToast }) {
             case 'lecturers':
                 return <LecturersTable showToast={showToast} />;
 
+            case 'staffs':
+                return <StaffsTable showToast={showToast} />;
+
             case 'courses':
                 return (
                     <div className="bg-bg-card border border-slate-800 rounded-3xl p-8">
@@ -95,9 +99,9 @@ export default function AdminDashboard({ showToast }) {
             default: // overview
                 return (
                     <>
-                        {/* Create Lecturer Form */}
+                        {/* Create User Form */}
                         <div className="mb-8">
-                            <CreateLecturerForm
+                            <CreateUserForm
                                 showToast={showToast}
                                 onSuccess={() => fetchAnalytics()}
                             />
@@ -163,6 +167,7 @@ export default function AdminDashboard({ showToast }) {
                     { id: 'overview', label: 'Overview' },
                     { id: 'students', label: 'Students' },
                     { id: 'lecturers', label: 'Lecturers' },
+                    { id: 'staffs', label: 'Staffs' },
                     { id: 'courses', label: 'Courses' }
                 ].map(tab => (
                     <button

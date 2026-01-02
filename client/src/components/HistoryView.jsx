@@ -61,6 +61,20 @@ export default function HistoryView({ showToast }) {
         fetchHistory();
     }, [fetchHistory]);
 
+    // Mark all student deletion logs as read when component mounts
+    useEffect(() => {
+        const markDeletionsAsRead = async () => {
+            try {
+                await fetch('http://localhost:5000/api/student-deletion-logs/mark-all-read', {
+                    method: 'PUT'
+                });
+            } catch (error) {
+                console.error('Error marking deletions as read:', error);
+            }
+        };
+        markDeletionsAsRead();
+    }, []);
+
     // Real-time polling - refresh every 5 seconds for new deletions
     useEffect(() => {
         const interval = setInterval(() => {
@@ -240,8 +254,8 @@ export default function HistoryView({ showToast }) {
                                         <tr
                                             key={idx}
                                             className={`border-b border-slate-800/50 hover:bg-slate-800/20 transition-all ${!deletion.notificationRead
-                                                    ? 'bg-red-500/10 border-l-4 border-l-red-500 animate-pulse'
-                                                    : ''
+                                                ? 'bg-red-500/10 border-l-4 border-l-red-500 animate-pulse'
+                                                : ''
                                                 }`}
                                         >
                                             <td className="py-4 px-4 text-slate-400 text-sm">

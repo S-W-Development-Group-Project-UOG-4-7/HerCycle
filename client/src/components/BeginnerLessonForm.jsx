@@ -29,7 +29,6 @@ export default function BeginnerLessonForm({ onSave, initialData = null, onCance
     });
 
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-    const [previewMode, setPreviewMode] = useState(false);
     const [saving, setSaving] = useState(false);
 
     const handleChange = (field, value) => {
@@ -191,8 +190,8 @@ export default function BeginnerLessonForm({ onSave, initialData = null, onCance
                                         type="button"
                                         onClick={() => handleChange('difficultyLevel', level)}
                                         className={`flex-1 py-3 px-4 rounded-xl font-bold capitalize transition-all ${formData.difficultyLevel === level
-                                                ? `${getDifficultyColor(level)} text-white shadow-lg`
-                                                : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                                            ? `${getDifficultyColor(level)} text-white shadow-lg`
+                                            : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
                                             }`}
                                     >
                                         <div className="flex items-center justify-center gap-2">

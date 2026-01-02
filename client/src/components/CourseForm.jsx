@@ -7,7 +7,7 @@ import { PlusCircle, ShieldAlert, Trash2, CheckSquare, Edit, FileText, ChevronDo
 export default function CourseForm({ onAddCourse, initialData = null }) {
   const [title, setTitle] = useState(initialData?.title || "");
   const [description, setDescription] = useState(initialData?.description || "");
-  const [isRestricted, setIsRestricted] = useState(initialData?.isRestricted || false);
+  const [isRestricted, setIsRestricted] = useState(initialData?.isRestricted ?? true);
   const [quizQuestions, setQuizQuestions] = useState(initialData?.quiz || []);
   const [lessons, setLessons] = useState(initialData?.lessons || []);
 

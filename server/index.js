@@ -12,6 +12,11 @@ import ModificationLog from './models/ModificationLog.js';
 import StudentDeletionLog from './models/StudentDeletionLog.js';
 import BeginnerLesson from './models/BeginnerLesson.js';
 import BeginnerProgress from './models/BeginnerProgress.js';
+import Donor from './models/Donor.js';
+import Campaign from './models/Campaign.js';
+import Donation from './models/Donation.js';
+import Review from './models/Review.js';
+import Contact from './models/Contact.js';
 
 dotenv.config();
 
@@ -59,16 +64,25 @@ app.post('/api/register', async (req, res) => {
   const { name, email, password, dob } = req.body;
 
   const userExists = await User.findOne({ email });
-  if (userExists) return res.status(400).json({ message: 'User already exists' });
-
+  if (userExists) return res.status(400).json({ message: 'User already exists' }); // Hash password
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  // Default role is 'student'
-  const user = new User({ name, email, password: hashedPassword, dob });
+  // Create user
+  const user = new User({
+    name,
+    email,
+    password: hashedPassword,
+    dob,
+    role: 'student', // Default role for registration
+    profilePic: ''
+  });
+
   await user.save();
 
-  res.json({ message: 'Student registered successfully' });
+  console.log('✅ User registered successfully:', { name, email, role: 'student' });
+
+  res.json({ message: 'Registration successful!' });
 });
 
 // 2. LOGIN (Unified for Student & Lecturer)
@@ -317,10 +331,16 @@ app.delete('/api/notes/:id', async (req, res) => {
 
 // --- ADMIN ROUTES ---
 
-// 1. CREATE LECTURER ACCOUNT (Admin Only)
-app.post('/api/admin/create-lecturer', async (req, res) => {
+// 1. CREATE USER ACCOUNT - Lecturer or Staff (Admin Only)
+app.post('/api/admin/create-user', async (req, res) => {
   try {
-    const { name, email, password, dob } = req.body;
+    const { name, email, password, dob, role } = req.body;
+
+    // Validate role (default to lecturer for backward compatibility)
+    const userRole = role || 'lecturer';
+    if (!['lecturer', 'staff'].includes(userRole)) {
+      return res.status(400).json({ message: 'Invalid role. Must be lecturer or staff' });
+    }
 
     // Check if user already exists
     const userExists = await User.findOne({ email });
@@ -330,29 +350,56 @@ app.post('/api/admin/create-lecturer', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create lecturer
-    const lecturer = await User.create({
+    // Create user with specified role
+    const user = await User.create({
       name,
       email,
       password: hashedPassword,
       dob: dob || new Date('1990-01-01'),
-      role: 'lecturer',
+      role: userRole,
       profilePic: ''
     });
 
     res.json({
-      message: 'Lecturer account created successfully',
-      lecturer: {
-        id: lecturer._id,
-        name: lecturer.name,
-        email: lecturer.email,
-        role: lecturer.role
+      message: `${userRole.charAt(0).toUpperCase() + userRole.slice(1)} account created successfully`,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
       }
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
+
+// 2. STAFF STATS - Get statistics for staff dashboard
+app.get('/api/staff/stats', async (req, res) => {
+  try {
+    // Get basic stats for staff dashboard
+    const activeFundraisers = await Campaign.countDocuments({ status: 'active' }) || 0;
+
+    const totalDonationsResult = await Donation.aggregate([
+      { $match: { paymentStatus: 'success' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    const totalDonations = totalDonationsResult[0]?.total || 0;
+
+    const stats = {
+      totalInquiries: 0, // Placeholder - add when contact model exists
+      activeFundraisers,
+      totalDonations,
+      pendingFeedback: 0 // Placeholder - add when feedback model exists
+    };
+
+    res.json(stats);
+  } catch (err) {
+    console.error('Staff stats error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 
 // 2. GET PLATFORM ANALYTICS (Admin Only)
 app.get('/api/admin/analytics', async (req, res) => {
@@ -372,6 +419,55 @@ app.get('/api/admin/analytics', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+// GET ALL LECTURERS (Admin Only)
+app.get('/api/admin/lecturers', async (req, res) => {
+  try {
+    const lecturers = await User.find({ role: 'lecturer' }).sort({ createdAt: -1 });
+    const courses = await Course.find();
+
+    const lecturersWithData = lecturers.map(lecturer => {
+      const coursesCreated = courses.filter(c =>
+        c.createdBy && c.createdBy.toString() === lecturer._id.toString()
+      ).length;
+
+      return {
+        id: lecturer._id,
+        name: lecturer.name,
+        email: lecturer.email,
+        dob: lecturer.dob,
+        profilePic: lecturer.profilePic,
+        coursesCreated,
+        createdAt: lecturer.createdAt
+      };
+    });
+
+    res.json(lecturersWithData);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// GET ALL STAFF MEMBERS (Admin Only)
+app.get('/api/admin/staffs', async (req, res) => {
+  try {
+    const staffs = await User.find({ role: 'staff' }).sort({ createdAt: -1 });
+
+    const staffsWithData = staffs.map(staff => ({
+      id: staff._id,
+      name: staff.name,
+      email: staff.email,
+      dob: staff.dob,
+      profilePic: staff.profilePic,
+      createdAt: staff.createdAt
+    }));
+
+    res.json(staffsWithData);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 
 // 3. GET STUDENTS PROGRESS (Admin Only)
 app.get('/api/admin/students-progress', async (req, res) => {
@@ -926,6 +1022,19 @@ app.put('/api/student-deletion-logs/:logId/read', async (req, res) => {
   }
 });
 
+// 4. MARK ALL STUDENT DELETION LOGS AS READ (Admin viewing History)
+app.put('/api/student-deletion-logs/mark-all-read', async (req, res) => {
+  try {
+    await StudentDeletionLog.updateMany(
+      { notificationRead: false },
+      { notificationRead: true }
+    );
+    res.json({ message: 'All deletion notifications marked as read' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // --- BEGINNER EDUCATION PLATFORM ROUTES ---
 
 // Achievement definitions
@@ -1292,6 +1401,659 @@ app.get('/api/beginner/levels', async (req, res) => {
     }));
 
     res.json(levels);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ============================================
+// --- FUNDRAISER SYSTEM ROUTES ---
+// ============================================
+
+// Seed sample campaigns on startup
+const seedCampaigns = async () => {
+  try {
+    const count = await Campaign.countDocuments();
+    if (count === 0) {
+      await Campaign.create([
+        {
+          title: 'Education for All Girls',
+          description: 'Help provide menstrual health education to underprivileged communities.',
+          detailedInfo: 'This campaign aims to reach 10,000 young girls with essential health education, providing them with the knowledge and resources they need.',
+          goalAmount: 50000,
+          raisedAmount: 32500,
+          endDate: new Date('2026-06-30'),
+          icon: '📚',
+          color: 'from-purple-500 to-pink-500',
+          category: 'Education',
+          trustBadges: ['verified', 'secure-payment', 'transparent'],
+          impactStats: { beneficiaries: 5200, projectsCompleted: 12, regionsReached: 8 },
+          totalDonors: 245
+        },
+        {
+          title: 'Community Health Centers',
+          description: 'Build health centers providing free menstrual products and consultations.',
+          detailedInfo: 'We are establishing community health centers in rural areas where access to menstrual health resources is limited.',
+          goalAmount: 75000,
+          raisedAmount: 18750,
+          endDate: new Date('2026-08-15'),
+          icon: '🏥',
+          color: 'from-emerald-500 to-teal-500',
+          category: 'Health',
+          trustBadges: ['verified', 'transparent', 'tax-deductible'],
+          impactStats: { beneficiaries: 2100, projectsCompleted: 3, regionsReached: 5 },
+          totalDonors: 128
+        },
+        {
+          title: 'Emergency Relief Fund',
+          description: 'Provide immediate support to women affected by natural disasters.',
+          detailedInfo: 'Quick deployment of essential supplies including menstrual products, hygiene kits, and medical support.',
+          goalAmount: 25000,
+          raisedAmount: 21200,
+          endDate: new Date('2026-03-31'),
+          icon: '🆘',
+          color: 'from-red-500 to-orange-500',
+          category: 'Emergency',
+          trustBadges: ['verified', 'secure-payment', 'matching-funds'],
+          impactStats: { beneficiaries: 3500, projectsCompleted: 8, regionsReached: 4 },
+          totalDonors: 412
+        }
+      ]);
+      console.log('✅ Sample campaigns created');
+    }
+  } catch (error) {
+    console.error('Error seeding campaigns:', error);
+  }
+};
+
+// Call seed after DB connection
+mongoose.connection.once('open', () => {
+  seedCampaigns();
+});
+
+// --- DONOR AUTH ROUTES ---
+
+// 1. REGISTER DONOR
+app.post('/api/donors/register', async (req, res) => {
+  try {
+    const { name, email, password, phone, isGuestConverted } = req.body;
+
+    // Check if donor exists
+    const existingDonor = await Donor.findOne({ email });
+    if (existingDonor) {
+      return res.status(400).json({ message: 'Email already registered' });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create donor
+    const donor = await Donor.create({
+      name,
+      email,
+      password: hashedPassword,
+      phone: phone || '',
+      isGuestConverted: isGuestConverted || false
+    });
+
+    const token = jwt.sign({ id: donor._id, type: 'donor' }, JWT_SECRET);
+
+    res.json({
+      message: 'Donor registered successfully',
+      token,
+      donor: {
+        id: donor._id,
+        name: donor.name,
+        email: donor.email,
+        totalDonated: donor.totalDonated
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2. DONOR LOGIN
+app.post('/api/donors/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const donor = await Donor.findOne({ email });
+    if (!donor) {
+      return res.status(400).json({ message: 'Donor not found' });
+    }
+
+    const isMatch = await bcrypt.compare(password, donor.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    const token = jwt.sign({ id: donor._id, type: 'donor' }, JWT_SECRET);
+
+    res.json({
+      token,
+      donor: {
+        id: donor._id,
+        name: donor.name,
+        email: donor.email,
+        phone: donor.phone,
+        totalDonated: donor.totalDonated,
+        receiveUpdates: donor.receiveUpdates
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. GET DONOR PROFILE
+app.get('/api/donors/:id', async (req, res) => {
+  try {
+    const donor = await Donor.findById(req.params.id)
+      .populate('donations');
+
+    if (!donor) {
+      return res.status(404).json({ message: 'Donor not found' });
+    }
+
+    res.json({
+      id: donor._id,
+      name: donor.name,
+      email: donor.email,
+      phone: donor.phone,
+      totalDonated: donor.totalDonated,
+      donationCount: donor.donations.length,
+      receiveUpdates: donor.receiveUpdates,
+      createdAt: donor.createdAt
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// --- CAMPAIGN ROUTES ---
+
+// 1. GET ALL ACTIVE CAMPAIGNS
+app.get('/api/fundraiser/campaigns', async (req, res) => {
+  try {
+    const campaigns = await Campaign.find({ isActive: true })
+      .sort({ createdAt: -1 });
+    res.json(campaigns);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2. GET SINGLE CAMPAIGN
+app.get('/api/fundraiser/campaigns/:id', async (req, res) => {
+  try {
+    const campaign = await Campaign.findById(req.params.id);
+    if (!campaign) {
+      return res.status(404).json({ message: 'Campaign not found' });
+    }
+    res.json(campaign);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. CREATE CAMPAIGN (Admin only)
+app.post('/api/fundraiser/campaigns', async (req, res) => {
+  try {
+    const campaign = await Campaign.create(req.body);
+    res.json(campaign);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 4. UPDATE CAMPAIGN
+app.put('/api/fundraiser/campaigns/:id', async (req, res) => {
+  try {
+    const campaign = await Campaign.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    res.json(campaign);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+// --- CONTACT ROUTES ---
+
+// 1. SUBMIT CONTACT FORM
+app.post('/api/contact', async (req, res) => {
+  try {
+    const { name, email, subject, message } = req.body;
+
+    // Validate fields
+    if (!name || !email || !subject || !message) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    // Create contact message
+    const contact = new Contact({
+      name,
+      email,
+      subject,
+      message,
+      status: 'new'
+    });
+
+    await contact.save();
+
+    console.log('📧 New contact message from:', name, email);
+
+    res.status(201).json({ message: 'Message sent successfully! We\'ll get back to you soon.' });
+  } catch (err) {
+    console.error('Contact form error:', err);
+    res.status(500).json({ message: 'Failed to send message' });
+  }
+});
+
+// 2. GET ALL CONTACT MESSAGES - Admin/Staff only
+app.get('/api/contact/all', async (req, res) => {
+  try {
+    const messages = await Contact.find().sort({ createdAt: -1 });
+    res.json(messages);
+  } catch (err) {
+    console.error('Fetch contacts error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. UPDATE CONTACT STATUS - Admin/Staff only
+app.patch('/api/contact/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    const contact = await Contact.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    );
+
+    if (!contact) {
+      return res.status(404).json({ message: 'Message not found' });
+    }
+
+    res.json({ message: 'Status updated', contact });
+  } catch (err) {
+    console.error('Update contact status error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+// --- DONATION ROUTES ---
+
+// --- REVIEW/TESTIMONIAL ROUTES ---
+
+// 1. CREATE REVIEW - Registered users only
+app.post('/api/reviews', async (req, res) => {
+  try {
+    const { userId, userName, userRole, rating, title, comment } = req.body;
+
+    console.log('Review submission received:', { userId, userName, userRole, rating, title: title?.substring(0, 20) });
+
+    // Validate required fields
+    if (!userId || !userName || !userRole || !rating || !title || !comment) {
+      console.log('Missing fields:', { userId: !!userId, userName: !!userName, userRole: !!userRole, rating: !!rating, title: !!title, comment: !!comment });
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    // Validate rating
+    if (rating < 1 || rating > 5) {
+      return res.status(400).json({ message: 'Rating must be between 1 and 5' });
+    }
+
+    // Validate role
+    if (!['student', 'lecturer', 'admin', 'staff'].includes(userRole)) {
+      console.log('Invalid role:', userRole);
+      return res.status(400).json({ message: 'Invalid user role' });
+    }
+
+    // Check if user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      console.log('User not found:', userId);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if user already submitted a review
+    const existingReview = await Review.findOne({ userId });
+    if (existingReview) {
+      return res.status(400).json({ message: 'You have already submitted a review' });
+    }
+
+    // Create review
+    const review = new Review({
+      userId,
+      userName,
+      userRole,
+      rating,
+      title,
+      comment,
+      isApproved: true // Auto-approve for instant display
+    });
+
+    await review.save();
+
+    console.log('✅ Review saved successfully:', {
+      id: review._id,
+      userName: review.userName,
+      rating: review.rating,
+      isApproved: review.isApproved
+    });
+
+    res.status(201).json({
+      message: 'Review submitted successfully!',
+      review
+    });
+  } catch (err) {
+    console.error('Review creation error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2. GET APPROVED REVIEWS - Public access
+app.get('/api/reviews/approved', async (req, res) => {
+  try {
+    const reviews = await Review.find({ isApproved: true })
+      .sort({ createdAt: -1 })
+      .limit(20);
+
+    console.log(`📋 Fetching approved reviews: Found ${reviews.length} reviews`);
+
+    res.json(reviews);
+  } catch (err) {
+    console.error('Fetch reviews error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. GET ALL REVIEWS - Admin only
+app.get('/api/reviews/all', async (req, res) => {
+  try {
+    const reviews = await Review.find()
+      .sort({ createdAt: -1 });
+
+    res.json(reviews);
+  } catch (err) {
+    console.error('Fetch all reviews error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 4. APPROVE REVIEW - Admin only
+app.patch('/api/reviews/:id/approve', async (req, res) => {
+  try {
+    const review = await Review.findByIdAndUpdate(
+      req.params.id,
+      { isApproved: true },
+      { new: true }
+    );
+
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+
+    res.json({ message: 'Review approved successfully', review });
+  } catch (err) {
+    console.error('Approve review error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 5. DELETE REVIEW - Admin only
+app.delete('/api/reviews/:id', async (req, res) => {
+  try {
+    const review = await Review.findByIdAndDelete(req.params.id);
+
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+
+    res.json({ message: 'Review deleted successfully' });
+  } catch (err) {
+    console.error('Delete review error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 6. UPDATE REVIEW - User can edit their own review
+app.patch('/api/reviews/:id', async (req, res) => {
+  try {
+    const { userId, rating, title, comment } = req.body;
+
+    // Find the review
+    const review = await Review.findById(req.params.id);
+
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+
+    // Check if user owns this review
+    if (review.userId.toString() !== userId) {
+      return res.status(403).json({ message: 'You can only edit your own review' });
+    }
+
+    // Update fields
+    if (rating) review.rating = rating;
+    if (title) review.title = title;
+    if (comment) review.comment = comment;
+
+    await review.save();
+
+    console.log('✏️ Review updated successfully:', review._id);
+
+    res.json({ message: 'Review updated successfully', review });
+  } catch (err) {
+    console.error('Update review error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+
+// 1. PROCESS DONATION (Supports both Guest and Registered Donors)
+app.post('/api/fundraiser/donate', async (req, res) => {
+  try {
+    const { donorId, donorName, donorEmail, campaignId, amount, isAnonymous, message, isGuest } = req.body;
+
+    // Validate campaign exists
+    const campaign = await Campaign.findById(campaignId);
+    if (!campaign) {
+      return res.status(404).json({ message: 'Campaign not found' });
+    }
+
+    let finalDonorName = donorName;
+    let finalDonorEmail = donorEmail;
+
+    // If not a guest donation, validate and get donor info
+    if (!isGuest && donorId) {
+      const donor = await Donor.findById(donorId);
+      if (!donor) {
+        return res.status(404).json({ message: 'Donor not found' });
+      }
+      finalDonorName = donor.name;
+      finalDonorEmail = donor.email;
+    } else if (!donorName || !donorEmail) {
+      // For guest donations, name and email are required
+      return res.status(400).json({ message: 'Guest donations require name and email' });
+    }
+
+    // Create donation record
+    const donation = new Donation({
+      donorId: isGuest ? null : donorId, // Null for guest donations
+      donorName: finalDonorName,
+      donorEmail: finalDonorEmail,
+      campaignId,
+      campaignTitle: campaign.title,
+      amount,
+      paymentStatus: 'pending',
+      isAnonymous: isAnonymous || false,
+      message: message || '',
+      isGuest: isGuest || false
+    });
+
+    // Generate transaction reference
+    donation.generateTransactionRef();
+    await donation.save();
+
+    res.json({
+      message: 'Donation initiated',
+      donationId: donation._id,
+      transactionRef: donation.transactionRef
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 2. SIMULATE PAYMENT PROCESSING
+app.post('/api/fundraiser/payment/:donationId', async (req, res) => {
+  try {
+    const { donationId } = req.params;
+    const { paymentMethod } = req.body;
+
+    const donation = await Donation.findById(donationId);
+    if (!donation) {
+      return res.status(404).json({ message: 'Donation not found' });
+    }
+
+    // Simulate payment processing (90% success rate)
+    const paymentSuccess = Math.random() > 0.1;
+
+    if (paymentSuccess) {
+      donation.paymentStatus = 'success';
+      donation.paymentMethod = paymentMethod || 'card';
+      await donation.save();
+
+      // Update campaign raised amount
+      await Campaign.findByIdAndUpdate(donation.campaignId, {
+        $inc: { raisedAmount: donation.amount, totalDonors: 1 }
+      });
+
+      // Update donor total (only for registered donors, not guests)
+      if (donation.donorId) {
+        await Donor.findByIdAndUpdate(donation.donorId, {
+          $inc: { totalDonated: donation.amount },
+          $push: { donations: donation._id }
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Payment successful',
+        donation: {
+          id: donation._id,
+          receiptNumber: donation.receiptNumber,
+          amount: donation.amount,
+          transactionRef: donation.transactionRef
+        }
+      });
+    } else {
+      donation.paymentStatus = 'failed';
+      await donation.save();
+
+      res.json({
+        success: false,
+        message: 'Payment failed. Please try again.'
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 3. GET DONATION HISTORY FOR DONOR
+app.get('/api/donors/:id/donations', async (req, res) => {
+  try {
+    const donations = await Donation.find({
+      donorId: req.params.id,
+      paymentStatus: 'success'
+    })
+      .populate('campaignId', 'title icon color')
+      .sort({ createdAt: -1 });
+
+    res.json(donations);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 4. GET RECEIPT DATA
+app.get('/api/fundraiser/receipt/:donationId', async (req, res) => {
+  try {
+    const donation = await Donation.findById(req.params.donationId)
+      .populate('campaignId', 'title description category');
+
+    if (!donation) {
+      return res.status(404).json({ message: 'Donation not found' });
+    }
+
+    if (donation.paymentStatus !== 'success') {
+      return res.status(400).json({ message: 'Receipt not available for incomplete payments' });
+    }
+
+    // Mark receipt as downloaded
+    donation.receiptDownloaded = true;
+    await donation.save();
+
+    res.json({
+      receiptNumber: donation.receiptNumber,
+      donorName: donation.donorName,
+      donorEmail: donation.donorEmail,
+      campaignTitle: donation.campaignTitle,
+      amount: donation.amount,
+      currency: donation.currency,
+      transactionRef: donation.transactionRef,
+      paymentMethod: donation.paymentMethod,
+      date: donation.createdAt,
+      campaign: donation.campaignId
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 5. GET FUNDRAISER STATS
+app.get('/api/fundraiser/stats', async (req, res) => {
+  try {
+    const totalCampaigns = await Campaign.countDocuments({ isActive: true });
+    const totalDonors = await Donor.countDocuments();
+    const totalDonations = await Donation.countDocuments({ paymentStatus: 'success' });
+
+    const aggregation = await Donation.aggregate([
+      { $match: { paymentStatus: 'success' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    const totalRaised = aggregation[0]?.total || 0;
+
+    res.json({
+      totalCampaigns,
+      totalDonors,
+      totalDonations,
+      totalRaised
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 6. GET CAMPAIGN UPDATES
+app.get('/api/fundraiser/campaigns/:id/updates', async (req, res) => {
+  try {
+    const campaign = await Campaign.findById(req.params.id).select('updates title');
+    if (!campaign) {
+      return res.status(404).json({ message: 'Campaign not found' });
+    }
+    res.json(campaign.updates);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

@@ -1,9 +1,21 @@
 import { useState, useEffect } from 'react';
 import { Trash2, User, Search, X } from 'lucide-react';
 
+// Helper to calculate age from DOB
+const calculateAge = (dobString) => {
+  if (!dobString) return 18; // Default to adult if no DOB
+  const birthday = new Date(dobString);
+  const today = new Date();
+  let age = today.getFullYear() - birthday.getFullYear();
+  const m = today.getMonth() - birthday.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthday.getDate())) { age--; }
+  return age;
+};
+
 export default function StudentsList({ showToast }) {
   const [students, setStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [studentTab, setStudentTab] = useState('all'); // 'all', 'advance', 'beginner'
   const [deletionModal, setDeletionModal] = useState({
     isOpen: false,
     studentId: null,
@@ -65,28 +77,61 @@ export default function StudentsList({ showToast }) {
     }
   };
 
-  const filteredStudents = students.filter(s =>
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter students by search term and tab
+  const filteredStudents = students.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.email.toLowerCase().includes(searchTerm.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    // Filter by student category based on age
+    const studentAge = calculateAge(s.dob);
+    if (studentTab === 'beginner' && studentAge >= 15) return false;
+    if (studentTab === 'advance' && studentAge < 15) return false;
+
+    return true;
+  });
+
+  // Count students in each category
+  const beginnerCount = students.filter(s => calculateAge(s.dob) < 15).length;
+  const advanceCount = students.filter(s => calculateAge(s.dob) >= 15).length;
 
   return (
     <div className="animate-fade-up">
-      <div className="mb-8 flex justify-between items-end">
+      <div className="mb-8 flex flex-col md:flex-row justify-between md:items-end gap-4">
         <div>
           <h2 className="text-3xl font-bold font-display text-white mb-2">Student Management</h2>
           <p className="text-slate-400">View and manage enrolled students.</p>
         </div>
 
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search students..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-slate-800 text-white pl-10 pr-4 py-2 rounded-xl border border-slate-700 focus:border-secondary focus:outline-none w-64"
-          />
-          <Search className="absolute left-3 top-2.5 text-slate-500" size={18} />
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Student category tabs */}
+          <div className="flex bg-slate-800 p-1 rounded-xl">
+            {[
+              { id: 'all', label: 'All', count: students.length },
+              { id: 'advance', label: 'Advance', count: advanceCount },
+              { id: 'beginner', label: 'Beginner', count: beginnerCount }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setStudentTab(tab.id)}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${studentTab === tab.id ? 'bg-secondary text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+              >
+                {tab.label} <span className="text-xs opacity-70">({tab.count})</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search students..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-slate-800 text-white pl-10 pr-4 py-2 rounded-xl border border-slate-700 focus:border-secondary focus:outline-none w-64"
+            />
+            <Search className="absolute left-3 top-2.5 text-slate-500" size={18} />
+          </div>
         </div>
       </div>
 

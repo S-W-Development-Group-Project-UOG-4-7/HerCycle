@@ -14,12 +14,17 @@ export default function NotificationBadge({ userId, type = 'messages' }) {
      * Checks every 5 seconds for real-time updates
      */
     const fetchCount = useCallback(async () => {
-        if (!userId) return;
+        if (!userId && type !== 'deletions') return;
 
         try {
-            const endpoint = type === 'messages'
-                ? `http://localhost:5000/api/messages/unread-count/${userId}`
-                : `http://localhost:5000/api/modification-logs/unread-count/${userId}`;
+            let endpoint;
+            if (type === 'messages') {
+                endpoint = `http://localhost:5000/api/messages/unread-count/${userId}`;
+            } else if (type === 'deletions') {
+                endpoint = 'http://localhost:5000/api/student-deletion-logs/unread-count';
+            } else {
+                endpoint = `http://localhost:5000/api/modification-logs/unread-count/${userId}`;
+            }
 
             const response = await fetch(endpoint);
             const data = await response.json();

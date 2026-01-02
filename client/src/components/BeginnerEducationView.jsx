@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Sparkles, Star, Trophy, Flame, Target, BookOpen, Heart, Shield, Smile, ChevronRight, Lock, Check, Zap } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Sparkles, Star, Trophy, Flame, Heart, Shield, Smile, ChevronRight, Check, Zap } from 'lucide-react';
 
 // Category configurations with colors and icons
 const CATEGORIES = [
@@ -12,7 +12,7 @@ const CATEGORIES = [
 ];
 
 // 3D Card Component with hover animations
-function LessonCard3D({ lesson, isCompleted, onSelect, userProgress }) {
+function LessonCard3D({ lesson, isCompleted, onSelect }) {
     const [isHovered, setIsHovered] = useState(false);
     const categoryConfig = CATEGORIES.find(c => c.name === lesson.category) || CATEGORIES[0];
 
@@ -212,12 +212,7 @@ export default function BeginnerEducationView({ user, onSelectLesson, onShowProg
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        fetchLessons();
-        fetchProgress();
-    }, []);
-
-    const fetchLessons = async () => {
+    const fetchLessons = useCallback(async () => {
         try {
             const response = await fetch(`http://localhost:5000/api/beginner/lessons?role=${user.role}&userId=${user.id}`);
             const data = await response.json();
@@ -227,9 +222,9 @@ export default function BeginnerEducationView({ user, onSelectLesson, onShowProg
         } finally {
             setLoading(false);
         }
-    };
+    }, [user.role, user.id]);
 
-    const fetchProgress = async () => {
+    const fetchProgress = useCallback(async () => {
         try {
             const response = await fetch(`http://localhost:5000/api/beginner/progress/${user.id}`);
             const data = await response.json();
@@ -237,7 +232,12 @@ export default function BeginnerEducationView({ user, onSelectLesson, onShowProg
         } catch (error) {
             console.error('Error fetching progress:', error);
         }
-    };
+    }, [user.id]);
+
+    useEffect(() => {
+        fetchLessons();
+        fetchProgress();
+    }, [fetchLessons, fetchProgress]);
 
     const filteredLessons = selectedCategory === 'All'
         ? lessons
@@ -354,7 +354,6 @@ export default function BeginnerEducationView({ user, onSelectLesson, onShowProg
                                     lesson={lesson}
                                     isCompleted={completedLessonIds.includes(lesson._id)}
                                     onSelect={onSelectLesson}
-                                    userProgress={progress}
                                 />
                             </div>
                         ))}

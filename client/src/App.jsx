@@ -6,6 +6,10 @@ import LandingPage from './pages/LandingPage';
 import AboutPage from './pages/AboutPage';
 import AuthPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
+import FundraiserPage from './pages/FundraiserPage';
+import DonorDashboard from './pages/DonorDashboard';
+import DonorLogin from './pages/DonorLogin';
+import ContactPage from './pages/ContactPage';
 import PublicNavbar from './components/PublicNavbar';
 
 function AppContent() {
@@ -31,7 +35,8 @@ function AppContent() {
   // Show it on landing even if logged in, so users can navigate
   const isPublicPage = location.pathname === '/' || location.pathname === '/about';
   const isDashboard = location.pathname === '/dashboard';
-  const showPublicNav = isPublicPage || (!isDashboard && !user);
+  const isFundraiser = location.pathname.startsWith('/fundraiser') || location.pathname.startsWith('/donor');
+  const showPublicNav = (isPublicPage || (!isDashboard && !user)) && !isFundraiser;
 
   return (
     <>
@@ -39,8 +44,9 @@ function AppContent() {
 
       <Routes>
         {/* PUBLIC ROUTES - Accessible to everyone */}
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<LandingPage user={user} />} />
         <Route path="/about" element={<AboutPage />} />
+        <Route path="/contact" element={<ContactPage />} />
 
         {/* AUTH ROUTES */}
         {/* If user is logged in, redirect Login/Signup to Dashboard */}
@@ -52,6 +58,11 @@ function AppContent() {
           path="/dashboard"
           element={user ? <Dashboard user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
         />
+
+        {/* FUNDRAISER ROUTES - Separate donor system */}
+        <Route path="/fundraiser" element={<FundraiserPage />} />
+        <Route path="/donor-dashboard" element={<DonorDashboard />} />
+        <Route path="/donor-login" element={<DonorLogin />} />
       </Routes>
     </>
   );

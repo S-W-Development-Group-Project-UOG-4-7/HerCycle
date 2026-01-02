@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { UserPlus, Mail, Lock, User as UserIcon, Calendar } from 'lucide-react';
+import { UserPlus, Mail, Lock, User as UserIcon, Calendar, Users } from 'lucide-react';
 
-export default function CreateLecturerForm({ onSuccess, showToast }) {
+export default function CreateUserForm({ onSuccess, showToast }) {
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         password: '',
-        dob: ''
+        dob: '',
+        role: 'lecturer' // Default to lecturer
     });
     const [isLoading, setIsLoading] = useState(false);
 
@@ -15,7 +16,7 @@ export default function CreateLecturerForm({ onSuccess, showToast }) {
         setIsLoading(true);
 
         try {
-            const response = await fetch('http://localhost:5000/api/admin/create-lecturer', {
+            const response = await fetch('http://localhost:5000/api/admin/create-user', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
@@ -24,14 +25,15 @@ export default function CreateLecturerForm({ onSuccess, showToast }) {
             const data = await response.json();
 
             if (response.ok) {
-                showToast(`Lecturer "${data.lecturer.name}" created successfully!`, 'success');
-                setFormData({ name: '', email: '', password: '', dob: '' });
-                if (onSuccess) onSuccess(data.lecturer);
+                const roleName = data.user.role.charAt(0).toUpperCase() + data.user.role.slice(1);
+                showToast(`${roleName} "${data.user.name}" created successfully!`, 'success');
+                setFormData({ name: '', email: '', password: '', dob: '', role: 'lecturer' });
+                if (onSuccess) onSuccess(data.user);
             } else {
-                showToast(data.message || 'Failed to create lecturer', 'error');
+                showToast(data.message || 'Failed to create user', 'error');
             }
         } catch (error) {
-            console.error('Error creating lecturer:', error);
+            console.error('Error creating user:', error);
             showToast('Something went wrong', 'error');
         } finally {
             setIsLoading(false);
@@ -45,8 +47,8 @@ export default function CreateLecturerForm({ onSuccess, showToast }) {
                     <UserPlus className="w-6 h-6 text-secondary" />
                 </div>
                 <div>
-                    <h3 className="text-2xl font-bold text-white">Create Lecturer Account</h3>
-                    <p className="text-slate-400 text-sm">Add a new lecturer to the platform</p>
+                    <h3 className="text-2xl font-bold text-white">Create User Account</h3>
+                    <p className="text-slate-400 text-sm">Add a new {formData.role} to the platform</p>
                 </div>
             </div>
 
@@ -65,6 +67,23 @@ export default function CreateLecturerForm({ onSuccess, showToast }) {
                         placeholder="Enter lecturer's full name"
                         className="w-full bg-bg-input border border-purple-500/20 rounded-xl px-4 py-3 text-white placeholder-purple-400/50 focus:outline-none focus:border-secondary/50 transition-colors"
                     />
+                </div>
+
+                {/* Role Selection */}
+                <div>
+                    <label className="block text-purple-200 font-bold mb-2 text-sm flex items-center gap-2">
+                        <Users size={16} className="text-secondary" />
+                        User Role
+                    </label>
+                    <select
+                        value={formData.role}
+                        onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                        className="w-full bg-bg-input border border-purple-500/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-secondary/50 transition-colors"
+                    >
+                        <option value="lecturer">Lecturer</option>
+                        <option value="staff">Staff</option>
+                    </select>
+                    <p className="text-xs text-slate-500 mt-1">Select the role for this user</p>
                 </div>
 
                 {/* Email */}
@@ -129,7 +148,7 @@ export default function CreateLecturerForm({ onSuccess, showToast }) {
                     ) : (
                         <>
                             <UserPlus size={20} />
-                            Create Lecturer Account
+                            Create {formData.role === 'lecturer' ? 'Lecturer' : 'Staff'} Account
                         </>
                     )}
                 </button>

@@ -1,4 +1,5 @@
-import { LayoutDashboard, UploadCloud, Users, Settings, LogOut, BookOpen, Layers, PenTool, MessageCircle, UserPlus, TrendingUp, Shield, X, History, Sparkles, Trophy, Award, Rocket } from 'lucide-react';
+import { LayoutDashboard, UploadCloud, Users, Settings, LogOut, BookOpen, Layers, PenTool, MessageCircle, UserPlus, TrendingUp, Shield, X, History, Sparkles, Trophy, Award, Rocket, Heart, FileText, AlertCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import NotificationBadge from './NotificationBadge';
 
 // Calculate age from DOB
@@ -21,34 +22,43 @@ export default function Sidebar({ user, activeTab, setActiveTab, onLogout, isMob
     ? [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { id: 'students', label: 'Students Analytics', icon: TrendingUp },
-      { id: 'manage-courses', label: 'All Courses', icon: BookOpen },
+      { id: 'manage-courses', label: 'Advance Lessons', icon: BookOpen },
       { id: 'beginner-manage', label: 'Beginner Lessons', icon: Sparkles },
       { id: 'messages', label: 'Messages', icon: MessageCircle, showBadge: true },
-      { id: 'history', label: 'History & Reports', icon: History },
+      { id: 'history', label: 'History & Reports', icon: History, showBadge: 'deletions' },
     ]
-    : user.role === 'lecturer'
+    : user.role === 'staff'
       ? [
-        { id: 'upload', label: 'Upload Content', icon: UploadCloud },
-        { id: 'beginner-upload', label: 'Beginner Content', icon: Sparkles },
-        { id: 'education', label: 'My Content', icon: BookOpen },
-        { id: 'topics', label: 'Topics', icon: Layers },
-        { id: 'students', label: 'Students', icon: Users },
+        { id: 'staff-overview', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'staff-inquiries', label: 'User Inquiries', icon: MessageCircle },
+        { id: 'staff-fundraisers', label: 'Fundraisers', icon: Heart },
+        { id: 'staff-content', label: 'Content', icon: FileText },
+        { id: 'staff-feedback', label: 'Feedback', icon: AlertCircle },
         { id: 'messages', label: 'Messages', icon: MessageCircle, showBadge: true },
       ]
-      : isBeginnerStudent
+      : user.role === 'lecturer'
         ? [
-          // BEGINNER STUDENT MENU (Under 15)
-          { id: 'beginner-education', label: '🚀 Learn', icon: Rocket },
-          { id: 'beginner-progress', label: 'My Progress', icon: Trophy },
-          { id: 'beginner-achievements', label: 'Badges', icon: Award },
-          { id: 'notes', label: 'My Notes', icon: PenTool },
+          { id: 'upload', label: 'Advance Content', icon: UploadCloud },
+          { id: 'beginner-upload', label: 'Beginner Content', icon: Sparkles },
+          { id: 'education', label: 'My Content', icon: BookOpen },
+          { id: 'topics', label: 'Topics', icon: Layers },
+          { id: 'students', label: 'Students', icon: Users },
+          { id: 'messages', label: 'Messages', icon: MessageCircle, showBadge: true },
         ]
-        : [
-          // ADVANCED STUDENT MENU (15+)
-          { id: 'education', label: 'Education', icon: BookOpen },
-          { id: 'notes', label: 'My Notes', icon: PenTool },
-          { id: 'community', label: 'Community', icon: MessageCircle },
-        ];
+        : isBeginnerStudent
+          ? [
+            // BEGINNER STUDENT MENU (Under 15)
+            { id: 'beginner-education', label: '🚀 Learn', icon: Rocket },
+            { id: 'beginner-progress', label: 'My Progress', icon: Trophy },
+            { id: 'beginner-achievements', label: 'Badges', icon: Award },
+            { id: 'notes', label: 'My Notes', icon: PenTool },
+          ]
+          : [
+            // ADVANCED STUDENT MENU (15+)
+            { id: 'education', label: 'Education', icon: BookOpen },
+            { id: 'notes', label: 'My Notes', icon: PenTool },
+            { id: 'community', label: 'Community', icon: MessageCircle },
+          ];
 
   // Common items (Settings)
   const commonItems = [
@@ -88,13 +98,16 @@ export default function Sidebar({ user, activeTab, setActiveTab, onLogout, isMob
           <X size={24} />
         </button>
 
-        {/* Logo Area */}
-        <div className="p-8 pb-4">
-          <h1 className="text-3xl font-black font-display text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary tracking-tight">
-            Hercycle.
-          </h1>
-          <p className="text-xs text-slate-500 font-bold tracking-widest uppercase mt-1">LMS Platform</p>
-        </div>
+        {/* LOGO */}
+        <Link to="/" className="flex items-center gap-3 mb-10 group cursor-pointer p-8 pb-4">
+          <div className="bg-slate-800 w-12 h-12 rounded-full flex items-center justify-center border border-slate-700 shadow-lg group-hover:border-primary transition-colors">
+            <Heart className="text-primary w-6 h-6 group-hover:animate-pulse" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-white font-display group-hover:text-primary transition-colors">HerCycle</h2>
+            <p className="text-xs text-slate-500 uppercase tracking-wider">{user.role}</p>
+          </div>
+        </Link>
 
         {/* Navigation */}
         <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
@@ -114,7 +127,7 @@ export default function Sidebar({ user, activeTab, setActiveTab, onLogout, isMob
               >
                 <Icon size={20} className={isActive ? 'text-white' : 'text-slate-500 group-hover:text-white transition-colors'} />
                 {item.label}
-                {item.showBadge && <NotificationBadge userId={user.id} type="messages" />}
+                {item.showBadge && <NotificationBadge userId={user.id} type={item.showBadge === true ? 'messages' : item.showBadge} />}
               </button>
             );
           })}

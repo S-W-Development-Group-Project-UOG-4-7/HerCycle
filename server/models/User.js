@@ -5,7 +5,7 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   dob: { type: Date, required: true },
-  role: { type: String, enum: ['student', 'lecturer', 'admin'], default: 'student' },
+  role: { type: String, enum: ['student', 'lecturer', 'admin', 'staff'], default: 'student' },
 
   // This is required to store the Cloudinary URL kyla documentation eke thibba
   profilePic: { type: String, default: "" },
