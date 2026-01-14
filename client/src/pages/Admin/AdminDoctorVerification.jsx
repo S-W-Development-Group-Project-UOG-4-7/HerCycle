@@ -1,0 +1,561 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import './AdminDoctorVerification.css';
+
+const AdminDoctorVerification = () => {
+  const navigate = useNavigate();
+  const [pendingDoctors, setPendingDoctors] = useState([]);
+  const [allVerifications, setAllVerifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [activeTab, setActiveTab] = useState('pending');
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [approvalNotes, setApprovalNotes] = useState('');
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0
+  });
+
+  useEffect(() => {
+    checkAdminAccess();
+    if (activeTab === 'pending') {
+      fetchPendingDoctors();
+    } else {
+      fetchAllVerifications();
+    }
+  }, [activeTab, pagination.page]);
+
+  const checkAdminAccess = () => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    const token = localStorage.getItem('authToken');
+    
+    if (!user || !token || user.role !== 'admin') {
+      navigate('/login');
+      return false;
+    }
+    return true;
+  };
+
+  const fetchPendingDoctors = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('authToken');
+      
+      const response = await fetch('http://localhost:5000/api/admin/pending-doctors', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setPendingDoctors(data.data || []);
+      } else {
+        setError(data.message || 'Failed to fetch pending doctors');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
+      console.error('Fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAllVerifications = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('authToken');
+      
+      const response = await fetch(
+        `http://localhost:5000/api/admin/all-doctor-verifications?page=${pagination.page}&limit=${pagination.limit}&status=${activeTab === 'all' ? '' : activeTab}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setAllVerifications(data.data || []);
+        setPagination(data.pagination || pagination);
+      } else {
+        setError(data.message || 'Failed to fetch verifications');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
+      console.error('Fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprove = async (nic) => {
+    if (!window.confirm('Are you sure you want to approve this doctor?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('authToken');
+      
+      const response = await fetch(`http://localhost:5000/api/admin/approve-doctor/${nic}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          notes: approvalNotes
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setSuccess(`Doctor ${nic} approved successfully!`);
+        setApprovalNotes('');
+        
+        // Refresh the list
+        if (activeTab === 'pending') {
+          fetchPendingDoctors();
+        } else {
+          fetchAllVerifications();
+        }
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(data.message || 'Failed to approve doctor');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
+      console.error('Approve error:', err);
+    }
+  };
+
+  const handleReject = async (nic) => {
+    if (!rejectionReason.trim()) {
+      alert('Please provide a rejection reason');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to reject this doctor?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('authToken');
+      
+      const response = await fetch(`http://localhost:5000/api/admin/reject-doctor/${nic}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          reason: rejectionReason,
+          notes: ''
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setSuccess(`Doctor ${nic} rejected successfully!`);
+        setRejectionReason('');
+        setSelectedDoctor(null);
+        
+        // Refresh the list
+        if (activeTab === 'pending') {
+          fetchPendingDoctors();
+        } else {
+          fetchAllVerifications();
+        }
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(data.message || 'Failed to reject doctor');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
+      console.error('Reject error:', err);
+    }
+  };
+
+  const handleViewLicense = (url) => {
+    if (url) {
+      window.open(`http://localhost:5000${url}`, '_blank');
+    } else {
+      alert('License document URL not available');
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'pending':
+        return <span className="badge badge-pending">⏳ Pending</span>;
+      case 'approved':
+        return <span className="badge badge-approved">✅ Approved</span>;
+      case 'rejected':
+        return <span className="badge badge-rejected">❌ Rejected</span>;
+      case 'under_review':
+        return <span className="badge badge-review">🔍 Review</span>;
+      default:
+        return <span className="badge badge-unknown">❓ Unknown</span>;
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (loading && pendingDoctors.length === 0 && allVerifications.length === 0) {
+    return (
+      <div className="admin-container">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>Loading verification panel...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="admin-container">
+      {/* Header */}
+      <header className="admin-header">
+        <div className="header-content">
+          <div className="header-left">
+            <h1>👑 Admin Panel - Doctor Verification</h1>
+            <p>Manage doctor applications and verifications</p>
+          </div>
+          <div className="header-actions">
+            <button onClick={() => navigate('/admin-dashboard')} className="btn-secondary">
+              ← Back to Dashboard
+            </button>
+            <button onClick={() => navigate('/')} className="btn-secondary">
+              🏠 Home
+            </button>
+            <button 
+              onClick={() => {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('user');
+                navigate('/login');
+              }} 
+              className="btn-logout"
+            >
+              🚪 Logout
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Messages */}
+      {error && (
+        <div className="alert alert-error">
+          <span className="alert-icon">⚠️</span>
+          {error}
+          <button onClick={() => setError('')} className="alert-close">×</button>
+        </div>
+      )}
+      
+      {success && (
+        <div className="alert alert-success">
+          <span className="alert-icon">✅</span>
+          {success}
+          <button onClick={() => setSuccess('')} className="alert-close">×</button>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="admin-content">
+        {/* Stats Cards */}
+        <div className="stats-cards">
+          <div className="stat-card stat-pending">
+            <div className="stat-icon">⏳</div>
+            <div className="stat-content">
+              <h3>{pendingDoctors.length}</h3>
+              <p>Pending Verifications</p>
+            </div>
+          </div>
+          <div className="stat-card stat-total">
+            <div className="stat-icon">👨‍⚕️</div>
+            <div className="stat-content">
+              <h3>{pagination.total}</h3>
+              <p>Total Applications</p>
+            </div>
+          </div>
+          <div className="stat-card stat-approved">
+            <div className="stat-icon">✅</div>
+            <div className="stat-content">
+              <h3>{allVerifications.filter(v => v.status === 'approved').length}</h3>
+              <p>Approved Doctors</p>
+            </div>
+          </div>
+          <div className="stat-card stat-rejected">
+            <div className="stat-icon">❌</div>
+            <div className="stat-content">
+              <h3>{allVerifications.filter(v => v.status === 'rejected').length}</h3>
+              <p>Rejected Applications</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="tabs">
+          <button 
+            className={`tab ${activeTab === 'pending' ? 'active' : ''}`}
+            onClick={() => setActiveTab('pending')}
+          >
+            ⏳ Pending ({pendingDoctors.length})
+          </button>
+          <button 
+            className={`tab ${activeTab === 'approved' ? 'active' : ''}`}
+            onClick={() => setActiveTab('approved')}
+          >
+            ✅ Approved
+          </button>
+          <button 
+            className={`tab ${activeTab === 'rejected' ? 'active' : ''}`}
+            onClick={() => setActiveTab('rejected')}
+          >
+            ❌ Rejected
+          </button>
+          <button 
+            className={`tab ${activeTab === 'all' ? 'active' : ''}`}
+            onClick={() => setActiveTab('all')}
+          >
+            📋 All Applications
+          </button>
+        </div>
+
+        {/* Doctor List */}
+        <div className="doctors-list">
+          {activeTab === 'pending' && pendingDoctors.length === 0 && (
+            <div className="empty-state">
+              <div className="empty-icon">🎉</div>
+              <h3>No Pending Verifications</h3>
+              <p>All doctor applications have been processed.</p>
+            </div>
+          )}
+
+          {activeTab !== 'pending' && allVerifications.length === 0 && (
+            <div className="empty-state">
+              <div className="empty-icon">📋</div>
+              <h3>No Verifications Found</h3>
+              <p>No doctor applications match the selected filter.</p>
+            </div>
+          )}
+
+          {(activeTab === 'pending' ? pendingDoctors : allVerifications).map((doctor) => (
+            <div key={doctor.verification_id} className="doctor-card">
+              <div className="doctor-card-header">
+                <div className="doctor-basic-info">
+                  <h3>{doctor.user_info?.full_name || 'Unknown Doctor'}</h3>
+                  <p className="doctor-email">{doctor.user_info?.email || 'No email'}</p>
+                  <div className="doctor-meta">
+                    <span className="meta-item">NIC: {doctor.doctor_NIC}</span>
+                    <span className="meta-item">Specialty: {doctor.doctor_info?.specialty || 'Not specified'}</span>
+                    {doctor.submitted_at && (
+                      <span className="meta-item">
+                        Applied: {formatDate(doctor.submitted_at)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="doctor-status">
+                  {getStatusBadge(doctor.status)}
+                  {doctor.reviewed_at && (
+                    <span className="review-date">
+                      Reviewed: {formatDate(doctor.reviewed_at)}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="doctor-card-body">
+                <div className="doctor-details">
+                  <div className="detail-section">
+                    <h4>Professional Information</h4>
+                    <p><strong>Qualifications:</strong> {doctor.doctor_info?.qualifications?.join(', ') || 'Not provided'}</p>
+                    <p><strong>Clinic/Hospital:</strong> {doctor.doctor_info?.clinic_or_hospital || 'Not specified'}</p>
+                  </div>
+                  
+                  <div className="detail-section">
+                    <h4>Contact Information</h4>
+                    <p><strong>Phone:</strong> {doctor.user_info?.contact_number || 'Not provided'}</p>
+                    <p><strong>Gender:</strong> {doctor.user_info?.gender || 'Not specified'}</p>
+                  </div>
+
+                  {doctor.registration_details && (
+                    <div className="detail-section">
+                      <h4>Registration Details</h4>
+                      <p>{doctor.registration_details}</p>
+                    </div>
+                  )}
+
+                  {doctor.rejection_reason && (
+                    <div className="detail-section">
+                      <h4>Rejection Reason</h4>
+                      <p className="rejection-reason">{doctor.rejection_reason}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="doctor-actions">
+                  {doctor.license_document_url && (
+                    <button
+                      onClick={() => handleViewLicense(doctor.license_document_url)}
+                      className="btn-view-license"
+                    >
+                      📄 View License Document
+                    </button>
+                  )}
+                  
+                  {doctor.status === 'pending' && (
+                    <div className="action-buttons">
+                      <button
+                        onClick={() => {
+                          setSelectedDoctor(doctor);
+                          setApprovalNotes('');
+                        }}
+                        className="btn-approve"
+                      >
+                        ✅ Approve
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedDoctor(doctor);
+                          setRejectionReason('');
+                        }}
+                        className="btn-reject"
+                      >
+                        ❌ Reject
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Pagination */}
+        {activeTab !== 'pending' && pagination.pages > 1 && (
+          <div className="pagination">
+            <button
+              onClick={() => setPagination({...pagination, page: pagination.page - 1})}
+              disabled={pagination.page <= 1}
+              className="pagination-btn"
+            >
+              ← Previous
+            </button>
+            
+            <span className="pagination-info">
+              Page {pagination.page} of {pagination.pages}
+            </span>
+            
+            <button
+              onClick={() => setPagination({...pagination, page: pagination.page + 1})}
+              disabled={pagination.page >= pagination.pages}
+              className="pagination-btn"
+            >
+              Next →
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Approval Modal */}
+      {selectedDoctor && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h2>
+                {rejectionReason !== undefined ? 'Reject Doctor' : 'Approve Doctor'}
+              </h2>
+              <button onClick={() => setSelectedDoctor(null)} className="modal-close">×</button>
+            </div>
+            
+            <div className="modal-body">
+              <p>
+                You are about to <strong>{rejectionReason !== undefined ? 'REJECT' : 'APPROVE'}</strong>:
+              </p>
+              <div className="doctor-summary">
+                <p><strong>Name:</strong> {selectedDoctor.user_info?.full_name}</p>
+                <p><strong>NIC:</strong> {selectedDoctor.doctor_NIC}</p>
+                <p><strong>Email:</strong> {selectedDoctor.user_info?.email}</p>
+                <p><strong>Specialty:</strong> {selectedDoctor.doctor_info?.specialty}</p>
+              </div>
+
+              {rejectionReason !== undefined ? (
+                <div className="form-group">
+                  <label htmlFor="rejectionReason">Rejection Reason *</label>
+                  <textarea
+                    id="rejectionReason"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Provide a clear reason for rejection..."
+                    rows="4"
+                    required
+                  />
+                  <small>This reason will be shown to the doctor</small>
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label htmlFor="approvalNotes">Approval Notes (Optional)</label>
+                  <textarea
+                    id="approvalNotes"
+                    value={approvalNotes}
+                    onChange={(e) => setApprovalNotes(e.target.value)}
+                    placeholder="Add any notes about this approval..."
+                    rows="3"
+                  />
+                </div>
+              )}
+            </div>
+            
+            <div className="modal-footer">
+              <button onClick={() => setSelectedDoctor(null)} className="btn-cancel">
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (rejectionReason !== undefined) {
+                    handleReject(selectedDoctor.doctor_NIC);
+                  } else {
+                    handleApprove(selectedDoctor.doctor_NIC);
+                  }
+                }}
+                className={rejectionReason !== undefined ? 'btn-confirm-reject' : 'btn-confirm-approve'}
+                disabled={rejectionReason !== undefined && !rejectionReason.trim()}
+              >
+                {rejectionReason !== undefined ? 'Confirm Rejection' : 'Confirm Approval'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AdminDoctorVerification;

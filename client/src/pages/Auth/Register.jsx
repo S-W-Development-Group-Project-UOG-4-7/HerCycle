@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState} from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import './Auth.css';
 
 const Register = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
-  const [userType, setUserType] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [gender, setGender] = useState('');
@@ -15,6 +14,9 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState([]);
   const [isCycleUser, setIsCycleUser] = useState(false);
+  const [licenseFile, setLicenseFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [formData, setFormData] = useState({
     // Step 1
@@ -266,7 +268,7 @@ const Register = () => {
       errors.push('One number');
     }
     
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
       errors.push('One special character');
     }
     
@@ -294,7 +296,7 @@ const Register = () => {
 
   const validateStep3 = () => {
     if (formData.user_type === 'doctor') {
-      return formData.specialty && formData.qualifications;
+      return formData.specialty && formData.qualifications && licenseFile;
     }
     return true;
   };
@@ -314,6 +316,58 @@ const Register = () => {
   const prevStep = () => {
     if (step > 1) {
       setStep(step - 1);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+      if (!validTypes.includes(file.type)) {
+        setError('Please upload a PDF, JPEG, or PNG file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('File size should be less than 5MB');
+        return;
+      }
+      
+      setLicenseFile(file);
+      setError(''); // Clear any previous errors
+    }
+  };
+
+  const uploadLicenseDocument = async (file) => {
+    if (!file) return null;
+    
+    const formData = new FormData();
+    formData.append('licenseDocument', file);
+    
+    try {
+      setUploadProgress(30);
+      const response = await fetch('http://localhost:5000/api/upload/license', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
+      
+      const data = await response.json();
+      setUploadProgress(70);
+      
+      if (data.success) {
+        setUploadProgress(100);
+        return data.url; // Return the uploaded file URL
+      } else {
+        setError(data.message || 'Failed to upload license document');
+        return null;
+      }
+    } catch (err) {
+      setError('Failed to upload license document');
+      console.error('Upload error:', err);
+      return null;
     }
   };
 
@@ -363,6 +417,66 @@ const Register = () => {
       console.error('Registration error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDoctorSubmit = async () => {
+    if (!licenseFile) {
+      setError('Please upload your license document for verification');
+      return;
+    }
+    
+    setLoading(true);
+    setIsUploading(true);
+    setError('');
+    
+    try {
+      // Step 1: Upload license document
+      const licenseDocumentUrl = await uploadLicenseDocument(licenseFile);
+      
+      if (!licenseDocumentUrl) {
+        setLoading(false);
+        setIsUploading(false);
+        return;
+      }
+      
+      // Step 2: Complete registration with license URL
+      const payload = {
+        ...formData,
+        gender,
+        date_of_birth: dateOfBirth,
+        is_cycle_user: isCycleUser,
+        age: age,
+        license_document_url: licenseDocumentUrl
+      };
+
+      const response = await fetch('http://localhost:5000/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Store auth data
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('user', JSON.stringify(data.data));
+        
+        // Redirect to doctor pending page
+        navigate('/doctor-pending');
+      } else {
+        setError(data.message || 'Registration failed');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
+      console.error('Registration error:', err);
+    } finally {
+      setLoading(false);
+      setIsUploading(false);
     }
   };
 
@@ -606,7 +720,7 @@ const Register = () => {
           value={formData.specialty}
           onChange={handleChange}
           required
-          disabled={loading}
+          disabled={loading || isUploading}
         >
           <option value="">Select your specialty</option>
           <option value="gynecology">Gynecology</option>
@@ -628,7 +742,7 @@ const Register = () => {
           onChange={handleChange}
           required
           placeholder="List your medical qualifications (comma separated)"
-          disabled={loading}
+          disabled={loading || isUploading}
           rows="3"
         />
       </div>
@@ -642,15 +756,74 @@ const Register = () => {
           value={formData.clinic_or_hospital}
           onChange={handleChange}
           placeholder="Where do you practice?"
-          disabled={loading}
+          disabled={loading || isUploading}
         />
+      </div>
+
+      {/* License Document Upload */}
+      <div className="form-group">
+        <label htmlFor="license_document">License Document *</label>
+        <div className="file-upload-container">
+          <input
+            type="file"
+            id="license_document"
+            name="license_document"
+            accept=".pdf,.jpg,.jpeg,.png"
+            onChange={handleFileChange}
+            required
+            disabled={loading || isUploading}
+            className="file-input"
+          />
+          <label htmlFor="license_document" className="file-upload-label">
+            <div className="upload-icon">📄</div>
+            <div className="upload-text">
+              <strong>Upload License</strong>
+              <small>PDF, JPG, PNG (Max 5MB)</small>
+            </div>
+            <div className="browse-button">Browse</div>
+          </label>
+          
+          {licenseFile && (
+            <div className="file-preview">
+              <div className="file-info">
+                <span className="file-name">{licenseFile.name}</span>
+                <span className="file-size">
+                  ({(licenseFile.size / 1024 / 1024).toFixed(2)} MB)
+                </span>
+              </div>
+              <button
+                type="button"
+                className="remove-file"
+                onClick={() => setLicenseFile(null)}
+                disabled={loading || isUploading}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+          
+          {isUploading && (
+            <div className="upload-progress">
+              <div className="progress-bar">
+                <div 
+                  className="progress-fill"
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
+              <span className="progress-text">{uploadProgress}% Uploading...</span>
+            </div>
+          )}
+        </div>
+        <small className="help-text">
+          Upload your medical license, certification, or registration document for verification
+        </small>
       </div>
 
       <div className="verification-notice">
         <div className="notice-icon">📋</div>
         <div className="notice-content">
           <strong>Verification Required</strong>
-          <p>Your account will be pending verification. You'll need to submit license documents for approval.</p>
+          <p>Your account will be pending verification. We'll review your documents within 1-2 business days.</p>
         </div>
       </div>
 
@@ -659,23 +832,23 @@ const Register = () => {
           type="button"
           className="back-button"
           onClick={prevStep}
-          disabled={loading}
+          disabled={loading || isUploading}
         >
           Back
         </button>
         <button
           type="button"
           className="next-button"
-          onClick={handleSubmit}
-          disabled={!validateStep3() || loading}
+          onClick={handleDoctorSubmit}
+          disabled={!validateStep3() || loading || isUploading}
         >
-          {loading ? (
+          {loading || isUploading ? (
             <>
               <span className="spinner"></span>
-              Creating Account...
+              {isUploading ? 'Uploading...' : 'Creating Account...'}
             </>
           ) : (
-            'Create Account'
+            'Submit for Verification'
           )}
         </button>
       </div>

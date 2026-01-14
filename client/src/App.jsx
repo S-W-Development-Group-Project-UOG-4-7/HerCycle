@@ -1,4 +1,3 @@
-// App.jsx
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import GradientBackground from "./components/GradientBackground";
 import Landing from "./pages/LandingPage/LandingPage";
@@ -7,12 +6,12 @@ import Adminpanel from "./pages/Admin/AdminPanel";
 import FundraisingAdminPanel from './pages/Admin/FundraisingAdminPanel';
 import PaymentGateway from './components/PaymentGateway/PaymentGateway';
 import DonationSuccess from './pages/DonationSuccess/DonationSuccess';
-// Add these imports
 import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import ForgotPassword from './pages/Auth/ForgotPassword';
 import Dashboard from './pages/Dashboard/Dashboard';
 import DoctorDashboard from './pages/Doctor/Dashboard';
+import AdminDoctorVerification from './pages/Admin/AdminDoctorVerification';
 
 function App() {
   return (
@@ -33,6 +32,7 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
           <Route path="/doctor-pending" element={<DoctorDashboard pending={true} />} />
+          <Route path="/admin-dashboard" element={<AdminDoctorVerification />} />
         </Routes>
       </GradientBackground>
     </Router>

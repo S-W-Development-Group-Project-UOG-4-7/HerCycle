@@ -5,10 +5,50 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const stripe = require('stripe')('sk_test_51Sohz3HEwvbtqHzUuV4TF924emk7sIbNJ9lcsADvwaWUqi6wiicdmbcExTHUKUY3S1b8qRUgCMI4HJ1FDQ8B4FVI0077r9FXTz');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const { setupDatabase } = require('./setup.js');
 
 const app = express();
 const JWT_SECRET = 'your-secret-key-change-this-in-production';
+
+// ========== FILE UPLOAD CONFIGURATION ==========
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Configure multer for file storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'license-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    // Accept only specific file types
+    const allowedTypes = /pdf|jpeg|jpg|png/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only PDF, JPEG, JPG, and PNG files are allowed'));
+    }
+  }
+});
 
 // ========== CORS CONFIGURATION ==========
 const allowedOrigins = [
@@ -37,6 +77,9 @@ app.options('*', cors());
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(uploadsDir));
 // ========== END CORS CONFIGURATION ==========
 
 // ========== HELPER FUNCTION TO GET MODELS ==========
@@ -57,6 +100,7 @@ app.get('/', (req, res) => {
     status: 'Running',
     endpoints: [
       'POST /api/auth/register',
+      'POST /api/auth/register/doctor',
       'POST /api/auth/login',
       'GET  /api/auth/me',
       'GET  /api/landing-page',
@@ -67,7 +111,8 @@ app.get('/', (req, res) => {
       'POST /api/payment/create-payment-intent',
       'POST /api/payment/save-donation',
       'GET  /api/payment/donations',
-      'POST /api/setup-database'
+      'POST /api/setup-database',
+      'POST /api/upload/license'
     ],
     mongo: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
   });
@@ -97,6 +142,41 @@ app.post('/api/setup-database', async (req, res) => {
   }
 });
 // ========== END BASIC ROUTES ==========
+
+// ========== FILE UPLOAD ROUTE ==========
+app.post('/api/upload/license', upload.single('licenseDocument'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    console.log('📄 File uploaded:', req.file.filename);
+
+    // Return the file URL
+    const fileUrl = `/uploads/${req.file.filename}`;
+
+    res.json({
+      success: true,
+      message: 'File uploaded successfully',
+      url: fileUrl,
+      filename: req.file.filename,
+      size: req.file.size,
+      mimetype: req.file.mimetype
+    });
+
+  } catch (error) {
+    console.error('❌ File upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload file',
+      error: error.message
+    });
+  }
+});
+// ========== END FILE UPLOAD ROUTE ==========
 
 // ========== DATABASE CONNECTION ==========
 let isDatabaseReady = false;
@@ -157,7 +237,183 @@ const checkDatabaseReady = (req, res, next) => {
 // ========== END AUTHENTICATION MIDDLEWARE ==========
 
 // ========== AUTHENTICATION ROUTES ==========
-// REGISTER ENDPOINT
+// DOCTOR REGISTRATION ENDPOINT
+app.post('/api/auth/register/doctor', checkDatabaseReady, async (req, res) => {
+  try {
+    console.log('📝 Doctor registration attempt');
+
+    const {
+      NIC,
+      full_name,
+      email,
+      password,
+      contact_number,
+      gender,
+      date_of_birth,
+      is_cycle_user,
+      specialty,
+      qualifications,
+      clinic_or_hospital,
+      license_document_url
+    } = req.body;
+
+    // Validation
+    if (!NIC || !full_name || !email || !password || !specialty || !qualifications || !license_document_url) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please fill all required fields including license document'
+      });
+    }
+
+    // Get User model
+    const User = getModel('User');
+    const Doctor = getModel('Doctor');
+    const DoctorVerification = getModel('DoctorVerification');
+    const CycleProfile = getModel('CycleProfile');
+    
+    if (!User || !Doctor || !DoctorVerification) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ 
+      $or: [{ email }, { NIC }] 
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User already exists with this email or NIC'
+      });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash(password, salt);
+
+    // Create base user
+    const userData = {
+      NIC,
+      full_name,
+      email: email.toLowerCase(),
+      password_hash,
+      gender: gender || 'prefer-not-to-say',
+      contact_number: contact_number || '',
+      role: 'doctor',
+      isExisting: 'pending', // Doctors are pending until verified
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date()
+    };
+
+    if (date_of_birth) {
+      userData.date_of_birth = new Date(date_of_birth);
+    }
+
+    const user = new User(userData);
+    await user.save();
+
+    // Create doctor record
+    const doctorData = {
+      NIC,
+      specialty: specialty || 'general_practice',
+      qualifications: qualifications ? qualifications.split(',').map(q => q.trim()) : [],
+      clinic_or_hospital: clinic_or_hospital || '',
+      is_approved: false,
+      activated_at: null,
+      experience_years: 0,
+      verified: false
+    };
+    
+    const doctor = new Doctor(doctorData);
+    await doctor.save();
+
+    // Create doctor verification record WITH license document URL
+    const verificationData = {
+      verification_id: `VER_${Date.now()}_${NIC}`,
+      doctor_NIC: NIC,
+      license_document_url: license_document_url,
+      registration_details: `Registered on ${new Date().toISOString()}. Qualifications: ${qualifications}`,
+      terms_accepted: true,
+      status: 'pending',
+      submitted_at: new Date()
+    };
+    
+    const verification = new DoctorVerification(verificationData);
+    await verification.save();
+
+    // Create cycle profile if enabled
+    if (is_cycle_user && gender === 'female' && CycleProfile) {
+      const cycleProfile = new CycleProfile({
+        NIC,
+        activated_at: new Date(),
+        is_active: true,
+        is_anonymized: false,
+        cycle_length: 28,
+        period_length: 5,
+        tracking_preferences: {
+          symptoms: true,
+          mood: true,
+          flow: true,
+          pain: true,
+          notes: true
+        }
+      });
+      await cycleProfile.save();
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        userId: user._id, 
+        NIC, 
+        email: user.email, 
+        role: user.role 
+      },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    const responseData = {
+      user_id: user._id,
+      NIC: user.NIC,
+      full_name: user.full_name,
+      email: user.email,
+      role: user.role,
+      user_type: 'doctor',
+      is_cycle_user: is_cycle_user || false,
+      gender: user.gender,
+      date_of_birth: user.date_of_birth,
+      contact_number: user.contact_number,
+      specialty: doctor.specialty,
+      qualifications: doctor.qualifications,
+      verification_status: 'pending',
+      token: token
+    };
+
+    console.log('✅ Doctor registered successfully:', user.email);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Doctor registration submitted for verification',
+      data: responseData,
+      token: token
+    });
+
+  } catch (error) {
+    console.error('❌ Doctor registration error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Doctor registration failed',
+      error: error.message
+    });
+  }
+});
+
+// REGULAR USER REGISTRATION ENDPOINT
 app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
   try {
     console.log('📝 Registration attempt');
@@ -174,7 +430,8 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
       is_cycle_user,
       specialty,
       qualifications,
-      clinic_or_hospital
+      clinic_or_hospital,
+      license_document_url
     } = req.body;
 
     // Validation
@@ -187,6 +444,11 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
 
     // Get User model
     const User = getModel('User');
+    const CommunityMember = getModel('CommunityMember');
+    const Doctor = getModel('Doctor');
+    const DoctorVerification = getModel('DoctorVerification');
+    const CycleProfile = getModel('CycleProfile');
+    
     if (!User) {
       return res.status(500).json({
         success: false,
@@ -210,7 +472,16 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
 
-    // Create base user - SET AS ACTIVE IMMEDIATELY
+    // Determine role
+    let role = 'user';
+    let isExistingStatus = 'active';
+    
+    if (user_type === 'doctor') {
+      role = 'doctor';
+      isExistingStatus = 'pending'; // Doctors need verification
+    }
+
+    // Create base user
     const userData = {
       NIC,
       full_name,
@@ -218,8 +489,8 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
       password_hash,
       gender: gender || 'prefer-not-to-say',
       contact_number: contact_number || '',
-      role: user_type === 'doctor' ? 'doctor' : 'user',
-      isExisting: 'active',
+      role: role,
+      isExisting: isExistingStatus,
       is_active: true,
       created_at: new Date(),
       updated_at: new Date()
@@ -232,35 +503,47 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
     const user = new User(userData);
     await user.save();
 
-    // Create role-specific record
+    // Create role-specific records
     if (user_type === 'doctor') {
-      const Doctor = getModel('Doctor');
-      const DoctorVerification = getModel('DoctorVerification');
-      
+      // Doctor registration
       if (Doctor) {
         const doctorData = {
           NIC,
           specialty: specialty || 'general_practice',
-          qualifications: qualifications ? qualifications.split(',') : [],
+          qualifications: qualifications ? qualifications.split(',').map(q => q.trim()) : [],
           clinic_or_hospital: clinic_or_hospital || '',
-          is_approved: false
+          is_approved: false,
+          activated_at: null,
+          experience_years: 0,
+          verified: false
         };
         const doctor = new Doctor(doctorData);
         await doctor.save();
       }
 
       if (DoctorVerification) {
+        if (!license_document_url) {
+          // Rollback user creation
+          await User.deleteOne({ NIC: NIC });
+          return res.status(400).json({
+            success: false,
+            message: 'License document URL is required for doctor registration'
+          });
+        }
+
         const verification = new DoctorVerification({
           verification_id: `VER_${Date.now()}_${NIC}`,
           doctor_NIC: NIC,
+          license_document_url: license_document_url,
+          registration_details: `Registered on ${new Date().toISOString()}. Qualifications: ${qualifications || 'Not provided'}`,
+          terms_accepted: true,
           status: 'pending',
           submitted_at: new Date()
         });
         await verification.save();
       }
     } else {
-      // Community member
-      const CommunityMember = getModel('CommunityMember');
+      // Community member registration
       if (CommunityMember) {
         const communityMember = new CommunityMember({
           NIC,
@@ -272,26 +555,23 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
     }
 
     // Create cycle profile if enabled
-    if (is_cycle_user && gender === 'female') {
-      const CycleProfile = getModel('CycleProfile');
-      if (CycleProfile) {
-        const cycleProfile = new CycleProfile({
-          NIC,
-          activated_at: new Date(),
-          is_active: true,
-          is_anonymized: false,
-          cycle_length: 28,
-          period_length: 5,
-          tracking_preferences: {
-            symptoms: true,
-            mood: true,
-            flow: true,
-            pain: true,
-            notes: true
-          }
-        });
-        await cycleProfile.save();
-      }
+    if (is_cycle_user && gender === 'female' && CycleProfile) {
+      const cycleProfile = new CycleProfile({
+        NIC,
+        activated_at: new Date(),
+        is_active: true,
+        is_anonymized: false,
+        cycle_length: 28,
+        period_length: 5,
+        tracking_preferences: {
+          symptoms: true,
+          mood: true,
+          flow: true,
+          pain: true,
+          notes: true
+        }
+      });
+      await cycleProfile.save();
     }
 
     // Generate JWT token
@@ -320,11 +600,17 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
       token: token
     };
 
+    if (user_type === 'doctor') {
+      responseData.verification_status = 'pending';
+      responseData.specialty = specialty;
+      responseData.qualifications = qualifications ? qualifications.split(',').map(q => q.trim()) : [];
+    }
+
     console.log('✅ User registered successfully:', user.email);
     
     res.status(201).json({
       success: true,
-      message: 'Registration successful',
+      message: user_type === 'doctor' ? 'Registration submitted for verification' : 'Registration successful',
       data: responseData,
       token: token
     });
@@ -418,6 +704,15 @@ app.post('/api/auth/login', checkDatabaseReady, async (req, res) => {
       if (doctor) {
         roleData = doctor.toObject();
         user_type = 'doctor';
+        
+        // Get verification status
+        const DoctorVerification = getModel('DoctorVerification');
+        if (DoctorVerification) {
+          const verification = await DoctorVerification.findOne({ doctor_NIC: user.NIC });
+          if (verification) {
+            roleData.verification_status = verification.status;
+          }
+        }
       }
     } else if (user.role === 'admin' && Admin) {
       const admin = await Admin.findOne({ NIC: user.NIC });
@@ -528,6 +823,16 @@ app.get('/api/auth/me', authenticateToken, checkDatabaseReady, async (req, res) 
       if (doctor) {
         roleData = doctor.toObject();
         user_type = 'doctor';
+        
+        // Get verification status
+        const DoctorVerification = getModel('DoctorVerification');
+        if (DoctorVerification) {
+          const verification = await DoctorVerification.findOne({ doctor_NIC: user.NIC });
+          if (verification) {
+            roleData.verification_status = verification.status;
+            roleData.verification_details = verification;
+          }
+        }
       }
     } else if (user.role === 'admin' && Admin) {
       const admin = await Admin.findOne({ NIC: user.NIC });
@@ -843,7 +1148,7 @@ app.get('/api/landing-page', async (req, res) => {
         description: "Start your journey with HerCycle today."
       },
       footer: {
-        tagline: "Empowering women worldwide.",
+        tagline: "Empowering women worldwide through education, community, and support.",
         supportEmail: "support@hercycle.com",
         socialLinks: [
           { name: 'Instagram', icon: 'IG', color: 'pink-purple', url: '#' },
@@ -1422,12 +1727,14 @@ app.listen(PORT, () => {
   console.log('='.repeat(60));
   console.log('\n📋 Available Endpoints:');
   console.log(`   POST http://localhost:${PORT}/api/auth/register`);
+  console.log(`   POST http://localhost:${PORT}/api/auth/register/doctor`);
   console.log(`   POST http://localhost:${PORT}/api/auth/login`);
   console.log(`   POST http://localhost:${PORT}/api/auth/login-test (for testing)`);
   console.log(`   GET  http://localhost:${PORT}/api/auth/me`);
   console.log(`   GET  http://localhost:${PORT}/health`);
   console.log(`   GET  http://localhost:${PORT}/api/landing-page`);
   console.log(`   GET  http://localhost:${PORT}/api/fundraising`);
+  console.log(`   POST http://localhost:${PORT}/api/upload/license`);
   console.log('\n🔐 Test Credentials:');
   console.log('   Email: test@test.com');
   console.log('   Password: test123');
@@ -1436,10 +1743,10 @@ app.listen(PORT, () => {
 });
 // ========== END SERVER STARTUP ==========
 
-
 // ========== PASSWORD RESET ROUTES ==========
 const crypto = require('crypto');
-const { sendPasswordResetEmail, sendPasswordResetConfirmation } = require('./emailService');
+// Note: You'll need to create emailService.js or remove this import
+// const { sendPasswordResetEmail, sendPasswordResetConfirmation } = require('./emailService');
 
 // Password reset schema
 const passwordResetSchema = new mongoose.Schema({
@@ -1537,25 +1844,15 @@ app.post('/api/auth/forgot-password', checkDatabaseReady, async (req, res) => {
 
     await passwordReset.save();
 
-    // Send email with reset code
-    const emailResult = await sendPasswordResetEmail(email, resetCode);
-
-    if (!emailResult.success) {
-      // If email fails, delete the reset record
-      await PasswordReset.deleteOne({ email: email.toLowerCase() });
-      
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to send reset email. Please try again later.'
-      });
-    }
-
-    console.log(`✅ Reset code generated for ${email}: ${resetCode}`);
+    // Note: In production, you would send an email here
+    // For now, we'll log it and return success
+    console.log(`📧 Password reset code for ${email}: ${resetCode} (simulated email)`);
 
     res.json({
       success: true,
       message: 'If an account exists with this email, you will receive a reset code shortly.',
-      hint: 'Check your email for the 6-digit reset code.'
+      hint: 'Check your email for the 6-digit reset code.',
+      debug_code: resetCode // Remove this in production
     });
 
   } catch (error) {
@@ -1755,9 +2052,6 @@ app.post('/api/auth/reset-password', checkDatabaseReady, async (req, res) => {
     resetRecord.updatedAt = new Date();
     await resetRecord.save();
 
-    // Send confirmation email
-    await sendPasswordResetConfirmation(email);
-
     console.log(`✅ Password reset successful for: ${email}`);
 
     res.json({
@@ -1828,23 +2122,14 @@ app.post('/api/auth/resend-reset-code', checkDatabaseReady, async (req, res) => 
 
     await passwordReset.save();
 
-    // Send email with new reset code
-    const emailResult = await sendPasswordResetEmail(email, resetCode);
-
-    if (!emailResult.success) {
-      await PasswordReset.deleteOne({ email: email.toLowerCase() });
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to send reset email. Please try again later.'
-      });
-    }
-
-    console.log(`✅ New reset code sent to ${email}: ${resetCode}`);
+    // Note: In production, you would send an email here
+    console.log(`📧 New reset code for ${email}: ${resetCode} (simulated email)`);
 
     res.json({
       success: true,
       message: 'A new reset code has been sent to your email.',
-      hint: 'Check your email for the 6-digit reset code.'
+      hint: 'Check your email for the 6-digit reset code.',
+      debug_code: resetCode // Remove this in production
     });
 
   } catch (error) {
