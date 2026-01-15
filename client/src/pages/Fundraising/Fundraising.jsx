@@ -843,6 +843,7 @@ const Fundraising = () => {
               See the faces and stories behind the numbers. Every donation creates a real impact.
             </p>
           </div>
+          <br/>
 
           {/* Image Carousel */}
           <div className="glass-card rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-12 w-full max-w-4xl" style={{
