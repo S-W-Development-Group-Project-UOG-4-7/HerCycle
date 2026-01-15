@@ -1509,7 +1509,7 @@ app.get('/api/landing-page', async (req, res) => {
         { number: '50K+', label: 'Active Users' },
         { number: '100+', label: 'Health Articles' },
         { number: '25+', label: 'Partner NGOs' },
-        { number: '₹2M+', label: 'Funds Raised' }
+        { number: 'Rs.2M+', label: 'Funds Raised' }
       ]
     };
 
@@ -1564,7 +1564,7 @@ app.get('/api/landing-page', async (req, res) => {
           { number: '50K+', label: 'Active Users' },
           { number: '100+', label: 'Health Articles' },
           { number: '25+', label: 'Partner NGOs' },
-          { number: '₹2M+', label: 'Funds Raised' }
+          { number: 'Rs.2M+', label: 'Funds Raised' }
         ]
       },
       message: 'Using fallback data (database error)'
@@ -1616,7 +1616,7 @@ app.post('/api/seed', async (req, res) => {
         { number: '50K+', label: 'Active Users' },
         { number: '100+', label: 'Health Articles' },
         { number: '25+', label: 'Partner NGOs' },
-        { number: '₹2M+', label: 'Funds Raised' }
+        { number: 'Rs.2M+', label: 'Funds Raised' }
       ]
     });
     
@@ -1702,7 +1702,7 @@ app.get('/api/fundraising', async (req, res) => {
         mainHeading: "Fuel the Change in Menstrual Health",
         subheading: "Every contribution brings us closer to a world where no girl misses school, no woman lacks access to menstrual products, and menstrual health is a right, not a privilege.",
         stats: [
-          { number: '₹4.2M+', label: 'Total Raised', order: 0 },
+          { number: 'Rs.4.2M+', label: 'Total Raised', order: 0 },
           { number: '8.5K+', label: 'Donors', order: 1 },
           { number: '42', label: 'Campaigns', order: 2 },
           { number: '65K+', label: 'Lives Impacted', order: 3 }
@@ -1761,7 +1761,7 @@ app.post('/api/fundraising/seed', async (req, res) => {
         mainHeading: "Fuel the Change in Menstrual Health",
         subheading: "Every contribution brings us closer to a world where no girl misses school, no woman lacks access to menstrual products, and menstrual health is a right, not a privilege.",
         stats: [
-          { number: '₹4.2M+', label: 'Total Raised', order: 0 },
+          { number: 'Rs.4.2M+', label: 'Total Raised', order: 0 },
           { number: '8.5K+', label: 'Donors', order: 1 },
           { number: '42', label: 'Campaigns', order: 2 },
           { number: '65K+', label: 'Lives Impacted', order: 3 }
@@ -1836,11 +1836,11 @@ app.post('/api/payment/create-payment-intent', async (req, res) => {
 
     console.log('Creating payment intent for amount:', amount);
 
-    // Validate amount - minimum ₹50 (5000 paise) for Stripe
+    // Validate amount - minimum Rs.50 (5000 paise) for Stripe
     if (!amount || amount < 50) {
       return res.status(400).json({
         success: false,
-        error: 'Amount must be at least ₹50'
+        error: 'Amount must be at least Rs.50'
       });
     }
 

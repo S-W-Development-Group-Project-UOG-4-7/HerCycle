@@ -19,10 +19,10 @@ router.post('/create-payment-intent', async (req, res) => {
     });
 
     // Validate amount
-    if (!amount || amount < 100) { // Minimum ₹1
+    if (!amount || amount < 100) { // Minimum Rs.1
       return res.status(400).json({
         success: false,
-        error: 'Amount must be at least ₹1'
+        error: 'Amount must be at least Rs.1'
       });
     }
 
