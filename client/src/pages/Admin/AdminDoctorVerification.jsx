@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './AdminDoctorVerification.css';
 
@@ -13,6 +13,7 @@ const AdminDoctorVerification = () => {
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [approvalNotes, setApprovalNotes] = useState('');
+  const [isRejectMode, setIsRejectMode] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -20,16 +21,7 @@ const AdminDoctorVerification = () => {
     pages: 0
   });
 
-  useEffect(() => {
-    checkAdminAccess();
-    if (activeTab === 'pending') {
-      fetchPendingDoctors();
-    } else {
-      fetchAllVerifications();
-    }
-  }, [activeTab, pagination.page]);
-
-  const checkAdminAccess = () => {
+  const checkAdminAccess = useCallback(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('authToken');
     
@@ -38,9 +30,11 @@ const AdminDoctorVerification = () => {
       return false;
     }
     return true;
-  };
+  }, [navigate]);
 
-  const fetchPendingDoctors = async () => {
+  const fetchPendingDoctors = useCallback(async () => {
+    if (!checkAdminAccess()) return;
+
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
@@ -53,6 +47,8 @@ const AdminDoctorVerification = () => {
         }
       });
 
+      if (!response.ok) throw new Error('Network response was not ok');
+
       const data = await response.json();
       
       if (data.success) {
@@ -61,20 +57,33 @@ const AdminDoctorVerification = () => {
         setError(data.message || 'Failed to fetch pending doctors');
       }
     } catch (err) {
-      setError('Network error. Please try again.');
-      console.error('Fetch error:', err);
+      setError(err.message || 'Network error. Please try again.');
+      console.error('Fetch pending doctors error:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [checkAdminAccess]);
 
-  const fetchAllVerifications = async () => {
+  const fetchAllVerifications = useCallback(async () => {
+    if (!checkAdminAccess()) return;
+
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
       
+      // Build query parameters
+      const queryParams = new URLSearchParams({
+        page: pagination.page.toString(),
+        limit: pagination.limit.toString()
+      });
+      
+      // Add status filter only if not 'all'
+      if (activeTab !== 'all' && activeTab !== 'pending') {
+        queryParams.append('status', activeTab);
+      }
+      
       const response = await fetch(
-        `http://localhost:5000/api/admin/all-doctor-verifications?page=${pagination.page}&limit=${pagination.limit}&status=${activeTab === 'all' ? '' : activeTab}`,
+        `http://localhost:5000/api/admin/doctor-verifications?${queryParams}`,
         {
           method: 'GET',
           headers: {
@@ -84,31 +93,49 @@ const AdminDoctorVerification = () => {
         }
       );
 
+      if (!response.ok) throw new Error('Network response was not ok');
+
       const data = await response.json();
       
       if (data.success) {
         setAllVerifications(data.data || []);
-        setPagination(data.pagination || pagination);
+        setPagination(prev => ({
+          ...prev,
+          total: data.pagination?.total || 0,
+          pages: data.pagination?.pages || 0
+        }));
       } else {
         setError(data.message || 'Failed to fetch verifications');
       }
     } catch (err) {
-      setError('Network error. Please try again.');
-      console.error('Fetch error:', err);
+      setError(err.message || 'Network error. Please try again.');
+      console.error('Fetch verifications error:', err);
     } finally {
       setLoading(false);
     }
+  }, [checkAdminAccess, activeTab, pagination.page, pagination.limit]);
+
+  useEffect(() => {
+    if (activeTab === 'pending') {
+      fetchPendingDoctors();
+    } else {
+      fetchAllVerifications();
+    }
+  }, [activeTab, pagination.page, fetchPendingDoctors, fetchAllVerifications]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    // Reset pagination to page 1 when changing tabs
+    if (tab !== 'pending') {
+      setPagination(prev => ({ ...prev, page: 1 }));
+    }
   };
 
-  const handleApprove = async (nic) => {
-    if (!window.confirm('Are you sure you want to approve this doctor?')) {
-      return;
-    }
-
+  const handleApprove = async (doctorId) => {
     try {
       const token = localStorage.getItem('authToken');
       
-      const response = await fetch(`http://localhost:5000/api/admin/approve-doctor/${nic}`, {
+      const response = await fetch(`http://localhost:5000/api/admin/approve-doctor/${doctorId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -122,8 +149,10 @@ const AdminDoctorVerification = () => {
       const data = await response.json();
       
       if (data.success) {
-        setSuccess(`Doctor ${nic} approved successfully!`);
+        setSuccess(`Doctor approved successfully!`);
         setApprovalNotes('');
+        setSelectedDoctor(null);
+        setIsRejectMode(false);
         
         // Refresh the list
         if (activeTab === 'pending') {
@@ -143,20 +172,11 @@ const AdminDoctorVerification = () => {
     }
   };
 
-  const handleReject = async (nic) => {
-    if (!rejectionReason.trim()) {
-      alert('Please provide a rejection reason');
-      return;
-    }
-
-    if (!window.confirm('Are you sure you want to reject this doctor?')) {
-      return;
-    }
-
+  const handleReject = async (doctorId) => {
     try {
       const token = localStorage.getItem('authToken');
       
-      const response = await fetch(`http://localhost:5000/api/admin/reject-doctor/${nic}`, {
+      const response = await fetch(`http://localhost:5000/api/admin/reject-doctor/${doctorId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -171,9 +191,10 @@ const AdminDoctorVerification = () => {
       const data = await response.json();
       
       if (data.success) {
-        setSuccess(`Doctor ${nic} rejected successfully!`);
+        setSuccess(`Doctor rejected successfully!`);
         setRejectionReason('');
         setSelectedDoctor(null);
+        setIsRejectMode(false);
         
         // Refresh the list
         if (activeTab === 'pending') {
@@ -195,7 +216,9 @@ const AdminDoctorVerification = () => {
 
   const handleViewLicense = (url) => {
     if (url) {
-      window.open(`http://localhost:5000${url}`, '_blank');
+      // Ensure URL is properly formatted
+      const fullUrl = url.startsWith('http') ? url : `http://localhost:5000${url}`;
+      window.open(fullUrl, '_blank');
     } else {
       alert('License document URL not available');
     }
@@ -218,13 +241,59 @@ const AdminDoctorVerification = () => {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (err) {
+      return 'Invalid Date';
+    }
+  };
+
+  const openApproveModal = (doctor) => {
+    setSelectedDoctor(doctor);
+    setIsRejectMode(false);
+    setApprovalNotes('');
+    setRejectionReason('');
+  };
+
+  const openRejectModal = (doctor) => {
+    setSelectedDoctor(doctor);
+    setIsRejectMode(true);
+    setRejectionReason('');
+    setApprovalNotes('');
+  };
+
+  const closeModal = () => {
+    setSelectedDoctor(null);
+    setIsRejectMode(false);
+    setRejectionReason('');
+    setApprovalNotes('');
+  };
+
+  const confirmAction = () => {
+    if (!selectedDoctor) return;
+
+    // Use NIC as the identifier (as per your original code)
+    const doctorNIC = selectedDoctor.doctor_NIC;
+    
+    if (isRejectMode) {
+      if (!rejectionReason.trim()) {
+        alert('Please provide a rejection reason');
+        return;
+      }
+      if (window.confirm('Are you sure you want to reject this doctor?')) {
+        handleReject(doctorNIC);
+      }
+    } else {
+      if (window.confirm('Are you sure you want to approve this doctor?')) {
+        handleApprove(doctorNIC);
+      }
+    }
   };
 
   if (loading && pendingDoctors.length === 0 && allVerifications.length === 0) {
@@ -323,25 +392,25 @@ const AdminDoctorVerification = () => {
         <div className="tabs">
           <button 
             className={`tab ${activeTab === 'pending' ? 'active' : ''}`}
-            onClick={() => setActiveTab('pending')}
+            onClick={() => handleTabChange('pending')}
           >
             ⏳ Pending ({pendingDoctors.length})
           </button>
           <button 
             className={`tab ${activeTab === 'approved' ? 'active' : ''}`}
-            onClick={() => setActiveTab('approved')}
+            onClick={() => handleTabChange('approved')}
           >
             ✅ Approved
           </button>
           <button 
             className={`tab ${activeTab === 'rejected' ? 'active' : ''}`}
-            onClick={() => setActiveTab('rejected')}
+            onClick={() => handleTabChange('rejected')}
           >
             ❌ Rejected
           </button>
           <button 
             className={`tab ${activeTab === 'all' ? 'active' : ''}`}
-            onClick={() => setActiveTab('all')}
+            onClick={() => handleTabChange('all')}
           >
             📋 All Applications
           </button>
@@ -349,7 +418,7 @@ const AdminDoctorVerification = () => {
 
         {/* Doctor List */}
         <div className="doctors-list">
-          {activeTab === 'pending' && pendingDoctors.length === 0 && (
+          {activeTab === 'pending' && pendingDoctors.length === 0 && !loading && (
             <div className="empty-state">
               <div className="empty-icon">🎉</div>
               <h3>No Pending Verifications</h3>
@@ -357,7 +426,7 @@ const AdminDoctorVerification = () => {
             </div>
           )}
 
-          {activeTab !== 'pending' && allVerifications.length === 0 && (
+          {activeTab !== 'pending' && allVerifications.length === 0 && !loading && (
             <div className="empty-state">
               <div className="empty-icon">📋</div>
               <h3>No Verifications Found</h3>
@@ -366,7 +435,7 @@ const AdminDoctorVerification = () => {
           )}
 
           {(activeTab === 'pending' ? pendingDoctors : allVerifications).map((doctor) => (
-            <div key={doctor.verification_id} className="doctor-card">
+            <div key={doctor.verification_id || doctor.doctor_NIC} className="doctor-card">
               <div className="doctor-card-header">
                 <div className="doctor-basic-info">
                   <h3>{doctor.user_info?.full_name || 'Unknown Doctor'}</h3>
@@ -433,19 +502,13 @@ const AdminDoctorVerification = () => {
                   {doctor.status === 'pending' && (
                     <div className="action-buttons">
                       <button
-                        onClick={() => {
-                          setSelectedDoctor(doctor);
-                          setApprovalNotes('');
-                        }}
+                        onClick={() => openApproveModal(doctor)}
                         className="btn-approve"
                       >
                         ✅ Approve
                       </button>
                       <button
-                        onClick={() => {
-                          setSelectedDoctor(doctor);
-                          setRejectionReason('');
-                        }}
+                        onClick={() => openRejectModal(doctor)}
                         className="btn-reject"
                       >
                         ❌ Reject
@@ -484,29 +547,29 @@ const AdminDoctorVerification = () => {
         )}
       </div>
 
-      {/* Approval Modal */}
+      {/* Approval/Rejection Modal */}
       {selectedDoctor && (
         <div className="modal-overlay">
           <div className="modal">
             <div className="modal-header">
               <h2>
-                {rejectionReason !== undefined ? 'Reject Doctor' : 'Approve Doctor'}
+                {isRejectMode ? 'Reject Doctor' : 'Approve Doctor'}
               </h2>
-              <button onClick={() => setSelectedDoctor(null)} className="modal-close">×</button>
+              <button onClick={closeModal} className="modal-close">×</button>
             </div>
             
             <div className="modal-body">
               <p>
-                You are about to <strong>{rejectionReason !== undefined ? 'REJECT' : 'APPROVE'}</strong>:
+                You are about to <strong>{isRejectMode ? 'REJECT' : 'APPROVE'}</strong>:
               </p>
               <div className="doctor-summary">
-                <p><strong>Name:</strong> {selectedDoctor.user_info?.full_name}</p>
-                <p><strong>NIC:</strong> {selectedDoctor.doctor_NIC}</p>
-                <p><strong>Email:</strong> {selectedDoctor.user_info?.email}</p>
-                <p><strong>Specialty:</strong> {selectedDoctor.doctor_info?.specialty}</p>
+                <p><strong>Name:</strong> {selectedDoctor.user_info?.full_name || 'N/A'}</p>
+                <p><strong>NIC:</strong> {selectedDoctor.doctor_NIC || 'N/A'}</p>
+                <p><strong>Email:</strong> {selectedDoctor.user_info?.email || 'N/A'}</p>
+                <p><strong>Specialty:</strong> {selectedDoctor.doctor_info?.specialty || 'N/A'}</p>
               </div>
 
-              {rejectionReason !== undefined ? (
+              {isRejectMode ? (
                 <div className="form-group">
                   <label htmlFor="rejectionReason">Rejection Reason *</label>
                   <textarea
@@ -534,21 +597,15 @@ const AdminDoctorVerification = () => {
             </div>
             
             <div className="modal-footer">
-              <button onClick={() => setSelectedDoctor(null)} className="btn-cancel">
+              <button onClick={closeModal} className="btn-cancel">
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  if (rejectionReason !== undefined) {
-                    handleReject(selectedDoctor.doctor_NIC);
-                  } else {
-                    handleApprove(selectedDoctor.doctor_NIC);
-                  }
-                }}
-                className={rejectionReason !== undefined ? 'btn-confirm-reject' : 'btn-confirm-approve'}
-                disabled={rejectionReason !== undefined && !rejectionReason.trim()}
+                onClick={confirmAction}
+                className={isRejectMode ? 'btn-confirm-reject' : 'btn-confirm-approve'}
+                disabled={isRejectMode && !rejectionReason.trim()}
               >
-                {rejectionReason !== undefined ? 'Confirm Rejection' : 'Confirm Approval'}
+                {isRejectMode ? 'Confirm Rejection' : 'Confirm Approval'}
               </button>
             </div>
           </div>

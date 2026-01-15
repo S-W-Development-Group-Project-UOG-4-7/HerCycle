@@ -340,6 +340,7 @@ const Register = () => {
     }
   };
 
+  // UPDATED FILE UPLOAD FUNCTION - Fixed for multer
   const uploadLicenseDocument = async (file) => {
     if (!file) return null;
     
@@ -348,14 +349,32 @@ const Register = () => {
     
     try {
       setUploadProgress(30);
+      
       const response = await fetch('http://localhost:5000/api/upload/license', {
         method: 'POST',
         body: formData,
+        // IMPORTANT: Do NOT set Content-Type header - let the browser set it automatically with boundary
         credentials: 'include'
       });
       
-      const data = await response.json();
       setUploadProgress(70);
+      
+      if (!response.ok) {
+        // Try to get error message from response
+        let errorMessage = 'Upload failed';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          errorMessage = response.statusText || errorMessage;
+        }
+        
+        console.error('Upload failed:', errorMessage);
+        setError('Upload failed: ' + errorMessage);
+        return null;
+      }
+      
+      const data = await response.json();
       
       if (data.success) {
         setUploadProgress(100);
@@ -365,8 +384,8 @@ const Register = () => {
         return null;
       }
     } catch (err) {
-      setError('Failed to upload license document');
       console.error('Upload error:', err);
+      setError('Failed to upload license document: ' + err.message);
       return null;
     }
   };
@@ -431,7 +450,8 @@ const Register = () => {
     setError('');
     
     try {
-      // Step 1: Upload license document
+      // Step 1: Upload license document using FormData
+      console.log('Starting license upload...', licenseFile.name);
       const licenseDocumentUrl = await uploadLicenseDocument(licenseFile);
       
       if (!licenseDocumentUrl) {
@@ -439,6 +459,8 @@ const Register = () => {
         setIsUploading(false);
         return;
       }
+      
+      console.log('License uploaded successfully:', licenseDocumentUrl);
       
       // Step 2: Complete registration with license URL
       const payload = {
@@ -449,6 +471,12 @@ const Register = () => {
         age: age,
         license_document_url: licenseDocumentUrl
       };
+
+      console.log('Submitting registration with payload:', {
+        ...payload,
+        password: '***', // Hide password in logs
+        confirm_password: '***'
+      });
 
       const response = await fetch('http://localhost:5000/api/auth/register', {
         method: 'POST',
@@ -466,10 +494,13 @@ const Register = () => {
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('user', JSON.stringify(data.data));
         
+        console.log('Doctor registration successful:', data.data.email);
+        
         // Redirect to doctor pending page
         navigate('/doctor-pending');
       } else {
         setError(data.message || 'Registration failed');
+        console.error('Registration failed:', data);
       }
     } catch (err) {
       setError('Network error. Please try again.');
@@ -845,7 +876,7 @@ const Register = () => {
           {loading || isUploading ? (
             <>
               <span className="spinner"></span>
-              {isUploading ? 'Uploading...' : 'Creating Account...'}
+              {isUploading ? 'Uploading...' : 'Submitting...'}
             </>
           ) : (
             'Submit for Verification'

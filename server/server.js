@@ -5,39 +5,31 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const stripe = require('stripe')('sk_test_51Sohz3HEwvbtqHzUuV4TF924emk7sIbNJ9lcsADvwaWUqi6wiicdmbcExTHUKUY3S1b8qRUgCMI4HJ1FDQ8B4FVI0077r9FXTz');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const { setupDatabase } = require('./setup.js');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer'); // Added for file uploads
 
 const app = express();
 const JWT_SECRET = 'your-secret-key-change-this-in-production';
 
-// ========== FILE UPLOAD CONFIGURATION ==========
+// ========== MULTER CONFIGURATION FOR FILE UPLOADS ==========
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Configure multer for file storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadsDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'license-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+    files: 1
   },
-  fileFilter: function (req, file, cb) {
-    // Accept only specific file types
+  fileFilter: (req, file, cb) => {
+    // Accept PDF, JPEG, JPG, PNG files
     const allowedTypes = /pdf|jpeg|jpg|png/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
@@ -49,6 +41,7 @@ const upload = multer({
     }
   }
 });
+// ========== END MULTER CONFIGURATION ==========
 
 // ========== CORS CONFIGURATION ==========
 const allowedOrigins = [
@@ -100,7 +93,6 @@ app.get('/', (req, res) => {
     status: 'Running',
     endpoints: [
       'POST /api/auth/register',
-      'POST /api/auth/register/doctor',
       'POST /api/auth/login',
       'GET  /api/auth/me',
       'GET  /api/landing-page',
@@ -112,7 +104,12 @@ app.get('/', (req, res) => {
       'POST /api/payment/save-donation',
       'GET  /api/payment/donations',
       'POST /api/setup-database',
-      'POST /api/upload/license'
+      'POST /api/upload/license',
+      'GET  /api/admin/pending-doctors',
+      'POST /api/admin/approve-doctor/:nic',
+      'POST /api/admin/reject-doctor/:nic',
+      'GET  /api/admin/all-doctor-verifications',
+      'GET  /api/admin/dashboard-stats'
     ],
     mongo: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
   });
@@ -143,28 +140,110 @@ app.post('/api/setup-database', async (req, res) => {
 });
 // ========== END BASIC ROUTES ==========
 
-// ========== FILE UPLOAD ROUTE ==========
+// ========== FILE UPLOAD ROUTE (with multer) ==========
 app.post('/api/upload/license', upload.single('licenseDocument'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
         success: false,
-        message: 'No file uploaded'
+        message: 'No file uploaded. Please select a license document.'
       });
     }
 
-    console.log('📄 File uploaded:', req.file.filename);
+    const file = req.file;
+    
+    console.log('📄 File upload received:', {
+      originalName: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size,
+      fieldname: file.fieldname
+    });
 
-    // Return the file URL
-    const fileUrl = `/uploads/${req.file.filename}`;
-
+    // Generate a unique filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const fileExt = path.extname(file.originalname) || '.pdf';
+    const newFileName = `license-${uniqueSuffix}${fileExt}`;
+    const filePath = path.join(uploadsDir, newFileName);
+    
+    // Save file to disk
+    fs.writeFileSync(filePath, file.buffer);
+    console.log('✅ File saved to:', filePath);
+    
+    const fileUrl = `/uploads/${newFileName}`;
+    
     res.json({
       success: true,
       message: 'File uploaded successfully',
       url: fileUrl,
-      filename: req.file.filename,
-      size: req.file.size,
-      mimetype: req.file.mimetype
+      filename: newFileName,
+      originalName: file.originalname,
+      size: file.size,
+      mimetype: file.mimetype
+    });
+
+  } catch (error) {
+    console.error('❌ File upload error:', error);
+    
+    // Handle multer errors
+    if (error instanceof multer.MulterError) {
+      if (error.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'File size too large. Maximum size is 5MB.'
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: `Upload error: ${error.message}`
+      });
+    }
+    
+    // Handle other errors
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload file',
+      error: error.message
+    });
+  }
+});
+
+// Alternative route for base64 uploads (backward compatibility)
+app.post('/api/upload/license-base64', async (req, res) => {
+  try {
+    const { fileName, fileData } = req.body;
+    
+    if (!fileName) {
+      return res.status(400).json({
+        success: false,
+        message: 'File name is required'
+      });
+    }
+    
+    // Generate a unique filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const fileExt = fileName.split('.').pop();
+    const newFileName = `license-${uniqueSuffix}.${fileExt}`;
+    
+    // If fileData is provided (base64), save it
+    if (fileData) {
+      // Remove data:image/...;base64, prefix if present
+      const base64Data = fileData.replace(/^data:image\/\w+;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
+      
+      fs.writeFileSync(path.join(uploadsDir, newFileName), buffer);
+      console.log('📄 File saved:', newFileName);
+    } else {
+      // For now, just create an empty file or return a dummy URL
+      console.log('📄 Dummy file created for:', fileName);
+    }
+    
+    const fileUrl = `/uploads/${newFileName}`;
+    
+    res.json({
+      success: true,
+      message: 'File uploaded successfully',
+      url: fileUrl,
+      filename: newFileName
     });
 
   } catch (error) {
@@ -237,182 +316,6 @@ const checkDatabaseReady = (req, res, next) => {
 // ========== END AUTHENTICATION MIDDLEWARE ==========
 
 // ========== AUTHENTICATION ROUTES ==========
-// DOCTOR REGISTRATION ENDPOINT
-app.post('/api/auth/register/doctor', checkDatabaseReady, async (req, res) => {
-  try {
-    console.log('📝 Doctor registration attempt');
-
-    const {
-      NIC,
-      full_name,
-      email,
-      password,
-      contact_number,
-      gender,
-      date_of_birth,
-      is_cycle_user,
-      specialty,
-      qualifications,
-      clinic_or_hospital,
-      license_document_url
-    } = req.body;
-
-    // Validation
-    if (!NIC || !full_name || !email || !password || !specialty || !qualifications || !license_document_url) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please fill all required fields including license document'
-      });
-    }
-
-    // Get User model
-    const User = getModel('User');
-    const Doctor = getModel('Doctor');
-    const DoctorVerification = getModel('DoctorVerification');
-    const CycleProfile = getModel('CycleProfile');
-    
-    if (!User || !Doctor || !DoctorVerification) {
-      return res.status(500).json({
-        success: false,
-        message: 'Server configuration error'
-      });
-    }
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ 
-      $or: [{ email }, { NIC }] 
-    });
-
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'User already exists with this email or NIC'
-      });
-    }
-
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const password_hash = await bcrypt.hash(password, salt);
-
-    // Create base user
-    const userData = {
-      NIC,
-      full_name,
-      email: email.toLowerCase(),
-      password_hash,
-      gender: gender || 'prefer-not-to-say',
-      contact_number: contact_number || '',
-      role: 'doctor',
-      isExisting: 'pending', // Doctors are pending until verified
-      is_active: true,
-      created_at: new Date(),
-      updated_at: new Date()
-    };
-
-    if (date_of_birth) {
-      userData.date_of_birth = new Date(date_of_birth);
-    }
-
-    const user = new User(userData);
-    await user.save();
-
-    // Create doctor record
-    const doctorData = {
-      NIC,
-      specialty: specialty || 'general_practice',
-      qualifications: qualifications ? qualifications.split(',').map(q => q.trim()) : [],
-      clinic_or_hospital: clinic_or_hospital || '',
-      is_approved: false,
-      activated_at: null,
-      experience_years: 0,
-      verified: false
-    };
-    
-    const doctor = new Doctor(doctorData);
-    await doctor.save();
-
-    // Create doctor verification record WITH license document URL
-    const verificationData = {
-      verification_id: `VER_${Date.now()}_${NIC}`,
-      doctor_NIC: NIC,
-      license_document_url: license_document_url,
-      registration_details: `Registered on ${new Date().toISOString()}. Qualifications: ${qualifications}`,
-      terms_accepted: true,
-      status: 'pending',
-      submitted_at: new Date()
-    };
-    
-    const verification = new DoctorVerification(verificationData);
-    await verification.save();
-
-    // Create cycle profile if enabled
-    if (is_cycle_user && gender === 'female' && CycleProfile) {
-      const cycleProfile = new CycleProfile({
-        NIC,
-        activated_at: new Date(),
-        is_active: true,
-        is_anonymized: false,
-        cycle_length: 28,
-        period_length: 5,
-        tracking_preferences: {
-          symptoms: true,
-          mood: true,
-          flow: true,
-          pain: true,
-          notes: true
-        }
-      });
-      await cycleProfile.save();
-    }
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { 
-        userId: user._id, 
-        NIC, 
-        email: user.email, 
-        role: user.role 
-      },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    const responseData = {
-      user_id: user._id,
-      NIC: user.NIC,
-      full_name: user.full_name,
-      email: user.email,
-      role: user.role,
-      user_type: 'doctor',
-      is_cycle_user: is_cycle_user || false,
-      gender: user.gender,
-      date_of_birth: user.date_of_birth,
-      contact_number: user.contact_number,
-      specialty: doctor.specialty,
-      qualifications: doctor.qualifications,
-      verification_status: 'pending',
-      token: token
-    };
-
-    console.log('✅ Doctor registered successfully:', user.email);
-    
-    res.status(201).json({
-      success: true,
-      message: 'Doctor registration submitted for verification',
-      data: responseData,
-      token: token
-    });
-
-  } catch (error) {
-    console.error('❌ Doctor registration error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Doctor registration failed',
-      error: error.message
-    });
-  }
-});
-
 // REGULAR USER REGISTRATION ENDPOINT
 app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
   try {
@@ -892,6 +795,444 @@ app.get('/api/auth/me', authenticateToken, checkDatabaseReady, async (req, res) 
   }
 });
 // ========== END AUTHENTICATION ROUTES ==========
+
+// ========== ADMIN ROUTES ==========
+
+// GET ALL PENDING DOCTOR VERIFICATIONS
+app.get('/api/admin/pending-doctors', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin access required'
+      });
+    }
+
+    const DoctorVerification = getModel('DoctorVerification');
+    const Doctor = getModel('Doctor');
+    const User = getModel('User');
+
+    if (!DoctorVerification || !Doctor || !User) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    // Get all pending verifications with doctor and user info
+    const verifications = await DoctorVerification.aggregate([
+      { $match: { status: 'pending' } },
+      {
+        $lookup: {
+          from: 'doctors',
+          localField: 'doctor_NIC',
+          foreignField: 'NIC',
+          as: 'doctor_info'
+        }
+      },
+      { $unwind: { path: '$doctor_info', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'doctor_NIC',
+          foreignField: 'NIC',
+          as: 'user_info'
+        }
+      },
+      { $unwind: { path: '$user_info', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          verification_id: 1,
+          doctor_NIC: 1,
+          license_document_url: 1,
+          registration_details: 1,
+          submitted_at: 1,
+          status: 1,
+          doctor_info: {
+            specialty: 1,
+            qualifications: 1,
+            clinic_or_hospital: 1
+          },
+          user_info: {
+            full_name: 1,
+            email: 1,
+            contact_number: 1,
+            gender: 1,
+            date_of_birth: 1
+          }
+        }
+      },
+      { $sort: { submitted_at: -1 } }
+    ]);
+
+    res.json({
+      success: true,
+      count: verifications.length,
+      data: verifications
+    });
+
+  } catch (error) {
+    console.error('❌ Get pending doctors error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch pending doctors',
+      error: error.message
+    });
+  }
+});
+
+// APPROVE DOCTOR VERIFICATION
+app.post('/api/admin/approve-doctor/:nic', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin access required'
+      });
+    }
+
+    const { nic } = req.params;
+    const { notes } = req.body;
+
+    const DoctorVerification = getModel('DoctorVerification');
+    const Doctor = getModel('Doctor');
+    const User = getModel('User');
+
+    if (!DoctorVerification || !Doctor || !User) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    // Update verification status
+    const verification = await DoctorVerification.findOneAndUpdate(
+      { doctor_NIC: nic, status: 'pending' },
+      {
+        $set: {
+          status: 'approved',
+          reviewed_at: new Date(),
+          reviewed_by: req.user.email,
+          notes: notes || 'Approved by admin'
+        }
+      },
+      { new: true }
+    );
+
+    if (!verification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pending verification not found'
+      });
+    }
+
+    // Update doctor record
+    await Doctor.findOneAndUpdate(
+      { NIC: nic },
+      {
+        $set: {
+          is_approved: true,
+          verified: true,
+          activated_at: new Date()
+        }
+      }
+    );
+
+    // Update user status
+    await User.findOneAndUpdate(
+      { NIC: nic },
+      {
+        $set: {
+          isExisting: 'active',
+          updated_at: new Date()
+        }
+      }
+    );
+
+    // Get doctor info for response
+    const doctor = await Doctor.findOne({ NIC: nic });
+    const user = await User.findOne({ NIC: nic });
+
+    console.log(`✅ Doctor approved: ${nic} by ${req.user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Doctor approved successfully',
+      data: {
+        verification,
+        doctor,
+        user: {
+          full_name: user.full_name,
+          email: user.email,
+          isExisting: user.isExisting
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Approve doctor error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to approve doctor',
+      error: error.message
+    });
+  }
+});
+
+// REJECT DOCTOR VERIFICATION
+app.post('/api/admin/reject-doctor/:nic', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin access required'
+      });
+    }
+
+    const { nic } = req.params;
+    const { reason, notes } = req.body;
+
+    if (!reason) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rejection reason is required'
+      });
+    }
+
+    const DoctorVerification = getModel('DoctorVerification');
+    const Doctor = getModel('Doctor');
+    const User = getModel('User');
+
+    if (!DoctorVerification || !Doctor || !User) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    // Update verification status
+    const verification = await DoctorVerification.findOneAndUpdate(
+      { doctor_NIC: nic, status: 'pending' },
+      {
+        $set: {
+          status: 'rejected',
+          reviewed_at: new Date(),
+          reviewed_by: req.user.email,
+          rejection_reason: reason,
+          notes: notes || ''
+        }
+      },
+      { new: true }
+    );
+
+    if (!verification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pending verification not found'
+      });
+    }
+
+    // Update user status (optional: keep as pending or mark as rejected)
+    await User.findOneAndUpdate(
+      { NIC: nic },
+      {
+        $set: {
+          isExisting: 'pending',
+          updated_at: new Date()
+        }
+      }
+    );
+
+    console.log(`❌ Doctor rejected: ${nic} by ${req.user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Doctor rejected successfully',
+      data: verification
+    });
+
+  } catch (error) {
+    console.error('❌ Reject doctor error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reject doctor',
+      error: error.message
+    });
+  }
+});
+
+// GET ALL DOCTOR VERIFICATIONS (with filters)
+app.get('/api/admin/all-doctor-verifications', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin access required'
+      });
+    }
+
+    const { status, page = 1, limit = 20 } = req.query;
+    
+    const DoctorVerification = getModel('DoctorVerification');
+    const Doctor = getModel('Doctor');
+    const User = getModel('User');
+
+    if (!DoctorVerification || !Doctor || !User) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    // Build filter
+    const filter = {};
+    if (status) {
+      filter.status = status;
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Get verifications with pagination
+    const verifications = await DoctorVerification.aggregate([
+      { $match: filter },
+      {
+        $lookup: {
+          from: 'doctors',
+          localField: 'doctor_NIC',
+          foreignField: 'NIC',
+          as: 'doctor_info'
+        }
+      },
+      { $unwind: { path: '$doctor_info', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'doctor_NIC',
+          foreignField: 'NIC',
+          as: 'user_info'
+        }
+      },
+      { $unwind: { path: '$user_info', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          verification_id: 1,
+          doctor_NIC: 1,
+          license_document_url: 1,
+          registration_details: 1,
+          submitted_at: 1,
+          reviewed_at: 1,
+          reviewed_by: 1,
+          status: 1,
+          rejection_reason: 1,
+          notes: 1,
+          doctor_info: {
+            specialty: 1,
+            qualifications: 1,
+            clinic_or_hospital: 1
+          },
+          user_info: {
+            full_name: 1,
+            email: 1,
+            contact_number: 1,
+            gender: 1
+          }
+        }
+      },
+      { $sort: { submitted_at: -1 } },
+      { $skip: skip },
+      { $limit: parseInt(limit) }
+    ]);
+
+    // Get total count
+    const total = await DoctorVerification.countDocuments(filter);
+
+    res.json({
+      success: true,
+      data: verifications,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Get all verifications error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch verifications',
+      error: error.message
+    });
+  }
+});
+
+// GET ADMIN DASHBOARD STATS
+app.get('/api/admin/dashboard-stats', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin access required'
+      });
+    }
+
+    const DoctorVerification = getModel('DoctorVerification');
+    const User = getModel('User');
+    const Doctor = getModel('Doctor');
+    const CommunityMember = getModel('CommunityMember');
+
+    if (!DoctorVerification || !User) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    // Get counts in parallel for better performance
+    const [
+      pendingCount,
+      totalUsers,
+      totalDoctors,
+      totalCommunityMembers,
+      approvedDoctors,
+      rejectedDoctors
+    ] = await Promise.all([
+      DoctorVerification.countDocuments({ status: 'pending' }),
+      User.countDocuments({}),
+      Doctor.countDocuments({}),
+      CommunityMember ? CommunityMember.countDocuments({}) : Promise.resolve(0),
+      DoctorVerification.countDocuments({ status: 'approved' }),
+      DoctorVerification.countDocuments({ status: 'rejected' })
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        pending_doctors: pendingCount,
+        total_users: totalUsers,
+        total_doctors: totalDoctors,
+        total_community_members: totalCommunityMembers,
+        approved_doctors: approvedDoctors,
+        rejected_doctors: rejectedDoctors
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Get dashboard stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch dashboard stats',
+      error: error.message
+    });
+  }
+});
+// ========== END ADMIN ROUTES ==========
 
 // ========== CYCLE TRACKING ROUTES ==========
 // GET CYCLE PROFILE
@@ -1719,30 +2060,6 @@ app.post('/api/auth/login-test', checkDatabaseReady, async (req, res) => {
   }
 });
 
-// ========== SERVER STARTUP ==========
-const PORT = 5000;
-app.listen(PORT, () => {
-  console.log('='.repeat(60));
-  console.log(`🚀 Express server started on http://localhost:${PORT}`);
-  console.log('='.repeat(60));
-  console.log('\n📋 Available Endpoints:');
-  console.log(`   POST http://localhost:${PORT}/api/auth/register`);
-  console.log(`   POST http://localhost:${PORT}/api/auth/register/doctor`);
-  console.log(`   POST http://localhost:${PORT}/api/auth/login`);
-  console.log(`   POST http://localhost:${PORT}/api/auth/login-test (for testing)`);
-  console.log(`   GET  http://localhost:${PORT}/api/auth/me`);
-  console.log(`   GET  http://localhost:${PORT}/health`);
-  console.log(`   GET  http://localhost:${PORT}/api/landing-page`);
-  console.log(`   GET  http://localhost:${PORT}/api/fundraising`);
-  console.log(`   POST http://localhost:${PORT}/api/upload/license`);
-  console.log('\n🔐 Test Credentials:');
-  console.log('   Email: test@test.com');
-  console.log('   Password: test123');
-  console.log('\n⚠️  Note: Database initialization may take a few seconds');
-  console.log('='.repeat(60));
-});
-// ========== END SERVER STARTUP ==========
-
 // ========== PASSWORD RESET ROUTES ==========
 const crypto = require('crypto');
 // Note: You'll need to create emailService.js or remove this import
@@ -2142,3 +2459,35 @@ app.post('/api/auth/resend-reset-code', checkDatabaseReady, async (req, res) => 
   }
 });
 // ========== END PASSWORD RESET ROUTES ==========
+
+// ========== SERVER STARTUP ==========
+const PORT = 5000;
+app.listen(PORT, () => {
+  console.log('='.repeat(60));
+  console.log(`🚀 Express server started on http://localhost:${PORT}`);
+  console.log('='.repeat(60));
+  console.log('\n📋 Available Endpoints:');
+  console.log(`   POST http://localhost:${PORT}/api/auth/register`);
+  console.log(`   POST http://localhost:${PORT}/api/auth/login`);
+  console.log(`   POST http://localhost:${PORT}/api/auth/login-test (for testing)`);
+  console.log(`   GET  http://localhost:${PORT}/api/auth/me`);
+  console.log(`   GET  http://localhost:${PORT}/health`);
+  console.log(`   GET  http://localhost:${PORT}/api/landing-page`);
+  console.log(`   GET  http://localhost:${PORT}/api/fundraising`);
+  console.log(`   POST http://localhost:${PORT}/api/upload/license`);
+  console.log(`\n🔐 Admin Endpoints:`);
+  console.log(`   GET  http://localhost:${PORT}/api/admin/pending-doctors`);
+  console.log(`   POST http://localhost:${PORT}/api/admin/approve-doctor/:nic`);
+  console.log(`   POST http://localhost:${PORT}/api/admin/reject-doctor/:nic`);
+  console.log(`   GET  http://localhost:${PORT}/api/admin/all-doctor-verifications`);
+  console.log(`   GET  http://localhost:${PORT}/api/admin/dashboard-stats`);
+  console.log('\n🔐 Default Admin Credentials:');
+  console.log('   Email: admin@hercycle.com');
+  console.log('   Password: admin123');
+  console.log('\n👤 Test User Credentials:');
+  console.log('   Email: test@test.com');
+  console.log('   Password: test123');
+  console.log('\n⚠️  Note: Database initialization may take a few seconds');
+  console.log('='.repeat(60));
+});
+// ========== END SERVER STARTUP ==========
