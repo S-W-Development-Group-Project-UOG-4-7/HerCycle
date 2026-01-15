@@ -725,7 +725,7 @@ const FundraisingAdminPanel = () => {
                           value={stat.number}
                           onChange={(e) => handleNestedArrayItemChange('hero', 'stats', index, 'number', e.target.value)}
                           className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-                          placeholder="e.g., ₹4.2M+"
+                          placeholder="e.g., Rs.4.2M+"
                         />
                       </div>
                       <div>
