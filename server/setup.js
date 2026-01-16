@@ -1153,8 +1153,13 @@ async function setupDatabase() {
       const salt = await bcrypt.genSalt(10);
       const password_hash = await bcrypt.hash('admin123', salt);
       
-      // Check if admin user exists
-      let adminUser = await User.findOne({ email: 'admin@hercycle.com' });
+      // Check if admin user exists - fixed query
+      let adminUser = await User.findOne({ 
+        $or: [
+          { email: 'admin@hercycle.com' },
+          { NIC: 'ADMIN123456789' }
+        ] 
+      });
       
       if (!adminUser) {
         // Create admin user
@@ -1179,6 +1184,8 @@ async function setupDatabase() {
         adminUser.password_hash = password_hash;
         adminUser.role = 'admin';
         adminUser.isExisting = 'active';
+        adminUser.full_name = adminUser.full_name || 'System Administrator';
+        adminUser.NIC = adminUser.NIC || 'ADMIN123456789';
         await adminUser.save();
         console.log('✅ Existing admin user updated with proper password hash');
       }
@@ -1227,7 +1234,12 @@ async function setupDatabase() {
       const salt = await bcrypt.genSalt(10);
       const password_hash = await bcrypt.hash('test123', salt);
       
-      let testUser = await User.findOne({ email: 'test@test.com' });
+      let testUser = await User.findOne({ 
+        $or: [
+          { email: 'test@test.com' },
+          { NIC: 'TEST123456789' }
+        ] 
+      });
       
       if (!testUser) {
         testUser = new User({
