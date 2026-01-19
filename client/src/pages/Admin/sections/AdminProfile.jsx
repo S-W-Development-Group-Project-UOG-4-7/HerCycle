@@ -45,7 +45,7 @@ const AdminProfile = ({ adminData, onUpdate }) => {
             } else {
                 setMessage({ type: 'error', text: data.message });
             }
-        } catch (error) {
+        } catch {
             setMessage({ type: 'error', text: 'Failed to update profile' });
         } finally {
             setLoading(false);

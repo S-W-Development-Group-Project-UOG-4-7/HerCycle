@@ -49,19 +49,21 @@ const UserAnalytics = () => {
             </div>
             <div className="section-card">
                 <h3 style={{ marginBottom: '1rem', fontWeight: 600 }}>Users by Role</h3>
-                <table className="data-table">
-                    <thead>
-                        <tr><th>Role</th><th>Count</th></tr>
-                    </thead>
-                    <tbody>
-                        {analytics?.users_by_role?.map(role => (
-                            <tr key={role._id}>
-                                <td style={{ textTransform: 'capitalize' }}>{role._id || 'Unknown'}</td>
-                                <td>{role.count}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <div className="table-responsive">
+                    <table className="data-table">
+                        <thead>
+                            <tr><th>Role</th><th>Count</th></tr>
+                        </thead>
+                        <tbody>
+                            {analytics?.users_by_role?.map(role => (
+                                <tr key={role._id}>
+                                    <td data-label="Role" style={{ textTransform: 'capitalize' }}>{role._id || 'Unknown'}</td>
+                                    <td data-label="Count">{role.count}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );

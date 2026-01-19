@@ -45,20 +45,22 @@ const DonationsAnalytics = () => {
             </div>
             <div className="section-card">
                 <h3 style={{ marginBottom: '1rem', fontWeight: 600 }}>Donations by Campaign</h3>
-                <table className="data-table">
-                    <thead>
-                        <tr><th>Campaign</th><th>Total Amount</th><th>Donors</th></tr>
-                    </thead>
-                    <tbody>
-                        {analytics?.donations_by_campaign?.map(campaign => (
-                            <tr key={campaign.campaign_id}>
-                                <td>{campaign.campaign_title || campaign.campaign_id}</td>
-                                <td>${campaign.total_amount?.toLocaleString()}</td>
-                                <td>{campaign.donor_count}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <div className="table-responsive">
+                    <table className="data-table">
+                        <thead>
+                            <tr><th>Campaign</th><th>Total Amount</th><th>Donors</th></tr>
+                        </thead>
+                        <tbody>
+                            {analytics?.donations_by_campaign?.map(campaign => (
+                                <tr key={campaign.campaign_id}>
+                                    <td data-label="Campaign">{campaign.campaign_title || campaign.campaign_id}</td>
+                                    <td data-label="Total">${campaign.total_amount?.toLocaleString()}</td>
+                                    <td data-label="Donors">{campaign.donor_count}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );

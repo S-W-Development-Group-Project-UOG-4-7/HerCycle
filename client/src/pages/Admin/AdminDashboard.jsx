@@ -65,7 +65,6 @@ const AdminDashboard = () => {
         { id: 'profile', icon: '👤', label: 'Admin Profile' },
         { id: 'credentials', icon: '🔑', label: 'Give Credentials' },
         { id: 'doctor-verification', icon: '🩺', label: 'Verify Doctors' },
-        { id: 'web-pages', icon: '📄', label: 'Web Pages' },
         { id: 'donations', icon: '💰', label: 'Donations Analytics' },
         { id: 'community', icon: '👥', label: 'Community' },
         { id: 'users', icon: '📊', label: 'User Analytics' },
@@ -122,18 +121,7 @@ const AdminDashboard = () => {
                     {activeTab === 'credentials' && <GiveCredentials />}
                     {activeTab === 'profile' && <AdminProfile adminData={adminData} onUpdate={fetchAdminData} />}
                     {activeTab === 'doctor-verification' && <DoctorVerification />}
-                    {activeTab === 'web-pages' && (
-                        <div className="page-redirect">
-                            <h2>Web Pages Management</h2>
-                            <p>Manage your website content and landing pages</p>
-                            <button onClick={() => navigate('/admin')} className="primary-btn">
-                                Go to Landing Page Editor
-                            </button>
-                            <button onClick={() => navigate('/adminF')} className="secondary-btn">
-                                Go to Fundraising Editor
-                            </button>
-                        </div>
-                    )}
+
                     {activeTab === 'donations' && <DonationsAnalytics />}
                     {activeTab === 'community' && (
                         <div className="page-redirect">

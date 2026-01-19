@@ -219,6 +219,12 @@
   box-shadow: 0 6px 16px rgba(219, 39, 119, 0.3);
 }
 
+.primary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .secondary-btn {
   padding: 0.75rem 1.5rem;
   background: #f3f4f6;
@@ -263,6 +269,7 @@
   transition: all 0.2s ease;
   background: #ffffff;
   color: #111827;
+  box-sizing: border-box;
 }
 
 .form-input:focus,
@@ -279,10 +286,19 @@
 }
 
 /* Tables */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1rem;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 1rem;
+  min-width: 600px;
+  /* Ensures table doesn't squish too much */
 }
 
 .data-table thead {
@@ -298,6 +314,7 @@
   font-size: 0.875rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
 .data-table td {
@@ -403,10 +420,58 @@
   margin-bottom: 2rem;
 }
 
-/* Responsive */
+/* ==================== RESPONSIVE STYLES ==================== */
+
+/* Tablet (1024px) */
+@media (max-width: 1024px) {
+  .admin-container {
+    padding: 1.5rem;
+    gap: 1.5rem;
+  }
+
+  .admin-sidebar {
+    width: 220px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .section-card {
+    padding: 1.25rem;
+  }
+
+  .nav-tab {
+    padding: 0.75rem 0.875rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Mobile (768px) */
 @media (max-width: 768px) {
+  .admin-header {
+    padding: 1rem 1.5rem;
+  }
+
+  .admin-header-content {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .admin-branding h1 {
+    font-size: 1.5rem;
+  }
+
+  .admin-user-info {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
   .admin-container {
     flex-direction: column;
+    padding: 1rem;
+    gap: 1rem;
   }
 
   .admin-sidebar {
@@ -415,15 +480,224 @@
 
   .admin-nav {
     position: static;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem;
   }
 
-  .admin-header-content {
+  .nav-tab {
+    flex: 1 1 auto;
+    min-width: calc(50% - 0.25rem);
+    margin-bottom: 0;
+    padding: 0.75rem;
+    font-size: 0.85rem;
+    justify-content: center;
+  }
+
+  .tab-label {
+    display: none;
+  }
+
+  .tab-icon {
+    font-size: 1.5rem;
+  }
+
+  .section-card {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .section-header {
     flex-direction: column;
+    align-items: flex-start;
     gap: 1rem;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .section-title {
+    font-size: 1.25rem;
   }
 
   .stats-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .stat-card {
+    padding: 1.25rem;
+  }
+
+  .stat-value {
+    font-size: 1.75rem;
+  }
+
+  /* Responsive Tables - Card Layout */
+  .data-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .data-table thead {
+    display: none;
+  }
+
+  .data-table tbody {
+    display: block;
+  }
+
+  .data-table tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    background: #f9fafb;
+  }
+
+  .data-table tr:hover {
+    background: #f3f4f6;
+  }
+
+  .data-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 0.9rem;
+  }
+
+  .data-table td:last-child {
+    border-bottom: none;
+  }
+
+  .data-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #374151;
+    margin-right: 1rem;
+  }
+
+  /* Responsive Forms */
+  .form-group {
+    margin-bottom: 1rem;
+  }
+
+  .form-input,
+  .form-select,
+  .form-textarea {
+    padding: 0.875rem;
+    font-size: 16px;
+    /* Prevents zoom on iOS */
+  }
+
+  /* Responsive Buttons */
+  .primary-btn,
+  .secondary-btn {
+    width: 100%;
+    padding: 0.875rem 1.25rem;
+    font-size: 1rem;
+  }
+
+  .secondary-btn {
+    margin-left: 0;
+    margin-top: 0.5rem;
+  }
+
+  /* Page Redirect */
+  .page-redirect {
+    padding: 2rem 1rem;
+  }
+
+  .page-redirect h2 {
+    font-size: 1.5rem;
+  }
+
+  .page-redirect .primary-btn,
+  .page-redirect .secondary-btn {
+    display: block;
+    margin: 0.5rem 0;
+  }
+
+  /* Filter row stacking */
+  .filter-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+/* Small Mobile (480px) */
+@media (max-width: 480px) {
+  .admin-header {
+    padding: 1rem;
+  }
+
+  .admin-branding h1 {
+    font-size: 1.25rem;
+  }
+
+  .admin-subtitle {
+    font-size: 0.75rem;
+  }
+
+  .admin-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+
+  .admin-name {
+    font-size: 0.875rem;
+  }
+
+  .admin-role {
+    font-size: 0.75rem;
+  }
+
+  .logout-btn {
+    padding: 0.4rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .admin-container {
+    padding: 0.75rem;
+  }
+
+  .nav-tab {
+    min-width: calc(33.33% - 0.33rem);
+    padding: 0.6rem;
+  }
+
+  .section-title {
+    font-size: 1.1rem;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+  }
+
+  .stat-label {
+    font-size: 0.8rem;
+  }
+
+  .badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+  }
+
+  /* Full width selects on mobile */
+  .form-select {
+    width: 100% !important;
+  }
+
+  /* Modal adjustments for small screens */
+  .modal-content {
+    width: 95% !important;
+    padding: 1rem !important;
+    margin: 1rem;
   }
 }
 
@@ -488,10 +762,54 @@
   background: #fee2e2;
   color: #991b1b;
   border: 1px solid #fca5a5;
-}/* Input Error State */
+}
+
+/* Input Error State */
 .form-input.error,
 .form-select.error,
 .form-textarea.error {
   border-color: #ef4444;
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* Utility classes for responsive flex */
+.flex-wrap-mobile {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .flex-wrap-mobile {
+    flex-direction: column;
+  }
+
+  .flex-wrap-mobile>* {
+    width: 100%;
+  }
+}
+
+/* Responsive Grid for Doctor Cards and similar */
+.doctor-cards-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .doctor-cards-grid {
+    gap: 1rem;
+  }
+}
+
+/* Table wrapper for horizontal scroll on mobile */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .table-responsive {
+    margin: 0 -1rem;
+    padding: 0 1rem;
+  }
 }

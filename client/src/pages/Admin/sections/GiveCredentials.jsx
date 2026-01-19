@@ -252,32 +252,34 @@ const GiveCredentials = () => {
                 <div className="section-header">
                     <h2 className="section-title"><span className="section-icon"></span>Existing Web Managers</h2>
                 </div>
-                <table className="data-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>NIC</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {webManagers.map(wm => (
-                            <tr key={wm.NIC}>
-                                <td>{wm.user_info?.full_name || 'N/A'}</td>
-                                <td>{wm.user_info?.email || 'N/A'}</td>
-                                <td>{wm.NIC}</td>
-                                <td><span className={`badge ${wm.is_active ? 'badge-success' : 'badge-danger'}`}>{wm.is_active ? 'Active' : 'Inactive'}</span></td>
-                                <td>
-                                    <button onClick={() => updateWebManager(wm.NIC, !wm.is_active)} className="secondary-btn" style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}>
-                                        {wm.is_active ? 'Deactivate' : 'Activate'}
-                                    </button>
-                                </td>
+                <div className="table-responsive">
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>NIC</th>
+                                <th>Status</th>
+                                <th>Actions</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {webManagers.map(wm => (
+                                <tr key={wm.NIC}>
+                                    <td data-label="Name">{wm.user_info?.full_name || 'N/A'}</td>
+                                    <td data-label="Email">{wm.user_info?.email || 'N/A'}</td>
+                                    <td data-label="NIC">{wm.NIC}</td>
+                                    <td data-label="Status"><span className={`badge ${wm.is_active ? 'badge-success' : 'badge-danger'}`}>{wm.is_active ? 'Active' : 'Inactive'}</span></td>
+                                    <td data-label="Actions">
+                                        <button onClick={() => updateWebManager(wm.NIC, !wm.is_active)} className="secondary-btn" style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}>
+                                            {wm.is_active ? 'Deactivate' : 'Activate'}
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );

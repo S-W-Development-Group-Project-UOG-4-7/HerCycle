@@ -116,10 +116,10 @@ const DoctorVerification = () => {
                         <p style={{ color: '#6b7280' }}>All doctor applications have been processed.</p>
                     </div>
                 ) : (
-                    <div style={{ display: 'grid', gap: '1.5rem' }}>
+                    <div className="doctor-cards-grid">
                         {pendingDoctors.map(doctor => (
                             <div key={doctor.doctor_NIC} style={{ background: '#f9fafb', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
                                     <div>
                                         <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#111827', marginBottom: '0.25rem' }}>
                                             {doctor.user_info?.full_name || 'Unknown Doctor'}
@@ -129,7 +129,7 @@ const DoctorVerification = () => {
                                     <span className="badge badge-warning" style={{ height: 'fit-content' }}>⏳ Pending</span>
                                 </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem', fontSize: '0.9rem' }}>
+                                <div className="doctor-info-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '1rem', fontSize: '0.9rem' }}>
                                     <p><strong>NIC:</strong> {doctor.doctor_NIC}</p>
                                     <p><strong>Specialty:</strong> {doctor.doctor_info?.specialty || 'Not specified'}</p>
                                     <p><strong>Qualifications:</strong> {doctor.doctor_info?.qualifications?.join(', ') || 'Not provided'}</p>

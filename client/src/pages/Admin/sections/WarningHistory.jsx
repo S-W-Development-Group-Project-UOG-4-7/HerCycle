@@ -134,14 +134,14 @@ const WarningHistory = () => {
                 </div>
             )}
 
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-                <select className="form-select" value={filter.severity} onChange={(e) => setFilter({ ...filter, severity: e.target.value })} style={{ width: 'auto' }}>
+            <div className="flex-wrap-mobile" style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                <select className="form-select" value={filter.severity} onChange={(e) => setFilter({ ...filter, severity: e.target.value })} style={{ width: 'auto', minWidth: '150px' }}>
                     <option value="">All Severities</option>
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
                 </select>
-                <select className="form-select" value={filter.is_active} onChange={(e) => setFilter({ ...filter, is_active: e.target.value })} style={{ width: 'auto' }}>
+                <select className="form-select" value={filter.is_active} onChange={(e) => setFilter({ ...filter, is_active: e.target.value })} style={{ width: 'auto', minWidth: '150px' }}>
                     <option value="">All Status</option>
                     <option value="true">Active</option>
                     <option value="false">Expired</option>
@@ -149,44 +149,46 @@ const WarningHistory = () => {
             </div>
 
             {loading ? <div>Loading...</div> : (
-                <table className="data-table">
-                    <thead>
-                        <tr>
-                            <th>User</th>
-                            <th>Email</th>
-                            <th>Reason</th>
-                            <th>Severity</th>
-                            <th>Given By</th>
-                            <th>Date</th>
-                            <th>Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {warnings.map(warning => (
-                            <tr key={warning.warning_id}>
-                                <td>{warning.user_info?.full_name || warning.user_nic}</td>
-                                <td style={{ fontSize: '0.85rem' }}>{warning.user_info?.email || 'N/A'}</td>
-                                <td>{warning.reason}</td>
-                                <td>
-                                    <span className={`badge badge-${warning.severity}`} style={{ textTransform: 'capitalize' }}>
-                                        {warning.severity}
-                                    </span>
-                                </td>
-                                <td>{warning.given_by}</td>
-                                <td>{new Date(warning.given_at).toLocaleDateString()}</td>
-                                <td>
-                                    <span className={`badge ${warning.is_active ? 'badge-success' : 'badge-gray'}`}>
-                                        {warning.is_active ? 'Active' : 'Expired'}
-                                    </span>
-                                </td>
-                                <td>
-                                    <SuspendMenu userNic={warning.user_nic} />
-                                </td>
+                <div className="table-responsive">
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Email</th>
+                                <th>Reason</th>
+                                <th>Severity</th>
+                                <th>Given By</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Action</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {warnings.map(warning => (
+                                <tr key={warning.warning_id}>
+                                    <td data-label="User">{warning.user_info?.full_name || warning.user_nic}</td>
+                                    <td data-label="Email" style={{ fontSize: '0.85rem' }}>{warning.user_info?.email || 'N/A'}</td>
+                                    <td data-label="Reason">{warning.reason}</td>
+                                    <td data-label="Severity">
+                                        <span className={`badge badge-${warning.severity}`} style={{ textTransform: 'capitalize' }}>
+                                            {warning.severity}
+                                        </span>
+                                    </td>
+                                    <td data-label="Given By">{warning.given_by}</td>
+                                    <td data-label="Date">{new Date(warning.given_at).toLocaleDateString()}</td>
+                                    <td data-label="Status">
+                                        <span className={`badge ${warning.is_active ? 'badge-success' : 'badge-gray'}`}>
+                                            {warning.is_active ? 'Active' : 'Expired'}
+                                        </span>
+                                    </td>
+                                    <td data-label="Action">
+                                        <SuspendMenu userNic={warning.user_nic} />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             )}
         </div>
     );

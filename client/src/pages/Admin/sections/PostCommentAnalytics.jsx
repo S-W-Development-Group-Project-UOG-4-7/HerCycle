@@ -49,19 +49,21 @@ const PostCommentAnalytics = () => {
             </div>
             <div className="section-card">
                 <h3 style={{ marginBottom: '1rem', fontWeight: 600 }}>Posts by Status</h3>
-                <table className="data-table">
-                    <thead>
-                        <tr><th>Status</th><th>Count</th></tr>
-                    </thead>
-                    <tbody>
-                        {analytics?.posts_by_status?.map(status => (
-                            <tr key={status._id}>
-                                <td style={{ textTransform: 'capitalize' }}>{status._id || 'Unknown'}</td>
-                                <td>{status.count}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <div className="table-responsive">
+                    <table className="data-table">
+                        <thead>
+                            <tr><th>Status</th><th>Count</th></tr>
+                        </thead>
+                        <tbody>
+                            {analytics?.posts_by_status?.map(status => (
+                                <tr key={status._id}>
+                                    <td data-label="Status" style={{ textTransform: 'capitalize' }}>{status._id || 'Unknown'}</td>
+                                    <td data-label="Count">{status.count}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );
