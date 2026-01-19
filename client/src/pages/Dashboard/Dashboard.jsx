@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+//import { useNavigate, Link } from 'react-router-dom';
 import './Dashboard.css';
+import DailyLogForm from "../../components/cycle/DailyLogForm";
+import HistoryPanel from "../../components/cycle/HistoryPanel";
+import InsightsPanel from "../../components/cycle/InsightsPanel";
+import { getCycleProfile, getCycleHistory, saveDailyLog } from "../../services/cycleApi";
+
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -16,28 +21,26 @@ const Dashboard = () => {
       navigate('/login');
       return;
     }
-    
+
     setUser(userData);
-    
+
     // Check if user has cycle tracking enabled
     if (userData.is_cycle_user) {
       fetchCycleProfile(userData.NIC);
     }
-    
+
     setLoading(false);
   }, [navigate]);
 
   const fetchCycleProfile = async (nic) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/cycle/profile/${nic}`);
-      const data = await response.json();
-      if (data.success) {
-        setCycleProfile(data.data);
-      }
+      const profile = await getCycleProfile(nic);
+      setCycleProfile(profile);
     } catch (error) {
-      console.error('Error fetching cycle profile:', error);
+      console.error("Error fetching cycle profile:", error);
     }
   };
+
 
   const handleLogout = () => {
     localStorage.removeItem('authToken');
@@ -68,7 +71,7 @@ const Dashboard = () => {
         </div>
 
         <nav className="sidebar-nav">
-          <button 
+          <button
             className={`nav-item ${activeTab === 'overview' ? 'active' : ''}`}
             onClick={() => setActiveTab('overview')}
           >
@@ -76,7 +79,7 @@ const Dashboard = () => {
             <span className="nav-text">Overview</span>
           </button>
 
-          <button 
+          <button
             className={`nav-item ${activeTab === 'community' ? 'active' : ''}`}
             onClick={() => setActiveTab('community')}
           >
@@ -86,7 +89,7 @@ const Dashboard = () => {
 
           {user?.is_cycle_user && (
             <>
-              <button 
+              <button
                 className={`nav-item ${activeTab === 'cycle-tracking' ? 'active' : ''}`}
                 onClick={() => setActiveTab('cycle-tracking')}
               >
@@ -94,7 +97,7 @@ const Dashboard = () => {
                 <span className="nav-text">Cycle Tracking</span>
               </button>
 
-              <button 
+              <button
                 className={`nav-item ${activeTab === 'health-insights' ? 'active' : ''}`}
                 onClick={() => setActiveTab('health-insights')}
               >
@@ -104,7 +107,7 @@ const Dashboard = () => {
             </>
           )}
 
-          <button 
+          <button
             className={`nav-item ${activeTab === 'fundraising' ? 'active' : ''}`}
             onClick={() => setActiveTab('fundraising')}
           >
@@ -112,7 +115,7 @@ const Dashboard = () => {
             <span className="nav-text">Fundraising</span>
           </button>
 
-          <button 
+          <button
             className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
             onClick={() => setActiveTab('profile')}
           >
@@ -120,7 +123,7 @@ const Dashboard = () => {
             <span className="nav-text">My Profile</span>
           </button>
 
-          <button 
+          <button
             className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => setActiveTab('settings')}
           >
@@ -149,7 +152,7 @@ const Dashboard = () => {
             {activeTab === 'profile' && 'My Profile'}
             {activeTab === 'settings' && 'Settings'}
           </h1>
-          
+
           <div className="header-actions">
             <button className="notification-btn">
               <span className="notification-icon">🔔</span>
@@ -179,7 +182,7 @@ const Dashboard = () => {
                     <p className="stat-value">12</p>
                   </div>
                 </div>
-                
+
                 <div className="stat-card">
                   <div className="stat-icon">💬</div>
                   <div className="stat-content">
@@ -187,7 +190,7 @@ const Dashboard = () => {
                     <p className="stat-value">45</p>
                   </div>
                 </div>
-                
+
                 <div className="stat-card">
                   <div className="stat-icon">❤️</div>
                   <div className="stat-content">
@@ -195,7 +198,7 @@ const Dashboard = () => {
                     <p className="stat-value">128</p>
                   </div>
                 </div>
-                
+
                 <div className="stat-card">
                   <div className="stat-icon">💰</div>
                   <div className="stat-content">
@@ -289,47 +292,45 @@ const Dashboard = () => {
 
 // Sub-components for different tabs
 const CycleTrackingTab = ({ user, cycleProfile }) => {
-  const [dailyLog, setDailyLog] = useState({
-    date: new Date().toISOString().split('T')[0],
-    mood: '',
-    flow: '',
-    symptoms: [],
-    pain_level: 0,
-    notes: ''
-  });
 
-  const handleLogSubmit = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/cycle/daily-log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          NIC: user.NIC,
-          ...dailyLog
-        })
-      });
-      
-      const data = await response.json();
-      if (data.success) {
-        alert('Daily log saved successfully!');
-        setDailyLog({
-          date: new Date().toISOString().split('T')[0],
-          mood: '',
-          flow: '',
-          symptoms: [],
-          pain_level: 0,
-          notes: ''
-        });
+  const [dailyLogs, setDailyLogs] = useState([]);
+  const [cycleTrackers, setCycleTrackers] = useState([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!user?.NIC) return;
+    (async () => {
+      try {
+        const history = await getCycleHistory(user.NIC);
+        setDailyLogs(history?.daily_logs || []);
+        setCycleTrackers(history?.cycle_trackers || []);
+      } catch (e) {
+        console.error("Error fetching cycle history:", e);
       }
-    } catch (error) {
-      console.error('Error saving log:', error);
+    })();
+  }, [user?.NIC]);
+
+  const handleSaveDailyLog = async (formData) => {
+    try {
+      setSaving(true);
+      await saveDailyLog({ NIC: user.NIC, ...formData });
+
+      const history = await getCycleHistory(user.NIC);
+      setDailyLogs(history?.daily_logs || []);
+      setCycleTrackers(history?.cycle_trackers || []);
+    } catch (e) {
+      console.error("Error saving log:", e);
+      alert(e.message || "Failed to save daily log");
+    } finally {
+      setSaving(false);
     }
   };
+
 
   return (
     <div className="cycle-tracking-tab">
       <h2>Track Your Cycle</h2>
-      
+
       <div className="cycle-overview">
         <div className="cycle-stats">
           <div className="cycle-stat">
@@ -343,7 +344,7 @@ const CycleTrackingTab = ({ user, cycleProfile }) => {
           <div className="cycle-stat">
             <span className="stat-label">Last Period</span>
             <span className="stat-value">
-              {cycleProfile?.last_period_start 
+              {cycleProfile?.last_period_start
                 ? new Date(cycleProfile.last_period_start).toLocaleDateString()
                 : 'Not recorded'}
             </span>
@@ -351,97 +352,16 @@ const CycleTrackingTab = ({ user, cycleProfile }) => {
         </div>
       </div>
 
-      <div className="daily-log-form">
-        <h3>Today's Log</h3>
-        <div className="log-form-grid">
-          <div className="form-group">
-            <label>Mood</label>
-            <select 
-              value={dailyLog.mood} 
-              onChange={(e) => setDailyLog({...dailyLog, mood: e.target.value})}
-            >
-              <option value="">Select mood</option>
-              <option value="happy">😊 Happy</option>
-              <option value="energetic">⚡ Energetic</option>
-              <option value="calm">😌 Calm</option>
-              <option value="tired">😴 Tired</option>
-              <option value="anxious">😰 Anxious</option>
-              <option value="irritable">😠 Irritable</option>
-            </select>
-          </div>
+      <DailyLogForm
+        initialDate={new Date().toISOString().split("T")[0]}
+        onSave={handleSaveDailyLog}
+        saving={saving}
+      />
 
-          <div className="form-group">
-            <label>Flow Level</label>
-            <select 
-              value={dailyLog.flow} 
-              onChange={(e) => setDailyLog({...dailyLog, flow: e.target.value})}
-            >
-              <option value="">Select flow</option>
-              <option value="none">None</option>
-              <option value="spotting">Spotting</option>
-              <option value="light">Light</option>
-              <option value="medium">Medium</option>
-              <option value="heavy">Heavy</option>
-            </select>
-          </div>
+      <HistoryPanel dailyLogs={dailyLogs} cycleTrackers={cycleTrackers} />
 
-          <div className="form-group">
-            <label>Pain Level (0-10)</label>
-            <input 
-              type="range" 
-              min="0" 
-              max="10" 
-              value={dailyLog.pain_level}
-              onChange={(e) => setDailyLog({...dailyLog, pain_level: parseInt(e.target.value)})}
-            />
-            <span className="pain-value">{dailyLog.pain_level}</span>
-          </div>
+      <InsightsPanel cycleProfile={cycleProfile} dailyLogs={dailyLogs} />
 
-          <div className="form-group full-width">
-            <label>Symptoms</label>
-            <div className="symptoms-checklist">
-              {['Cramps', 'Bloating', 'Headache', 'Fatigue', 'Back Pain', 'Breast Tenderness', 'Acne'].map(symptom => (
-                <label key={symptom} className="symptom-checkbox">
-                  <input 
-                    type="checkbox"
-                    checked={dailyLog.symptoms.includes(symptom)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setDailyLog({...dailyLog, symptoms: [...dailyLog.symptoms, symptom]});
-                      } else {
-                        setDailyLog({...dailyLog, symptoms: dailyLog.symptoms.filter(s => s !== symptom)});
-                      }
-                    }}
-                  />
-                  <span>{symptom}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="form-group full-width">
-            <label>Notes</label>
-            <textarea 
-              value={dailyLog.notes}
-              onChange={(e) => setDailyLog({...dailyLog, notes: e.target.value})}
-              placeholder="Any additional notes for today..."
-              rows="3"
-            />
-          </div>
-        </div>
-
-        <button className="submit-log-btn" onClick={handleLogSubmit}>
-          Save Today's Log
-        </button>
-      </div>
-
-      <div className="calendar-view">
-        <h3>Cycle Calendar</h3>
-        <div className="calendar-placeholder">
-          <p>Calendar view showing cycle days, periods, and logged symptoms</p>
-          {/* Add calendar component here */}
-        </div>
-      </div>
     </div>
   );
 };
@@ -453,7 +373,7 @@ const CommunityTab = () => {
   return (
     <div className="community-tab">
       <div className="create-post">
-        <textarea 
+        <textarea
           placeholder="Share your thoughts, ask questions, or provide support..."
           value={newPost}
           onChange={(e) => setNewPost(e.target.value)}
@@ -499,26 +419,26 @@ const HealthInsightsTab = () => {
   return (
     <div className="health-insights-tab">
       <h2>Health Insights</h2>
-      
+
       <div className="insights-grid">
         <div className="insight-card">
           <div className="insight-icon">📊</div>
           <h3>Cycle Patterns</h3>
           <p>Your cycles have been regular for the past 3 months</p>
         </div>
-        
+
         <div className="insight-card">
           <div className="insight-icon">💡</div>
           <h3>Symptom Trends</h3>
           <p>Headaches tend to occur 2 days before your period starts</p>
         </div>
-        
+
         <div className="insight-card">
           <div className="insight-icon">🎯</div>
           <h3>Predictions</h3>
           <p>Next ovulation predicted in 5 days</p>
         </div>
-        
+
         <div className="insight-card">
           <div className="insight-icon">💭</div>
           <h3>Mood Analysis</h3>
@@ -542,7 +462,7 @@ const FundraisingTab = () => {
   return (
     <div className="fundraising-tab">
       <h2>Support Causes You Care About</h2>
-      
+
       <div className="campaigns-grid">
         <div className="campaign-card">
           <div className="campaign-image">
@@ -553,7 +473,7 @@ const FundraisingTab = () => {
             <p>Providing sanitary products to 1000 girls in rural communities</p>
             <div className="campaign-progress">
               <div className="progress-bar">
-                <div className="progress-fill" style={{width: '65%'}}></div>
+                <div className="progress-fill" style={{ width: '65%' }}></div>
               </div>
               <div className="progress-stats">
                 <span>$6,500 raised</span>
@@ -651,15 +571,15 @@ const SettingsTab = ({ user }) => {
   return (
     <div className="settings-tab">
       <h2>Settings</h2>
-      
+
       <div className="settings-section">
         <h3>Notification Preferences</h3>
         <div className="setting-item">
           <label className="switch">
-            <input 
-              type="checkbox" 
+            <input
+              type="checkbox"
               checked={settings.emailNotifications}
-              onChange={(e) => setSettings({...settings, emailNotifications: e.target.checked})}
+              onChange={(e) => setSettings({ ...settings, emailNotifications: e.target.checked })}
             />
             <span className="slider"></span>
           </label>
@@ -668,13 +588,13 @@ const SettingsTab = ({ user }) => {
             <span className="setting-desc">Receive updates via email</span>
           </div>
         </div>
-        
+
         <div className="setting-item">
           <label className="switch">
-            <input 
-              type="checkbox" 
+            <input
+              type="checkbox"
               checked={settings.pushNotifications}
-              onChange={(e) => setSettings({...settings, pushNotifications: e.target.checked})}
+              onChange={(e) => setSettings({ ...settings, pushNotifications: e.target.checked })}
             />
             <span className="slider"></span>
           </label>
@@ -698,7 +618,7 @@ const SettingsTab = ({ user }) => {
               <span className="setting-desc">Get notified about upcoming periods</span>
             </div>
           </div>
-          
+
           <div className="setting-item">
             <label className="switch">
               <input type="checkbox" defaultChecked />
@@ -716,32 +636,32 @@ const SettingsTab = ({ user }) => {
         <h3>Privacy Settings</h3>
         <div className="privacy-options">
           <label className="privacy-option">
-            <input 
-              type="radio" 
-              name="privacy" 
+            <input
+              type="radio"
+              name="privacy"
               value="public"
               checked={settings.privacy === 'public'}
-              onChange={(e) => setSettings({...settings, privacy: e.target.value})}
+              onChange={(e) => setSettings({ ...settings, privacy: e.target.value })}
             />
             <span>Public</span>
           </label>
           <label className="privacy-option">
-            <input 
-              type="radio" 
-              name="privacy" 
+            <input
+              type="radio"
+              name="privacy"
               value="friends"
               checked={settings.privacy === 'friends'}
-              onChange={(e) => setSettings({...settings, privacy: e.target.value})}
+              onChange={(e) => setSettings({ ...settings, privacy: e.target.value })}
             />
             <span>Friends Only</span>
           </label>
           <label className="privacy-option">
-            <input 
-              type="radio" 
-              name="privacy" 
+            <input
+              type="radio"
+              name="privacy"
               value="private"
               checked={settings.privacy === 'private'}
-              onChange={(e) => setSettings({...settings, privacy: e.target.value})}
+              onChange={(e) => setSettings({ ...settings, privacy: e.target.value })}
             />
             <span>Private</span>
           </label>
