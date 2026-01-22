@@ -1,0 +1,598 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap");
+
+:root {
+  --bg: #070a12;
+
+  /* Theme */
+  --pink: #db2777;
+  --purple: #9333ea;
+
+  /* Text */
+  --text: rgba(255, 255, 255, 0.92);
+  --muted: rgba(255, 255, 255, 0.68);
+
+  /* Core surfaces (ALL cards use same as Hero) */
+  --card-bg: rgba(255, 255, 255, 0.06);
+  --card-border: rgba(255, 255, 255, 0.12);
+  --card-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+
+  /* Stronger unified hero-like shine */
+  --shine-pink: rgba(219, 39, 119, 0.18);
+  --shine-purple: rgba(147, 51, 234, 0.18);
+
+  /* Inputs */
+  --input-bg: rgba(10, 12, 22, 0.62);
+  --input-border: rgba(255, 255, 255, 0.14);
+
+  /* Focus */
+  --glow-pink: 0 0 0 4px rgba(219, 39, 119, 0.16);
+}
+
+* {
+  box-sizing: border-box;
+  font-family: "Outfit", sans-serif;
+}
+
+.ap {
+  min-height: 100vh;
+  position: relative;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+/* Background */
+.ap-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(219, 39, 119, 0.25), transparent 42%),
+    radial-gradient(circle at 85% 18%, rgba(147, 51, 234, 0.25), transparent 44%),
+    radial-gradient(circle at 50% 90%, rgba(124, 58, 237, 0.18), transparent 48%),
+    radial-gradient(circle at 40% 55%, rgba(255, 255, 255, 0.06), transparent 45%);
+  animation: bgPulse 8s ease-in-out infinite;
+}
+
+@keyframes bgPulse {
+  0%, 100% { filter: saturate(1) brightness(1); }
+  50% { filter: saturate(1.15) brightness(1.05); }
+}
+
+/* ---------------- Loading ---------------- */
+.ap-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.ap-loader {
+  position: relative;
+  z-index: 2;
+  width: min(520px, 100%);
+  border-radius: 26px;
+  padding: 18px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.ap-spinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 4px solid rgba(255, 255, 255, 0.25);
+  border-top-color: white;
+  animation: spin 0.9s linear infinite;
+}
+
+.ap-loader-title {
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.ap-loader-sub {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------------- Topbar ---------------- */
+.ap-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 14px 12px 12px;
+  backdrop-filter: blur(16px);
+  background: linear-gradient(to bottom, rgba(7, 10, 18, 0.96), rgba(7, 10, 18, 0.75), transparent);
+}
+
+/* MATCH Hero style: same background/border/shadow + same shine */
+.ap-topbar-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 8px 2px;       /* keeps alignment */
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  background: transparent; /* ✅ no box */
+  border: none;            /* ✅ no border */
+  box-shadow: none;        /* ✅ no shadow */
+}
+
+
+.ap-topbar-inner::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background:
+    radial-gradient(circle at 18% 10%, var(--shine-pink), transparent 45%),
+    radial-gradient(circle at 88% 28%, var(--shine-purple), transparent 45%);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Title */
+.ap-titleblock { min-width: 0; position: relative; }
+.ap-title {
+  font-size: clamp(22px, 3vw, 34px);
+  font-weight: 900;
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+.ap-title-gradient {
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.ap-subtitle {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Badges */
+.ap-badges {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  position: relative;
+}
+.ap-badge {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  font-size: 13px;
+}
+.ap-badge-strong {
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 700;
+}
+.ap-badge-ok {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.25);
+}
+.ap-badge-warn {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.25);
+}
+
+.ap-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* ---------------- Nav Chips ---------------- */
+.ap-nav {
+  max-width: 1200px;
+  margin: 10px auto 0;
+}
+.ap-nav-inner {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 10px 4px 2px;
+}
+.ap-nav-inner::-webkit-scrollbar { display: none; }
+
+.ap-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow .18s ease;
+  white-space: nowrap;
+}
+.ap-chip:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(219, 39, 119, 0.35);
+  box-shadow: 0 10px 25px rgba(219, 39, 119, 0.10);
+}
+
+/* ---------------- Message ---------------- */
+.ap-message {
+  max-width: 1200px;
+  margin: 10px auto 0;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.ap-message.success {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.10);
+}
+.ap-message.error {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.10);
+}
+.ap-message.info {
+  border-color: rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.10);
+}
+.ap-message-icon { flex-shrink: 0; }
+.ap-message-text { color: rgba(255, 255, 255, 0.92); font-size: 14px; }
+
+/* ---------------- Container + grid ---------------- */
+.ap-container {
+  position: relative;
+  z-index: 2;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 18px 12px 40px;
+}
+
+.ap-grid {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 18px;
+}
+
+.ap-col {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+@media (max-width: 980px) {
+  .ap-grid { grid-template-columns: 1fr; }
+}
+
+/* ---------------- Cards (ALL boxes match Hero now) ---------------- */
+.ap-card {
+  border-radius: 26px;
+  padding: 18px;
+
+  /* SAME for hero + about + mission + contact + features + stats + footer */
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+/* Same pink/purple shine on ALL cards */
+.ap-card::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background:
+    radial-gradient(circle at 18% 10%, var(--shine-pink), transparent 45%),
+    radial-gradient(circle at 88% 28%, var(--shine-purple), transparent 45%);
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.ap-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(219, 39, 119, 0.30);
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.55);
+}
+
+.ap-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  position: relative;
+}
+
+/* ---------------- Section header ---------------- */
+.ap-sectionHeader { margin-bottom: 12px; position: relative; }
+.ap-sectionTitleRow { display: flex; align-items: center; gap: 10px; }
+.ap-sectionTitle { margin: 0; font-size: 18px; font-weight: 900; }
+.ap-sectionSub { margin: 6px 0 0 22px; color: var(--muted); font-size: 13px; }
+
+/* ---------------- Form layout ---------------- */
+.ap-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  position: relative;
+}
+@media (max-width: 720px) { .ap-form-grid { grid-template-columns: 1fr; } }
+
+.ap-span-2 { grid-column: span 2; }
+@media (max-width: 720px) { .ap-span-2 { grid-column: span 1; } }
+
+.ap-stack { display: flex; flex-direction: column; gap: 14px; }
+
+.ap-fieldTop {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.ap-label { font-size: 13px; font-weight: 800; color: rgba(255, 255, 255, 0.95); }
+.ap-hint { font-size: 12px; color: rgba(255, 255, 255, 0.55); }
+
+/* ---------------- Inputs ---------------- */
+.ap-input,
+.ap-textarea,
+.ap-select {
+  width: 100%;
+  border-radius: 18px;
+  padding: 12px 14px;
+  background: var(--input-bg);
+  color: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--input-border);
+  outline: none;
+  transition: transform 0.12s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.ap-textarea { min-height: 120px; resize: vertical; }
+.ap-textarea-tall { min-height: 170px; }
+.ap-textarea-small { min-height: 90px; }
+
+.ap-input:focus,
+.ap-textarea:focus,
+.ap-select:focus {
+  border-color: rgba(219, 39, 119, 0.75);
+  box-shadow: var(--glow-pink);
+  transform: translateY(-1px);
+}
+
+.ap-input::placeholder,
+.ap-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* ---------------- Lists ---------------- */
+.ap-list { display: flex; flex-direction: column; gap: 12px; }
+
+/* Make items match hero box too (same card style but slightly darker) */
+.ap-item {
+  border-radius: 20px;
+  padding: 14px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow .18s ease;
+  position: relative;
+  overflow: hidden;
+}
+.ap-item::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background:
+    radial-gradient(circle at 18% 10%, rgba(219, 39, 119, 0.14), transparent 55%),
+    radial-gradient(circle at 88% 28%, rgba(147, 51, 234, 0.14), transparent 55%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.ap-item:hover {
+  border-color: rgba(147, 51, 234, 0.35);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 40px rgba(147, 51, 234, 0.10);
+}
+
+.ap-item-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  position: relative;
+}
+.ap-item-title { font-weight: 900; font-size: 14px; }
+.ap-item-sub { margin-top: 2px; font-size: 12px; color: var(--muted); }
+
+.ap-row {
+  display: grid;
+  grid-template-columns: 92px 56px 1fr;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+  position: relative;
+}
+@media (max-width: 540px) {
+  .ap-row { grid-template-columns: 1fr 56px; }
+  .ap-row .ap-select { grid-column: span 2; }
+}
+
+/* Icon preview */
+.ap-iconPreview {
+  width: 56px;
+  height: 48px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  background: linear-gradient(135deg, rgba(219, 39, 119, 0.22), rgba(147, 51, 234, 0.22));
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+/* ---------------- Buttons ---------------- */
+.ap-btn {
+  border: none;
+  cursor: pointer;
+  border-radius: 18px;
+  padding: 12px 14px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  user-select: none;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+.ap-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+/* Primary stays pink/purple */
+.ap-btn-primary {
+  color: rgba(255, 255, 255, 0.98);
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  box-shadow: 0 16px 34px rgba(219, 39, 119, 0.22);
+}
+.ap-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 46px rgba(219, 39, 119, 0.30);
+}
+
+/* Ghost button UPDATED: transparent + clear text (for View Live + Reset) */
+.ap-btn-ghost {
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
+}
+.ap-btn-ghost:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(219, 39, 119, 0.30);
+}
+
+/* Add button (kept green for clarity) */
+.ap-btn-add {
+  color: white;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.95), rgba(16, 185, 129, 0.95));
+  box-shadow: 0 14px 28px rgba(34, 197, 94, 0.15);
+}
+.ap-btn-add:hover { transform: translateY(-2px); }
+
+.ap-btn-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.ap-mini-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: white;
+  animation: spin 0.9s linear infinite;
+}
+
+/* Danger link */
+.ap-link-danger {
+  background: transparent;
+  border: none;
+  color: rgba(248, 113, 113, 0.95);
+  font-weight: 900;
+  cursor: pointer;
+}
+.ap-link-danger:hover { color: rgba(252, 165, 165, 1); }
+
+/* Dots */
+.ap-dot { width: 10px; height: 10px; border-radius: 999px; display: inline-block; }
+.ap-dot-green { background: #22c55e; }
+.dot-pink { background: var(--pink); }
+.dot-purple { background: var(--purple); }
+.dot-teal { background: #14b8a6; }
+.dot-blue { background: #3b82f6; }
+.dot-yellow { background: #fbbf24; }
+.dot-rose { background: #fb7185; }
+.dot-indigo { background: #6366f1; }
+
+/* ---------------- Bottom area (make same as hero box) ---------------- */
+.ap-bottom {
+  margin-top: 22px;
+  border-radius: 26px;
+  padding: 16px;
+
+  /* SAME as hero box */
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+
+  position: relative;
+  overflow: hidden;
+}
+
+/* same shine */
+.ap-bottom::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background:
+    radial-gradient(circle at 18% 10%, var(--shine-pink), transparent 45%),
+    radial-gradient(circle at 88% 28%, var(--shine-purple), transparent 45%);
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.ap-bottom-left { display: flex; flex-direction: column; gap: 8px; position: relative; }
+.ap-bottom-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 13px;
+  position: relative;
+}
+.ap-bottom-label { color: rgba(255, 255, 255, 0.92); font-weight: 800; }
+
+/* Keep links readable */
+.ap-bottom a {
+  color: rgba(255, 255, 255, 0.92);
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.25);
+}
+.ap-bottom a:hover { color: white; }
+
+.ap-bottom-actions { display: flex; gap: 10px; position: relative; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .ap-topbar-inner { flex-direction: column; align-items: stretch; }
+  .ap-actions { justify-content: flex-end; }
+}

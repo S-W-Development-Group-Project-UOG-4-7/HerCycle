@@ -114,8 +114,8 @@ const Login = () => {
       });
     } else {
       setFormData({
-        email: 'test@test.com',
-        password: 'test123'
+        email: 'web@hercycle.com',
+        password: 'admin123'
       });
     }
   };

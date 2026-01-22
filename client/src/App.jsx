@@ -12,6 +12,8 @@ import ForgotPassword from './pages/Auth/ForgotPassword';
 import Dashboard from './pages/Dashboard/Dashboard';
 import DoctorDashboard from './pages/Doctor/Dashboard';
 import AdminDoctorVerification from './pages/Admin/AdminDoctorVerification';
+import WebManagerDashboard from './pages/WebManager/WebManagerDashboard';
+import WebManagerProfile from './pages/WebManager/WebmanagerProfile';
 
 function App() {
   return (
@@ -33,6 +35,8 @@ function App() {
           <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
           <Route path="/doctor-pending" element={<DoctorDashboard pending={true} />} />
           <Route path="/admin-dashboard" element={<AdminDoctorVerification />} />
+          <Route path="/web-manager-dashboard" element={<WebManagerDashboard />} />
+          <Route path="/web-manager-profile" element={<WebManagerProfile />} />
         </Routes>
       </GradientBackground>
     </Router>

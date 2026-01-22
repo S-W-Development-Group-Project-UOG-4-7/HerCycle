@@ -1,0 +1,669 @@
+/* pages/Admin/FundraisingAdminPanel.css */
+
+/* ✅ If you already load fonts globally, you can delete this import */
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap");
+
+/* =========================
+   THEME TOKENS
+   ========================= */
+:root {
+  --bg: #070a12;
+  --panel: rgba(255, 255, 255, 0.06);
+  --panel-2: rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.12);
+  --border-2: rgba(255, 255, 255, 0.16);
+  --text: rgba(255, 255, 255, 0.92);
+  --muted: rgba(255, 255, 255, 0.68);
+  --muted2: rgba(255, 255, 255, 0.5);
+
+  --pink: #db2777;
+  --purple: #9333ea;
+  --teal: #14b8a6;
+  --blue: #3b82f6;
+  --yellow: #fbbf24;
+  --green: #22c55e;
+  --red: #ef4444;
+
+  /* ✅ darker (less white highlight) */
+  --input-bg: rgba(6, 10, 20, 0.82);
+  --input-border: rgba(255, 255, 255, 0.14);
+
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.48);
+  --shadow-soft: 0 18px 44px rgba(0, 0, 0, 0.35);
+
+  --glow-teal: 0 0 0 4px rgba(20, 184, 166, 0.14);
+  --glow-pink: 0 0 0 4px rgba(219, 39, 119, 0.12);
+}
+
+/* =========================
+   BASE
+   ========================= */
+* {
+  box-sizing: border-box;
+  font-family: "Outfit", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* =========================
+   BACKGROUND LAYER
+   (your wrapper is Tailwind classes)
+   ========================= */
+.fundraising-admin-panel,
+.min-h-screen.bg-gray-900 {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+/* subtle neon clouds */
+.fundraising-admin-panel::before,
+.min-h-screen.bg-gray-900::before {
+  content: "";
+  position: absolute;
+  inset: -140px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14% 18%, rgba(219, 39, 119, 0.22), transparent 42%),
+    radial-gradient(circle at 86% 20%, rgba(147, 51, 234, 0.22), transparent 44%),
+    radial-gradient(circle at 70% 85%, rgba(20, 184, 166, 0.16), transparent 48%),
+    radial-gradient(circle at 40% 60%, rgba(59, 130, 246, 0.10), transparent 48%),
+    radial-gradient(circle at 55% 50%, rgba(255, 255, 255, 0.04), transparent 58%);
+  filter: saturate(1.05);
+  animation: frapPulse 9s ease-in-out infinite;
+}
+
+@keyframes frapPulse {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(8px);
+    opacity: 0.92;
+  }
+}
+
+.max-w-7xl.mx-auto {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+}
+
+/* =========================
+   HEADER CARD (top area)
+   ========================= */
+.max-w-7xl.mx-auto > .flex.flex-col.md\:flex-row {
+  position: relative;
+  border-radius: 24px;
+  padding: 22px;
+  background: linear-gradient(180deg, var(--panel), rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+  overflow: hidden;
+}
+
+.max-w-7xl.mx-auto > .flex.flex-col.md\:flex-row::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 10%, rgba(219, 39, 119, 0.16), transparent 45%),
+    radial-gradient(circle at 88% 28%, rgba(147, 51, 234, 0.16), transparent 45%),
+    radial-gradient(circle at 72% 92%, rgba(20, 184, 166, 0.12), transparent 50%);
+  opacity: 0.75;
+}
+
+.max-w-7xl.mx-auto > .flex.flex-col.md\:flex-row > * {
+  position: relative;
+  z-index: 1;
+}
+
+.text-3xl.font-bold.text-white {
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.4px;
+}
+
+/* little gradient bar under title */
+.text-3xl.font-bold.text-white::after {
+  content: "";
+  display: block;
+  width: 150px;
+  height: 4px;
+  border-radius: 999px;
+  margin-top: 12px;
+  background: linear-gradient(90deg, var(--pink), var(--purple), var(--teal));
+  opacity: 0.95;
+}
+
+.text-gray-400 {
+  color: var(--muted) !important;
+}
+.text-gray-500 {
+  color: var(--muted2) !important;
+}
+.text-yellow-400 {
+  color: rgba(251, 191, 36, 0.95) !important;
+}
+
+/* =========================
+   BUTTONS (consistent theme)
+   ========================= */
+button,
+a {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+
+button:disabled {
+  opacity: 0.65 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+/* Save All Changes */
+.bg-green-600 {
+  background: linear-gradient(135deg, var(--teal), var(--green)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 14px 34px rgba(20, 184, 166, 0.18);
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+.bg-green-600:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 48px rgba(20, 184, 166, 0.26);
+}
+
+/* Seed */
+.bg-blue-600 {
+  background: linear-gradient(135deg, var(--purple), var(--pink)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 14px 34px rgba(147, 51, 234, 0.18);
+  font-weight: 800;
+}
+.bg-blue-600:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 48px rgba(147, 51, 234, 0.26);
+}
+
+/* View Live + Add buttons */
+.bg-teal-600 {
+  background: linear-gradient(135deg, var(--teal), var(--blue)) !important;
+  border: 1px solid rgba(20, 184, 166, 0.35) !important;
+  box-shadow: 0 12px 30px rgba(20, 184, 166, 0.16);
+  font-weight: 800;
+  text-decoration: none;
+}
+.bg-teal-600:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 42px rgba(20, 184, 166, 0.22);
+}
+
+/* Save Without Images */
+.bg-yellow-700 {
+  background: rgba(251, 191, 36, 0.16) !important;
+  border: 1px solid rgba(251, 191, 36, 0.32) !important;
+  box-shadow: 0 12px 26px rgba(251, 191, 36, 0.12);
+  color: rgba(255, 255, 255, 0.92) !important;
+  font-weight: 800;
+}
+.bg-yellow-700:hover,
+.hover\:bg-yellow-600:hover {
+  background: rgba(251, 191, 36, 0.22) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px rgba(251, 191, 36, 0.16);
+}
+
+/* remove links */
+.text-red-400 {
+  color: rgba(248, 113, 113, 0.95) !important;
+  font-weight: 700;
+}
+.text-red-400:hover {
+  color: rgba(252, 165, 165, 0.98) !important;
+}
+
+/* =========================
+   NOTIFICATION
+   ========================= */
+.border {
+  border-width: 1px !important;
+  border-radius: 18px !important;
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-soft);
+}
+
+.bg-green-900\/30 {
+  background: rgba(34, 197, 94, 0.12) !important;
+  border-color: rgba(34, 197, 94, 0.35) !important;
+}
+.bg-red-900\/30 {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+.bg-yellow-900\/30 {
+  background: rgba(251, 191, 36, 0.12) !important;
+  border-color: rgba(251, 191, 36, 0.35) !important;
+}
+.bg-blue-900\/30 {
+  background: rgba(59, 130, 246, 0.12) !important;
+  border-color: rgba(59, 130, 246, 0.35) !important;
+}
+
+/* close X */
+.border button.text-gray-400 {
+  font-size: 22px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.62) !important;
+}
+
+/* =========================
+   SECTION CARDS
+   (Hero / Carousel / Campaign / CTA / Footer)
+   ========================= */
+.bg-gray-800.rounded-xl.shadow-lg {
+  background: linear-gradient(180deg, var(--panel), rgba(255, 255, 255, 0.02)) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 22px !important;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.bg-gray-800.rounded-xl.shadow-lg::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 12% 20%, rgba(219, 39, 119, 0.14), transparent 46%),
+    radial-gradient(circle at 88% 18%, rgba(147, 51, 234, 0.14), transparent 46%),
+    radial-gradient(circle at 70% 88%, rgba(20, 184, 166, 0.10), transparent 52%);
+  opacity: 0.6;
+}
+
+.bg-gray-800.rounded-xl.shadow-lg > * {
+  position: relative;
+  z-index: 1;
+}
+
+.bg-gray-800.rounded-xl.shadow-lg:hover {
+  transform: translateY(-2px);
+  transition: transform 0.18s ease;
+}
+
+/* headings inside */
+.text-2xl.font-bold.text-white {
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.25px;
+}
+
+/* borders / dividers */
+.border-b.border-gray-700,
+.border-t.border-gray-700,
+.border.border-gray-700 {
+  border-color: rgba(255, 255, 255, 0.10) !important;
+}
+
+/* =========================
+   INPUTS / TEXTAREA / SELECT
+   ========================= */
+input[type="text"],
+input[type="number"],
+textarea,
+select {
+  background: var(--input-bg) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--input-border) !important;
+  border-radius: 14px !important;
+  outline: none !important;
+  box-shadow: none !important;
+  padding: 12px 14px !important;
+  font-size: 14px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(255, 255, 255, 0.42) !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--teal) !important;
+  box-shadow: var(--glow-teal) !important;
+  transform: translateY(-1px);
+}
+
+label {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-weight: 700;
+}
+
+input[type="checkbox"] {
+  accent-color: var(--teal) !important;
+}
+
+/* small text overrides */
+.text-gray-300 {
+  color: rgba(255, 255, 255, 0.86) !important;
+}
+
+/* =========================
+   INNER ITEMS (cards inside sections)
+   (carousel item, campaign item, hero stat)
+   ========================= */
+.bg-gray-900\/50,
+.bg-gray-800\/50 {
+  background: rgba(0, 0, 0, 0.22) !important; /* ✅ darker */
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 16px !important;
+}
+
+.bg-gray-900\/50:hover,
+.bg-gray-800\/50:hover {
+  border-color: rgba(147, 51, 234, 0.32) !important;
+}
+
+/* =========================
+   UPLOAD DROP AREA
+   ========================= */
+.border-2.border-dashed.border-gray-600 {
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  background: rgba(255, 255, 255, 0.03) !important; /* ✅ reduced white */
+  border-radius: 16px !important;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.border-2.border-dashed.border-gray-600:hover {
+  border-color: rgba(20, 184, 166, 0.45) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  transform: translateY(-1px);
+}
+
+.text-teal-400 {
+  color: rgba(20, 184, 166, 0.95) !important;
+  font-weight: 800;
+}
+
+/* image preview box */
+.h-48.bg-gray-900.rounded-lg {
+  border-radius: 16px !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: rgba(0, 0, 0, 0.28) !important;
+}
+
+/* =========================
+   EMOJI PICKER BUTTONS
+   ========================= */
+.text-2xl.hover\:bg-gray-800 {
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 12px !important;
+  padding: 8px !important;
+}
+.text-2xl.hover\:bg-gray-800:hover {
+  transform: translateY(-2px) scale(1.06);
+  border-color: rgba(147, 51, 234, 0.38) !important;
+  background: rgba(255, 255, 255, 0.10) !important;
+}
+
+/* =========================
+   STICKY BOTTOM BAR
+   ========================= */
+.sticky.bottom-0.bg-gray-900\/95 {
+  background: linear-gradient(to top, rgba(7, 10, 18, 0.98), rgba(7, 10, 18, 0.86)) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.10) !important;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
+  padding: 16px !important;
+  z-index: 10;
+}
+
+/* =========================
+   LOADER RING COLOR
+   ========================= */
+.w-16.h-16.border-4.border-teal-500 {
+  border-color: rgba(20, 184, 166, 0.35) !important;
+  border-top-color: rgba(20, 184, 166, 0.95) !important;
+}
+
+/* =========================
+   RESPONSIVE
+   ========================= */
+@media (max-width: 768px) {
+  .max-w-7xl.mx-auto > .flex.flex-col.md\:flex-row {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .bg-gray-800.rounded-xl.shadow-lg {
+    border-radius: 18px !important;
+  }
+
+  .sticky.bottom-0.bg-gray-900\/95 {
+    padding: 14px !important;
+  }
+}
+
+/* Creative admin styling scoped under .hcp-admin so it won't affect other pages */
+
+.hcp-admin {
+  --bg-1: transparent;
+  --border: none;
+  --panel-bg: rgba(18,24,34,0.9);
+  --accent: #06b6d4;
+  --muted: #9ca3af;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  background: linear-gradient(180deg, rgba(2,6,23,1) 0%, rgba(7,18,29,1) 100%);
+  color: #e6eef2;
+  min-height: 100vh;
+  padding: 28px 20px;
+  box-sizing: border-box;
+}
+
+/* central container */
+.hcp-admin .max-w-7xl {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* header */
+.hcp-admin h1 {
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  background: linear-gradient(90deg, #fff, var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin: 0 0 6px 0;
+}
+.hcp-admin p { margin: 2px 0; color: var(--muted); }
+
+/* panels */
+.hcp-admin .bg-gray-800,
+.hcp-admin .hcp-panel {
+  background: linear-gradient(180deg, rgba(10,14,20,0.6), rgba(22,28,36,0.6));
+  border: 1px solid rgba(255,255,255,0.04);
+  padding: 18px;
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(3,6,12,0.6);
+}
+
+/* make headings inside panels pop */
+.hcp-admin h2 {
+  font-size: 20px;
+  color: #ffffff;
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+/* form inputs */
+.hcp-admin input[type="text"],
+.hcp-admin input[type="number"],
+.hcp-admin textarea,
+.hcp-admin select {
+  background: rgba(6,10,14,0.6);
+  border: 1px solid rgba(255,255,255,0.06);
+  color: #ecfeff;
+  padding: 10px 12px;
+  border-radius: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  transition: box-shadow 140ms ease, border-color 140ms ease;
+}
+.hcp-admin input:focus,
+.hcp-admin textarea:focus,
+.hcp-admin select:focus {
+  outline: none;
+  border-color: rgba(6,182,212,0.95);
+  box-shadow: 0 4px 18px rgba(6,182,212,0.06);
+}
+
+/* buttons */
+.hcp-admin button,
+.hcp-admin a[role="button"] {
+  background: linear-gradient(90deg, var(--accent), #7c3aed);
+  color: white;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+}
+.hcp-admin button:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(7,18,29,0.5); }
+.hcp-admin button[disabled] { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* subtle utility classes */
+.hcp-admin .muted { color: var(--muted); font-size: 13px; }
+.hcp-admin .small { font-size: 12px; color: #bcd; }
+
+/* notification */
+.hcp-admin .p-4 {
+  border-radius: 10px;
+  padding: 12px;
+}
+.hcp-admin .p-4[role="notification"],
+.hcp-admin .notification {
+  margin-bottom: 14px;
+}
+.hcp-admin .bg-green-900\/30 { background: linear-gradient(90deg, rgba(16,185,129,0.06), rgba(102,126,234,0.02)); border: 1px solid rgba(16,185,129,0.12); color: #a7f3d0; }
+.hcp-admin .bg-red-900\/30 { background: linear-gradient(90deg, rgba(239,68,68,0.04), rgba(7,18,29,0.02)); border: 1px solid rgba(239,68,68,0.12); color: #fecaca; }
+
+/* image preview boxes */
+.hcp-admin .h-48,
+.hcp-admin .preview-box {
+  height: 180px;
+  background: linear-gradient(180deg, rgba(10,14,20,0.4), rgba(6,10,14,0.6));
+  border-radius: 10px;
+  border: 1px dashed rgba(255,255,255,0.04);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hcp-admin .preview-box img { width: 100%; height: 100%; object-fit: cover; }
+
+/* campaign icon display */
+.hcp-admin .text-7xl { font-size: 56px; line-height: 1; }
+
+/* grid improvements */
+.hcp-admin .grid { gap: 14px; }
+@media (min-width: 768px) {
+  .hcp-admin .md\\:grid-cols-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .hcp-admin .md\\:grid-cols-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+}
+
+/* sticky footer area */
+.hcp-admin .sticky {
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(2,6,23,0.85), rgba(7,18,29,0.95));
+  border-top: 1px solid rgba(255,255,255,0.03);
+  padding: 12px 18px;
+  margin-top: 22px;
+  border-radius: 10px 10px 0 0;
+}
+
+/* link like buttons */
+.hcp-admin a { color: inherit; text-decoration: none; }
+
+/* small helpers to override tailwind color classes if used */
+.hcp-admin .bg-gray-900 { background: transparent !important; }
+.hcp-admin .bg-gray-800 { background: transparent !important; }
+
+/* final polish */
+.hcp-admin .border { border-color: rgba(255,255,255,0.04) !important; }
+
+/* accessibility: focus outlines */
+.hcp-admin :focus { outline: 3px solid rgba(6,182,212,0.12); outline-offset: 2px; }
+
+.hcp-admin .hcp-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 18px; /* consistent space between panels */
+  align-items: stretch;
+  margin-top: 6px;
+}
+
+/* uniform panel style and colorful gradients */
+.hcp-admin .hcp-panel {
+  padding: 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(6,182,212,0.04));
+  box-shadow: 0 10px 30px rgba(2,6,23,0.55);
+  transition: transform 120ms ease, box-shadow 120ms ease, background 200ms ease;
+}
+
+/* stronger hover/focus look for panels */
+.hcp-admin .hcp-panel:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 42px rgba(6,12,24,0.6);
+  background: linear-gradient(135deg, rgba(99,102,241,0.09), rgba(16,185,129,0.04));
+}
+
+/* reduce internal bottom margin for headings inside panels so they appear tighter */
+.hcp-admin .hcp-panel h2 {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+/* make the header title pop and remove any boxed appearance */
+.hcp-admin .flex.flex-col.md\\:flex-row {
+  background: transparent;
+  padding: 0;
+  margin-bottom: 12px;
+}
+
+/* ensure the sticky footer blends with panels */
+.hcp-admin .sticky {
+  border-radius: 12px;
+  padding: 14px;
+  margin-top: 10px;
+}
+
+/* keep previous overrides */
+.hcp-admin .bg-gray-900 { background: transparent !important; }
+.hcp-admin .bg-gray-800 { background: transparent !important; }
