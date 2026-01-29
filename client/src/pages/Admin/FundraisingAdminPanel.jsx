@@ -611,7 +611,7 @@ const FundraisingAdminPanel = () => {
         {/* Header with data size info */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white">Fundraising Admin Panel</h1>
+            <h1 className="text-3xl font-bold text-white">Her Cycle Fundraising Page Manager</h1>
             <p className="text-gray-400 mt-2">
               Current data size: {Math.round(JSON.stringify(formData).length / 1024)} KB
             </p>

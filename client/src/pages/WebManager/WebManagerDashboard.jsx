@@ -345,14 +345,14 @@ const WebManagerDashboard = () => {
           💰 Fundraising
         </button>
         <button
-          className={`wm-nav-btn ${activeTab === 'campaigns' ? 'active' : ''}`}
-          onClick={() => setActiveTab('campaigns')}
+          className={`wm-nav-btn ${activeTab === 'community' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('community'); navigate('/community'); }}
         >
-          🎯 Campaigns
+          🌐 Community
         </button>
         <button
           className={`wm-nav-btn ${activeTab === 'donations' ? 'active' : ''}`}
-          onClick={() => setActiveTab('donations')}
+          onClick={() => { setActiveTab('donations'); navigate('/donation-overview'); }}
         >
           💳 Donations
         </button>
@@ -623,98 +623,9 @@ const WebManagerDashboard = () => {
               )}
             </div>
           </section>
-        )}
+                  )}
 
-        {/* Donations & Analytics Tab */}
-        {activeTab === 'donations' && (
-          <section className="wm-section">
-            <h2>Donation Records & Analytics</h2>
-            
-            <div className="wm-analytics-summary">
-              <div className="wm-analytics-card">
-                <h3>Total Donations</h3>
-                <p className="wm-analytics-number">{totalDonors}</p>
-              </div>
-              <div className="wm-analytics-card">
-                <h3>Total Amount Raised</h3>
-                <p className="wm-analytics-number">Rs.{totalRaised.toLocaleString()}</p>
-              </div>
-              <div className="wm-analytics-card">
-                <h3>Average Donation</h3>
-                <p className="wm-analytics-number">
-                  Rs.{totalDonors > 0 ? Math.round(totalRaised / totalDonors).toLocaleString() : 0}
-                </p>
-              </div>
-            </div>
-
-            <div className="wm-analytics-section">
-              <h3>Campaign-wise Donations</h3>
-              {campaignStats.length > 0 ? (
-                <div className="wm-campaign-analytics">
-                  {campaignStats.map((campaign, idx) => (
-                    <div key={idx} className="wm-analytics-bar">
-                      <div className="wm-bar-label">
-                        <span>{campaign.name}</span>
-                        <span className="wm-bar-amount">Rs.{campaign.total.toLocaleString()}</span>
-                      </div>
-                      <div className="wm-bar-container">
-                        <div 
-                          className="wm-bar-fill" 
-                          style={{ width: `${(campaign.total / totalRaised) * 100}%` }}
-                        ></div>
-                      </div>
-                      <p className="wm-bar-donors">{campaign.donors} donors</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="wm-no-data">No donation data available</p>
-              )}
-            </div>
-
-            <hr className="wm-divider" />
-
-            <div className="wm-donations-list-section">
-              <h3>Recent Donations</h3>
-              {donations.length > 0 ? (
-                <div className="wm-table-container">
-                  <table className="wm-donations-table">
-                    <thead>
-                      <tr>
-                        <th>Donor Name</th>
-                        <th>Email</th>
-                        <th>Campaign</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {donations.slice(0, 20).map((donation, idx) => (
-                        <tr key={idx}>
-                          <td>{donation.donorName || 'Anonymous'}</td>
-                          <td>{donation.donorEmail || '-'}</td>
-                          <td>{donation.campaignName || '-'}</td>
-                          <td>Rs.{donation.amount?.toLocaleString()}</td>
-                          <td>
-                            <span className={`wm-donation-status ${donation.status}`}>
-                              {donation.status}
-                            </span>
-                          </td>
-                          <td>{new Date(donation.createdAt).toLocaleDateString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="wm-no-data">No donations yet</p>
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* Profile Management */}
+                {/* Profile Management */}
         {activeTab === 'profile' && (
           <section className="wm-section">
             <h2>Edit Profile</h2>

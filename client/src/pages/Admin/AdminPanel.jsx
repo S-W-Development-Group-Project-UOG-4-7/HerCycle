@@ -235,7 +235,7 @@ const AdminPanel = () => {
         <div className="ap-topbar-inner">
           <div className="ap-titleblock">
             <h1 className="ap-title">
-              Her<span className="ap-title-gradient">Cycle</span> Admin Panel
+              Her<span className="ap-title-gradient">Cycle</span> Landing Page Manager
             </h1>
             <p className="ap-subtitle">Clear, aligned & colorful landing page manager</p>
 

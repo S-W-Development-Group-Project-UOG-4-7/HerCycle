@@ -1,5 +1,6 @@
 // src/pages/DonationSuccess/DonationSuccess.jsx
 import React, { useEffect, useState } from 'react';
+import './DonationSuccess.css';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const DonationSuccess = () => {

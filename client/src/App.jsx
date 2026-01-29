@@ -14,6 +14,7 @@ import DoctorDashboard from './pages/Doctor/Dashboard';
 import AdminDoctorVerification from './pages/Admin/AdminDoctorVerification';
 import WebManagerDashboard from './pages/WebManager/WebManagerDashboard';
 import WebManagerProfile from './pages/WebManager/WebmanagerProfile';
+import DonationOverview from './pages/WebManager/DonationOverview';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
           <Route path="/admin-dashboard" element={<AdminDoctorVerification />} />
           <Route path="/web-manager-dashboard" element={<WebManagerDashboard />} />
           <Route path="/web-manager-profile" element={<WebManagerProfile />} />
+          <Route path="/donation-overview" element={<DonationOverview />} />
         </Routes>
       </GradientBackground>
     </Router>
