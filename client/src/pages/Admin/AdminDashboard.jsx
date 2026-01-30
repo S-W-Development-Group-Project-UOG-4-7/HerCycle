@@ -85,10 +85,18 @@ const AdminDashboard = () => {
                     <div className="admin-user-info">
                         <div className="admin-avatar">
                             {adminData?.profile_picture ? (
-                                <img src={adminData.profile_picture} alt="Admin" />
-                            ) : (
-                                <span>{adminData?.full_name?.charAt(0) || 'A'}</span>
-                            )}
+                                <img
+                                    src={`http://localhost:5000${adminData.profile_picture}`}
+                                    alt="Admin"
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'flex';
+                                    }}
+                                />
+                            ) : null}
+                            <span style={{ display: adminData?.profile_picture ? 'none' : 'flex' }}>
+                                {adminData?.full_name?.charAt(0) || 'A'}
+                            </span>
                         </div>
                         <div className="admin-details">
                             <span className="admin-name">{adminData?.full_name}</span>

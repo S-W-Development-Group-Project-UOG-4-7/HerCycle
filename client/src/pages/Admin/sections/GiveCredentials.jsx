@@ -1,5 +1,6 @@
 // GiveCredentials.jsx - Simplified without permissions, with validation
 import React, { useState, useEffect } from 'react';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 const GiveCredentials = () => {
     const [formData, setFormData] = useState({
@@ -10,6 +11,11 @@ const GiveCredentials = () => {
     const [message, setMessage] = useState({ type: '', text: '' });
     const [validationErrors, setValidationErrors] = useState({});
     const [showPassword, setShowPassword] = useState(false);
+
+    // Confirmation Modal States
+    const [deleteModalUser, setDeleteModalUser] = useState(null);
+    const [resetPasswordModalUser, setResetPasswordModalUser] = useState(null);
+    const [temporaryPassword, setTemporaryPassword] = useState(null);
 
     useEffect(() => {
         fetchWebManagers();
@@ -127,6 +133,70 @@ const GiveCredentials = () => {
         }
     };
 
+    const handleDeleteUser = async (nic) => {
+        try {
+            const token = localStorage.getItem('authToken');
+            const res = await fetch(`http://localhost:5000/api/admin/users/${nic}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                setMessage({
+                    type: 'success',
+                    text: `User ${data.data?.full_name || nic} has been deleted successfully`
+                });
+                setDeleteModalUser(null);
+                fetchWebManagers();
+                setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+            } else {
+                setMessage({ type: 'error', text: data.message || 'Failed to delete user' });
+            }
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            setMessage({ type: 'error', text: 'Failed to delete user' });
+        }
+    };
+
+    const handleResetPassword = async (nic) => {
+        try {
+            const token = localStorage.getItem('authToken');
+            const res = await fetch(`http://localhost:5000/api/admin/reset-password/${nic}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                setTemporaryPassword(data.temporary_password);
+                setMessage({
+                    type: 'success',
+                    text: `Password reset for ${data.data?.full_name || nic}`
+                });
+                setResetPasswordModalUser(null);
+                setTimeout(() => {
+                    setMessage({ type: '', text: '' });
+                    setTemporaryPassword(null);
+                }, 30000); // Keep password visible for 30 seconds
+            } else {
+                setMessage({ type: 'error', text: data.message || 'Failed to reset password' });
+            }
+        } catch (error) {
+            console.error('Error resetting password:', error);
+            setMessage({ type: 'error', text: 'Failed to reset password' });
+        }
+    };
+
+    const copyToClipboard = (text) => {
+        navigator.clipboard.writeText(text);
+        setMessage({ type: 'success', text: 'Password copied to clipboard!' });
+        setTimeout(() => setMessage({ type: '', text: '' }), 2000);
+    };
+
     const getPasswordStrength = (password) => {
         if (!password) return { strength: 0, label: '', color: '#e5e7eb' };
         let strength = 0;
@@ -156,6 +226,44 @@ const GiveCredentials = () => {
                     <h2 className="section-title"><span className="section-icon"></span>Create Web Manager Account</h2>
                 </div>
                 {message.text && <div className={`alert alert-${message.type}`}>{message.text}</div>}
+
+                {/* Temporary Password Display */}
+                {temporaryPassword && (
+                    <div className="alert alert-success" style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '1rem',
+                        padding: '1rem'
+                    }}>
+                        <div style={{ flex: 1 }}>
+                            <strong>🔐 Temporary Password:</strong>
+                            <code style={{
+                                display: 'block',
+                                background: 'rgba(255,255,255,0.2)',
+                                padding: '0.5rem',
+                                borderRadius: '4px',
+                                marginTop: '0.5rem',
+                                fontSize: '1.1rem',
+                                fontWeight: 600,
+                                letterSpacing: '1px'
+                            }}>
+                                {temporaryPassword}
+                            </code>
+                            <small style={{ display: 'block', marginTop: '0.5rem', opacity: '0.8' }}>
+                                This password will disappear in 30 seconds. Make sure to copy it!
+                            </small>
+                        </div>
+                        <button
+                            onClick={() => copyToClipboard(temporaryPassword)}
+                            className="secondary-btn"
+                            style={{ whiteSpace: 'nowrap' }}
+                        >
+                            📋 Copy
+                        </button>
+                    </div>
+                )}
+
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
                         <label className="form-label">NIC *</label>
@@ -271,9 +379,31 @@ const GiveCredentials = () => {
                                     <td data-label="NIC">{wm.NIC}</td>
                                     <td data-label="Status"><span className={`badge ${wm.is_active ? 'badge-success' : 'badge-danger'}`}>{wm.is_active ? 'Active' : 'Inactive'}</span></td>
                                     <td data-label="Actions">
-                                        <button onClick={() => updateWebManager(wm.NIC, !wm.is_active)} className="secondary-btn" style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}>
-                                            {wm.is_active ? 'Deactivate' : 'Activate'}
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                            <button
+                                                onClick={() => updateWebManager(wm.NIC, !wm.is_active)}
+                                                className="secondary-btn"
+                                                style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}
+                                            >
+                                                {wm.is_active ? 'Deactivate' : 'Activate'}
+                                            </button>
+                                            <button
+                                                onClick={() => setResetPasswordModalUser(wm)}
+                                                className="secondary-btn"
+                                                style={{ fontSize: '0.85rem', padding: '0.5rem 1rem', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+                                                title="Reset Password"
+                                            >
+                                                🔑 Reset
+                                            </button>
+                                            <button
+                                                onClick={() => setDeleteModalUser(wm)}
+                                                className="secondary-btn"
+                                                style={{ fontSize: '0.85rem', padding: '0.5rem 1rem', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' }}
+                                                title="Delete User"
+                                            >
+                                                🗑️ Delete
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -281,6 +411,28 @@ const GiveCredentials = () => {
                     </table>
                 </div>
             </div>
+
+            {/* Delete User Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={!!deleteModalUser}
+                onClose={() => setDeleteModalUser(null)}
+                onConfirm={() => handleDeleteUser(deleteModalUser.NIC)}
+                title="Delete Web Manager"
+                message={`Are you sure you want to permanently delete ${deleteModalUser?.user_info?.full_name || 'this user'}? This action cannot be undone.`}
+                confirmText="Delete"
+                isDanger={true}
+            />
+
+            {/* Reset Password Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={!!resetPasswordModalUser}
+                onClose={() => setResetPasswordModalUser(null)}
+                onConfirm={() => handleResetPassword(resetPasswordModalUser.NIC)}
+                title="Reset Password"
+                message={`Generate a new temporary password for ${resetPasswordModalUser?.user_info?.full_name || 'this user'}? The new password will be displayed once.`}
+                confirmText="Reset Password"
+                isDanger={false}
+            />
         </div>
     );
 };

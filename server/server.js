@@ -257,6 +257,77 @@ app.post('/api/upload/license-base64', async (req, res) => {
 });
 // ========== END FILE UPLOAD ROUTE ==========
 
+// ========== PROFILE PICTURE UPLOAD ==========
+app.post('/api/upload/profile-picture', upload.single('profilePicture'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded. Please select an image.'
+      });
+    }
+
+    const file = req.file;
+
+    // Validate file type (images only)
+    const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedImageTypes.includes(file.mimetype)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Only JPEG, JPG, and PNG images are allowed'
+      });
+    }
+
+    console.log('📷 Profile picture upload received:', {
+      originalName: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size
+    });
+
+    // Generate a unique filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const fileExt = path.extname(file.originalname) || '.jpg';
+    const newFileName = `profile-${uniqueSuffix}${fileExt}`;
+    const filePath = path.join(uploadsDir, newFileName);
+
+    // Save file to disk
+    fs.writeFileSync(filePath, file.buffer);
+    console.log('✅ Profile picture saved to:', filePath);
+
+    const fileUrl = `/uploads/${newFileName}`;
+
+    res.json({
+      success: true,
+      message: 'Profile picture uploaded successfully',
+      url: fileUrl,
+      filename: newFileName
+    });
+
+  } catch (error) {
+    console.error('❌ Profile picture upload error:', error);
+
+    if (error instanceof multer.MulterError) {
+      if (error.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'File size too large. Maximum size is 5MB.'
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: `Upload error: ${error.message}`
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload profile picture',
+      error: error.message
+    });
+  }
+});
+// ========== END PROFILE PICTURE UPLOAD ==========
+
 // ========== DATABASE CONNECTION ==========
 let isDatabaseReady = false;
 
@@ -1170,6 +1241,158 @@ app.get('/api/admin/all-doctor-verifications', authenticateToken, checkDatabaseR
     });
   }
 });
+
+// GET ALL DOCTORS (for activation/deactivation management)
+app.get('/api/admin/doctors', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin access required'
+      });
+    }
+
+    const Doctor = getModel('Doctor');
+    const User = getModel('User');
+    const { status, page = 1, limit = 50 } = req.query;
+
+    if (!Doctor || !User) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    // Build filter
+    const filter = {};
+    if (status === 'approved') {
+      filter.is_approved = true;
+    } else if (status === 'pending') {
+      filter.is_approved = false;
+    }
+    // 'all' or no status - no filter
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Get doctors with user info
+    const doctors = await Doctor.aggregate([
+      { $match: filter },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'NIC',
+          foreignField: 'NIC',
+          as: 'user_info'
+        }
+      },
+      { $unwind: { path: '$user_info', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          NIC: 1,
+          specialty: 1,
+          qualifications: 1,
+          clinic_or_hospital: 1,
+          bio: 1,
+          is_approved: 1,
+          is_active: 1,
+          activated_at: 1,
+          experience_years: 1,
+          verified: 1,
+          'user_info.full_name': 1,
+          'user_info.email': 1,
+          'user_info.contact_number': 1,
+          'user_info.gender': 1,
+          'user_info.profile_picture': 1
+        }
+      },
+      { $sort: { activated_at: -1 } },
+      { $skip: skip },
+      { $limit: parseInt(limit) }
+    ]);
+
+    const total = await Doctor.countDocuments(filter);
+
+    res.json({
+      success: true,
+      count: doctors.length,
+      total,
+      data: doctors,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('❌ Get doctors error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch doctors',
+      error: error.message
+    });
+  }
+});
+
+// UPDATE DOCTOR STATUS (activate/deactivate)
+app.put('/api/admin/doctors/:nic', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin access required'
+      });
+    }
+
+    const { is_active } = req.body;
+    const Doctor = getModel('Doctor');
+
+    if (!Doctor) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    if (typeof is_active === 'undefined') {
+      return res.status(400).json({
+        success: false,
+        message: 'is_active field is required'
+      });
+    }
+
+    const doctor = await Doctor.findOneAndUpdate(
+      { NIC: req.params.nic },
+      { $set: { is_active } },
+      { new: true }
+    );
+
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Doctor not found'
+      });
+    }
+
+    console.log(`✅ Doctor status updated: ${req.params.nic} - is_active: ${is_active}`);
+    res.json({
+      success: true,
+      message: 'Doctor status updated successfully',
+      data: doctor
+    });
+  } catch (error) {
+    console.error('❌ Update doctor status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update doctor status',
+      error: error.message
+    });
+  }
+});
+// ========== END ADMIN ROUTES ==========
+
 
 // GET ADMIN DASHBOARD STATS
 app.get('/api/admin/dashboard-stats', authenticateToken, checkDatabaseReady, async (req, res) => {

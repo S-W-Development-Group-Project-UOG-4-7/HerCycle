@@ -264,18 +264,217 @@ app.post('/api/admin/suspend-user', authenticateToken, checkDatabaseReady, async
     }
 });
 
+// DELETE USER ACCOUNT
+app.delete('/api/admin/users/:nic', authenticateToken, checkDatabaseReady, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Admin access required' });
+        }
+
+        const User = getModel('User');
+        const user = await User.findOne({ NIC: req.params.nic });
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        // Prevent admin from deleting themselves
+        if (user.NIC === req.user.NIC) {
+            return res.status(400).json({ success: false, message: 'You cannot delete your own account' });
+        }
+
+        await User.deleteOne({ NIC: req.params.nic });
+
+        console.log(`✅ User deleted by admin: ${req.params.nic}`);
+        res.json({
+            success: true,
+            message: 'User deleted successfully',
+            data: { NIC: req.params.nic, full_name: user.full_name, email: user.email }
+        });
+    } catch (error) {
+        console.error('❌ Delete user error:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete user', error: error.message });
+    }
+});
+
+// ADMIN-INITIATED PASSWORD RESET
+app.post('/api/admin/reset-password/:nic', authenticateToken, checkDatabaseReady, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Admin access required' });
+        }
+
+        const User = getModel('User');
+        const user = await User.findOne({ NIC: req.params.nic });
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        // Generate secure random password (12 characters)
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=';
+        let temporaryPassword = '';
+
+        // Ensure at least one of each type
+        temporaryPassword += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)]; // Uppercase
+        temporaryPassword += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]; // Lowercase
+        temporaryPassword += '0123456789'[Math.floor(Math.random() * 10)]; // Number
+        temporaryPassword += '!@#$%^&*()_+-='[Math.floor(Math.random() * 15)]; // Special char
+
+        // Fill remaining 8 characters randomly
+        for (let i = 0; i < 8; i++) {
+            temporaryPassword += chars[Math.floor(Math.random() * chars.length)];
+        }
+
+        // Shuffle the password
+        temporaryPassword = temporaryPassword.split('').sort(() => Math.random() - 0.5).join('');
+
+        // Hash the password
+        const salt = await bcrypt.genSalt(10);
+        const password_hash = await bcrypt.hash(temporaryPassword, salt);
+
+        // Update user password
+        user.password_hash = password_hash;
+        user.updated_at = new Date();
+        await user.save();
+
+        console.log(`✅ Password reset by admin for user: ${req.params.nic}`);
+        res.json({
+            success: true,
+            message: 'Password reset successfully',
+            temporary_password: temporaryPassword,
+            data: { NIC: user.NIC, full_name: user.full_name, email: user.email }
+        });
+    } catch (error) {
+        console.error('❌ Password reset error:', error);
+        res.status(500).json({ success: false, message: 'Failed to reset password', error: error.message });
+    }
+});
+
 // CHECK WEB MANAGER STATUS
 app.get('/api/admin/check-web-manager-status/:nic', authenticateToken, checkDatabaseReady, async (req, res) => {
     try {
         const WebManager = getModel('WebManager');
         const webManager = await WebManager.findOne({ NIC: req.params.nic });
-        
+
         if (!webManager) {
             return res.json({ success: true, is_active: false, message: 'Web manager not found' });
         }
-        
+
         res.json({ success: true, is_active: webManager.is_active, NIC: webManager.NIC });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Status check failed', error: error.message });
     }
 });
+
+// ========== DOCTOR MANAGEMENT ==========
+// GET ALL DOCTORS
+app.get('/api/admin/doctors', authenticateToken, checkDatabaseReady, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Admin access required' });
+        }
+
+        const Doctor = getModel('Doctor');
+        const User = getModel('User');
+        const { status, page = 1, limit = 50 } = req.query;
+
+        // Build filter
+        const filter = {};
+        if (status === 'approved') {
+            filter.is_approved = true;
+        } else if (status === 'pending') {
+            filter.is_approved = false;
+        }
+        // 'all' or no status - no filter
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+
+        // Get doctors with user info
+        const doctors = await Doctor.aggregate([
+            { $match: filter },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'NIC',
+                    foreignField: 'NIC',
+                    as: 'user_info'
+                }
+            },
+            { $unwind: { path: '$user_info', preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    NIC: 1,
+                    specialty: 1,
+                    qualifications: 1,
+                    clinic_or_hospital: 1,
+                    bio: 1,
+                    is_approved: 1,
+                    is_active: 1,
+                    activated_at: 1,
+                    experience_years: 1,
+                    verified: 1,
+                    'user_info.full_name': 1,
+                    'user_info.email': 1,
+                    'user_info.contact_number': 1,
+                    'user_info.gender': 1,
+                    'user_info.profile_picture': 1
+                }
+            },
+            { $sort: { activated_at: -1 } },
+            { $skip: skip },
+            { $limit: parseInt(limit) }
+        ]);
+
+        const total = await Doctor.countDocuments(filter);
+
+        res.json({
+            success: true,
+            count: doctors.length,
+            total,
+            data: doctors,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total,
+                pages: Math.ceil(total / parseInt(limit))
+            }
+        });
+    } catch (error) {
+        console.error('❌ Get doctors error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch doctors', error: error.message });
+    }
+});
+
+// UPDATE DOCTOR STATUS
+app.put('/api/admin/doctors/:nic', authenticateToken, checkDatabaseReady, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Admin access required' });
+        }
+
+        const { is_active } = req.body;
+        const Doctor = getModel('Doctor');
+
+        if (typeof is_active === 'undefined') {
+            return res.status(400).json({ success: false, message: 'is_active field is required' });
+        }
+
+        const doctor = await Doctor.findOneAndUpdate(
+            { NIC: req.params.nic },
+            { $set: { is_active } },
+            { new: true }
+        );
+
+        if (!doctor) {
+            return res.status(404).json({ success: false, message: 'Doctor not found' });
+        }
+
+        console.log(`✅ Doctor status updated: ${req.params.nic} - is_active: ${is_active}`);
+        res.json({ success: true, message: 'Doctor status updated successfully', data: doctor });
+    } catch (error) {
+        console.error('❌ Update doctor status error:', error);
+        res.status(500).json({ success: false, message: 'Failed to update doctor status', error: error.message });
+    }
+});
+
