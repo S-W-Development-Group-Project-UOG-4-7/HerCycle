@@ -62,7 +62,9 @@ const AdminPanel = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await fetch("http://localhost:5000/api/landing-page/admin");
+        const token = localStorage.getItem("authToken");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const response = await fetch("http://localhost:5000/api/landing-page/admin", { headers });
 
         if (response.ok) {
           const result = await response.json();
@@ -143,9 +145,14 @@ const AdminPanel = () => {
       setSaving(true);
       setMessage({ type: "", text: "" });
 
+      const token = localStorage.getItem("authToken");
+      const headers = token
+        ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+        : { "Content-Type": "application/json" };
+
       const response = await fetch("http://localhost:5000/api/landing-page/admin", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(formData),
       });
 

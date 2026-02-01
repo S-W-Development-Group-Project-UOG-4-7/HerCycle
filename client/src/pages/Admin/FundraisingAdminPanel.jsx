@@ -608,8 +608,8 @@ const FundraisingAdminPanel = () => {
   return (
     <div className="hcp-admin min-h-screen bg-gray-900 text-gray-100 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header with data size info */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        {/* Center-aligned header with highlighted title and return button */}
+        <div className="flex flex-col items-center text-center mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-white">Her Cycle Fundraising Page Manager</h1>
             <p className="text-gray-400 mt-2">
@@ -619,8 +619,15 @@ const FundraisingAdminPanel = () => {
               ⚠️ Tip: Compress images before uploading to avoid size issues
             </p>
           </div>
-          
-          <div className="flex flex-wrap gap-3">
+
+          <div className="flex flex-wrap gap-3 justify-center">
+            <Link
+              to="/web-manager-dashboard"
+              className="px-4 py-2 bg-transparent border border-gray-700 text-white rounded-lg hover:bg-gray-800"
+            >
+              ← Return to Dashboard
+            </Link>
+
             <button
               onClick={handleSave}
               disabled={isSaving}
@@ -630,14 +637,14 @@ const FundraisingAdminPanel = () => {
             >
               {isSaving ? 'Saving...' : 'Save All Changes'}
             </button>
-            
+
             <button
               onClick={handleSeed}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               Seed Default Data
             </button>
-            
+
             <Link
               to="/fundraising"
               className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700"

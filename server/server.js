@@ -2458,6 +2458,41 @@ app.post('/api/auth/resend-reset-code', checkDatabaseReady, async (req, res) => 
     });
   }
 });
+// ========== LANDING PAGE ADMIN ROUTES ==========
+app.get('/api/landing-page/admin', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    // Allow only web_manager (and optionally admin)
+    if (req.user.role !== 'web_manager' && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Web manager access required' });
+    }
+
+    const landingPage = await LandingPage.findOne();
+    return res.json({ success: true, data: landingPage });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to load landing page', error: error.message });
+  }
+});
+
+app.put('/api/landing-page/admin', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'web_manager' && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Web manager access required' });
+    }
+
+    // Upsert: update if exists, otherwise create the single landing page doc
+    const updated = await LandingPage.findOneAndUpdate(
+      {},
+      { $set: req.body },
+      { new: true, upsert: true }
+    );
+
+    return res.json({ success: true, message: 'Landing page saved', data: updated });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to save landing page', error: error.message });
+  }
+});
+// ========== END LANDING PAGE ADMIN ROUTES ==========
+
 // ========== END PASSWORD RESET ROUTES ==========
 
 // ========== SERVER STARTUP ==========
