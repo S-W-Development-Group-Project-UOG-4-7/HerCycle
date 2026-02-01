@@ -22,6 +22,51 @@ const DonationSuccess = () => {
     }
   }, [location, navigate]);
 
+  // Auto-save donation to backend once
+  useEffect(() => {
+    const saveDonation = async () => {
+      if (!donationData) return;
+      try {
+        const token = localStorage.getItem('authToken');
+        const body = {
+          paymentIntentId: donationData.paymentId || donationData.paymentIntentId,
+          amount: donationData.amount,
+          currency: donationData.currency || 'inr',
+          status: donationData.status || 'succeeded',
+          campaignId: donationData.campaign?._id || donationData.campaignId,
+          campaignName: donationData.campaign?.title || donationData.campaignName,
+          donorName: donationData.donorInfo?.name || donationData.donorName,
+          donorEmail: donationData.donorInfo?.email || donationData.donorEmail,
+          donorPhone: donationData.donorInfo?.phone || donationData.donorPhone,
+          paymentMethod: donationData.paymentMethod || donationData.method,
+          metadata: donationData.metadata || {}
+        };
+
+        const res = await fetch('http://localhost:5000/api/payment/save-donation', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify(body)
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          console.warn('Failed to save donation:', err);
+        } else {
+          // optionally mark as saved
+          const json = await res.json();
+          console.log('Donation saved:', json);
+        }
+      } catch (err) {
+        console.error('Error saving donation to backend:', err);
+      }
+    };
+
+    saveDonation();
+  }, [donationData]);
+
   const handleShare = () => {
     const shareText = `I just donated Rs.${donationData?.amount} to support ${donationData?.campaign?.title} via HerFund! Join me in making a difference in menstrual health.`;
     

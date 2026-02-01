@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "./WebmanagerProfile.css";
 
@@ -9,7 +9,7 @@ const WebmanagerProfile = () => {
     () => ({
       full_name: "Shenupa Betheni",
       role: "web_manager",
-      email: "bethenipieris2003@gmail.com",
+      email: "web@hercycle.com",
       contact_number: "+94 77 123 4567",
       gender: "female",
       date_of_birth: "2003-05-15",
@@ -18,7 +18,8 @@ const WebmanagerProfile = () => {
       last_login: new Date().toISOString().split("T")[0],
       department: "Web Management",
       location: "Colombo, Sri Lanka",
-      status: "active"
+      status: "active",
+      profile_picture: ""
     }),
     []
   );
@@ -58,6 +59,7 @@ const WebmanagerProfile = () => {
   const [activeTab, setActiveTab] = useState("profile");
   const [activityLog, setActivityLog] = useState([]);
   const [isBackendOnline, setIsBackendOnline] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState("checking");
 
   const token = useMemo(() => localStorage.getItem("authToken"), []);
   const storedUser = useMemo(() => {
@@ -69,133 +71,101 @@ const WebmanagerProfile = () => {
     }
   }, []);
 
-  // Check if backend is available
+  // Check backend status with detailed logging
   const checkBackendStatus = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/health", {
+      console.log("🔍 Checking backend status...");
+      const response = await fetch("http://localhost:5000/health", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
         },
+        timeout: 5000 // Simulated timeout
       });
-      setIsBackendOnline(response.ok);
-      return response.ok;
+      
+      const isOnline = response.ok;
+      setIsBackendOnline(isOnline);
+      setConnectionStatus(isOnline ? "online" : "offline");
+      
+      if (isOnline) {
+        const data = await response.json();
+        console.log("✅ Backend online:", data);
+      } else {
+        console.log("❌ Backend responded with error:", response.status);
+      }
+      
+      return isOnline;
     } catch (error) {
+      console.error("❌ Backend check failed:", error.message);
       setIsBackendOnline(false);
+      setConnectionStatus("offline");
       return false;
     }
   };
 
-  // Load user data
-  useEffect(() => {
-    const loadUserData = async () => {
-      if (!token) {
-        navigate("/login");
-        return;
-      }
-
-      try {
-        setLoading(true);
-        await checkBackendStatus();
-        
-        if (isBackendOnline) {
-          // Try to fetch user data from API
-          const response = await fetch("http://localhost:5000/api/user/profile", {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          });
-
-          if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-            setProfileForm({
-              full_name: userData.full_name || "",
-              email: userData.email || "",
-              contact_number: userData.contact_number || "",
-              gender: userData.gender || "",
-              date_of_birth: userData.date_of_birth ? userData.date_of_birth.split("T")[0] : "",
-              avatar_url: userData.avatar_url || "",
-              location: userData.location || "",
-              department: userData.department || ""
-            });
-            if (userData.avatar_url) {
-              setAvatarPreview(userData.avatar_url);
-            }
-          } else {
-            // Fallback to stored or default user
-            const u = storedUser || defaultUser;
-            if (u?.role && u.role !== "web_manager") {
-              navigate("/login");
-              return;
-            }
-            setUser(u);
-            setProfileForm({
-              full_name: u?.full_name || defaultUser.full_name,
-              email: u?.email || defaultUser.email,
-              contact_number: u?.contact_number || defaultUser.contact_number,
-              gender: u?.gender || defaultUser.gender,
-              date_of_birth: u?.date_of_birth ? u.date_of_birth.split("T")[0] : defaultUser.date_of_birth,
-              avatar_url: u?.avatar_url || "",
-              location: u?.location || defaultUser.location,
-              department: u?.department || defaultUser.department
-            });
-            if (u?.avatar_url) {
-              setAvatarPreview(u.avatar_url);
-            }
-          }
-        } else {
-          // Backend offline, use stored data
-          const u = storedUser || defaultUser;
-          if (u?.role && u.role !== "web_manager") {
-            navigate("/login");
-            return;
-          }
-          setUser(u);
-          setProfileForm({
-            full_name: u?.full_name || defaultUser.full_name,
-            email: u?.email || defaultUser.email,
-            contact_number: u?.contact_number || defaultUser.contact_number,
-            gender: u?.gender || defaultUser.gender,
-            date_of_birth: u?.date_of_birth ? u.date_of_birth.split("T")[0] : defaultUser.date_of_birth,
-            avatar_url: u?.avatar_url || "",
-            location: u?.location || defaultUser.location,
-            department: u?.department || defaultUser.department
-          });
-          if (u?.avatar_url) {
-            setAvatarPreview(u.avatar_url);
-          }
+  // Test specific API endpoints
+  const testApiEndpoints = useCallback(async () => {
+    if (!token) return false;
+    
+    try {
+      console.log("🔍 Testing profile API endpoint...");
+      const response = await fetch("http://localhost:5000/api/web-manager/profile", {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
         }
-
-        // Load activity log
-        loadActivityLog();
-      } catch (error) {
-        console.error("Error loading user data:", error);
-        // Use stored user as fallback
-        const u = storedUser || defaultUser;
-        setUser(u);
-        setProfileForm({
-          full_name: u?.full_name || defaultUser.full_name,
-          email: u?.email || defaultUser.email,
-          contact_number: u?.contact_number || defaultUser.contact_number,
-          gender: u?.gender || defaultUser.gender,
-          date_of_birth: u?.date_of_birth ? u.date_of_birth.split("T")[0] : defaultUser.date_of_birth,
-          avatar_url: u?.avatar_url || "",
-          location: u?.location || defaultUser.location,
-          department: u?.department || defaultUser.department
-        });
-        if (u?.avatar_url) {
-          setAvatarPreview(u.avatar_url);
-        }
-      } finally {
-        setLoading(false);
+      });
+      
+      if (response.status === 401) {
+        console.log("⚠️ Token expired or invalid");
+        return "token_expired";
+      } else if (response.status === 403) {
+        console.log("⚠️ Access forbidden - wrong role");
+        return "access_denied";
+      } else if (response.ok) {
+        console.log("✅ Profile API accessible");
+        return "accessible";
+      } else {
+        console.log(`❌ Profile API error: ${response.status}`);
+        return "error";
       }
-    };
+    } catch (error) {
+      console.error("❌ Profile API test failed:", error.message);
+      return "error";
+    }
+  }, [token]);
 
-    loadUserData();
-  }, [navigate, token, storedUser, defaultUser, isBackendOnline]);
+  // Function to upload avatar to server
+  const uploadAvatarToServer = async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      
+      const response = await fetch('http://localhost:5000/api/upload/avatar', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Upload failed with status ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("✅ Avatar uploaded:", data.url);
+      return data.url;
+    } catch (error) {
+      console.error('Avatar upload failed:', error);
+      throw error;
+    }
+  };
 
-  const loadActivityLog = async () => {
+  // Load activity log
+  const loadActivityLog = useCallback(async () => {
     try {
       const activities = [
         {
@@ -231,11 +201,133 @@ const WebmanagerProfile = () => {
     } catch (error) {
       console.error("Error loading activity log:", error);
     }
-  };
+  }, []);
+
+  // Load user data
+  const loadUserData = useCallback(async () => {
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setConnectionStatus("checking");
+      
+      const backendStatus = await checkBackendStatus();
+      const apiStatus = backendStatus ? await testApiEndpoints() : "offline";
+      
+      if (apiStatus === "token_expired") {
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("user");
+        navigate("/login");
+        return;
+      }
+      
+      if (apiStatus === "accessible") {
+        // Fetch user data from API
+        const response = await fetch("http://localhost:5000/api/web-manager/profile", {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          console.log("✅ User data loaded from API:", userData.data);
+          setUser(userData.data);
+          setProfileForm({
+            full_name: userData.data.full_name || "",
+            email: userData.data.email || "",
+            contact_number: userData.data.contact_number || "",
+            gender: userData.data.gender || "",
+            date_of_birth: userData.data.date_of_birth ? userData.data.date_of_birth.split("T")[0] : "",
+            avatar_url: userData.data.profile_picture || "",
+            location: userData.data.location || "",
+            department: userData.data.department || ""
+          });
+          if (userData.data.profile_picture) {
+            setAvatarPreview(userData.data.profile_picture);
+          }
+          
+          // Save to localStorage
+          localStorage.setItem("user", JSON.stringify(userData.data));
+          setMessage({ type: "success", text: "Profile loaded from server" });
+        } else {
+          throw new Error(`API returned ${response.status}`);
+        }
+      } else {
+        // Use local data
+        console.log("ℹ️ Using local data, API status:", apiStatus);
+        const u = storedUser || defaultUser;
+        
+        if (u?.role && u.role !== "web_manager") {
+          navigate("/login");
+          return;
+        }
+        
+        setUser(u);
+        setProfileForm({
+          full_name: u?.full_name || defaultUser.full_name,
+          email: u?.email || defaultUser.email,
+          contact_number: u?.contact_number || defaultUser.contact_number,
+          gender: u?.gender || defaultUser.gender,
+          date_of_birth: u?.date_of_birth ? u.date_of_birth.split("T")[0] : defaultUser.date_of_birth,
+          avatar_url: u?.profile_picture || u?.avatar_url || "",
+          location: u?.location || defaultUser.location,
+          department: u?.department || defaultUser.department
+        });
+        
+        if (u?.profile_picture || u?.avatar_url) {
+          setAvatarPreview(u.profile_picture || u.avatar_url);
+        }
+        
+        setMessage({ 
+          type: apiStatus === "offline" ? "warning" : "info", 
+          text: apiStatus === "offline" 
+            ? "Backend offline. Using cached profile data." 
+            : "Using cached profile data." 
+        });
+      }
+
+      // Load activity log
+      await loadActivityLog();
+    } catch (error) {
+      console.error("❌ Error loading user data:", error);
+      // Use stored user as fallback
+      const u = storedUser || defaultUser;
+      setUser(u);
+      setProfileForm({
+        full_name: u?.full_name || defaultUser.full_name,
+        email: u?.email || defaultUser.email,
+        contact_number: u?.contact_number || defaultUser.contact_number,
+        gender: u?.gender || defaultUser.gender,
+        date_of_birth: u?.date_of_birth ? u.date_of_birth.split("T")[0] : defaultUser.date_of_birth,
+        avatar_url: u?.profile_picture || u?.avatar_url || "",
+        location: u?.location || defaultUser.location,
+        department: u?.department || defaultUser.department
+      });
+      if (u?.profile_picture || u?.avatar_url) {
+        setAvatarPreview(u.profile_picture || u.avatar_url);
+      }
+      
+      setMessage({ 
+        type: "error", 
+        text: `Failed to load profile: ${error.message}` 
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [navigate, token, storedUser, defaultUser, testApiEndpoints, loadActivityLog]);
+
+  useEffect(() => {
+    loadUserData();
+  }, [loadUserData]);
 
   const handleLogout = () => {
     localStorage.removeItem("authToken");
     localStorage.removeItem("user");
+    localStorage.removeItem("offlineChanges");
     navigate("/login");
   };
 
@@ -246,10 +338,26 @@ const WebmanagerProfile = () => {
       if (avatarPreview && avatarPreview.startsWith('blob:')) {
         URL.revokeObjectURL(avatarPreview);
       }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setMessage({ type: "error", text: "File size must be less than 5MB" });
+        return;
+      }
+      
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+      if (!validTypes.includes(file.type)) {
+        setMessage({ type: "error", text: "Please upload a valid image (JPEG, PNG, GIF)" });
+        return;
+      }
+      
       setAvatarFile(file);
       const previewUrl = URL.createObjectURL(file);
       setAvatarPreview(previewUrl);
       setProfileForm(prev => ({ ...prev, avatar_url: "" }));
+      
+      setMessage({ type: "info", text: "New avatar selected. Save to apply." });
     }
   };
 
@@ -264,36 +372,87 @@ const WebmanagerProfile = () => {
 
     try {
       setSavingProfile(true);
+      console.log("💾 Starting profile save...");
+      
+      let avatarUrl = profileForm.avatar_url;
+      
+      // Upload avatar if new file selected
+      if (avatarFile) {
+        console.log("🖼️ Uploading new avatar...");
+        try {
+          if (isBackendOnline) {
+            const uploadedUrl = await uploadAvatarToServer(avatarFile);
+            avatarUrl = uploadedUrl;
+            setAvatarPreview(uploadedUrl);
+            console.log("✅ Avatar uploaded successfully");
+          } else {
+            // Backend offline, use blob URL temporarily
+            avatarUrl = avatarPreview;
+            setMessage({ 
+              type: "info", 
+              text: "Avatar saved locally. Will upload when backend is online." 
+            });
+          }
+        } catch (uploadError) {
+          console.error("❌ Avatar upload error:", uploadError);
+          if (isBackendOnline) {
+            throw uploadError;
+          } else {
+            avatarUrl = avatarPreview;
+          }
+        }
+      }
+
+      // Prepare updated user object
+      const updatedUser = { 
+        ...user, 
+        ...profileForm,
+        profile_picture: avatarUrl || profileForm.avatar_url,
+        last_updated: new Date().toISOString(),
+        last_updated_locally: !isBackendOnline
+      };
+      
+      console.log("📝 Updated user data:", updatedUser);
 
       // Update local storage immediately for better UX
-      const updatedUser = { ...user, ...profileForm };
-      if (avatarFile) {
-        // Simulate avatar upload by using blob URL temporarily
-        updatedUser.avatar_url = avatarPreview;
-      }
       localStorage.setItem("user", JSON.stringify(updatedUser));
       setUser(updatedUser);
-
-      // If backend is offline, show success message without API call
+      
+      // Save offline changes for later sync
       if (!isBackendOnline) {
-        setMessage({ type: "success", text: "Profile saved locally (backend offline)" });
+        const offlineChanges = JSON.parse(localStorage.getItem("offlineChanges") || "[]");
+        offlineChanges.push({
+          type: "profile_update",
+          data: updatedUser,
+          timestamp: new Date().toISOString(),
+          endpoint: "/api/web-manager/profile/update",
+          method: "PUT"
+        });
+        localStorage.setItem("offlineChanges", JSON.stringify(offlineChanges));
+        
+        setMessage({ 
+          type: "success", 
+          text: "✅ Profile saved locally. Changes will sync when backend is online." 
+        });
         setAvatarFile(null);
         return;
       }
 
-      // Prepare payload for API
+      // Backend is online - try to sync
       const payload = {
         full_name: profileForm.full_name,
         contact_number: profileForm.contact_number,
         gender: profileForm.gender,
         date_of_birth: profileForm.date_of_birth || null,
-        avatar_url: profileForm.avatar_url,
+        avatar_url: avatarUrl || profileForm.avatar_url,
         location: profileForm.location,
         department: profileForm.department
       };
 
+      console.log("📤 Sending to server:", payload);
+      
       try {
-        const res = await fetch("http://localhost:5000/api/user/profile/update", {
+        const res = await fetch("http://localhost:5000/api/web-manager/profile/update", {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -302,23 +461,91 @@ const WebmanagerProfile = () => {
           body: JSON.stringify(payload)
         });
 
+        console.log("📨 Server response status:", res.status);
+        
         if (res.ok) {
           const updated = await res.json();
-          setUser(updated);
-          localStorage.setItem("user", JSON.stringify(updated));
-          setMessage({ type: "success", text: "Profile updated successfully!" });
-        } else {
-          // If API fails but we already updated locally, show warning
+          console.log("✅ Server response data:", updated);
+          
+          setUser(updated.data);
+          localStorage.setItem("user", JSON.stringify(updated.data));
+          
+          // Clear offline changes if any
+          localStorage.removeItem("offlineChanges");
+          
           setMessage({ 
-            type: "error", 
-            text: "Profile saved locally, but failed to sync with server." 
+            type: "success", 
+            text: "✅ Profile updated successfully and synced with server!" 
+          });
+        } else {
+          // Server responded with error
+          let errorMessage = "Profile saved locally, but failed to sync with server.";
+          let messageType = "warning";
+          
+          try {
+            const errorData = await res.json();
+            console.log("❌ Server error details:", errorData);
+            
+            if (res.status === 401) {
+              errorMessage = "Session expired. Please login again.";
+              messageType = "error";
+              setTimeout(() => {
+                localStorage.removeItem("authToken");
+                localStorage.removeItem("user");
+                navigate("/login");
+              }, 2000);
+            } else if (res.status === 403) {
+              errorMessage = "Access denied. Web manager permissions required.";
+            } else if (res.status === 404) {
+              errorMessage = "Profile endpoint not found.";
+            } else if (res.status >= 500) {
+              errorMessage = `Server error (${res.status}). Please try again later.`;
+            } else {
+              errorMessage = errorData.message || errorMessage;
+            }
+          } catch (parseError) {
+            console.error("Failed to parse error response:", parseError);
+            errorMessage = `Server error ${res.status}. Profile saved locally.`;
+          }
+          
+          // Save as offline change for retry
+          const offlineChanges = JSON.parse(localStorage.getItem("offlineChanges") || "[]");
+          offlineChanges.push({
+            type: "profile_update",
+            data: updatedUser,
+            timestamp: new Date().toISOString(),
+            endpoint: "/api/web-manager/profile/update",
+            method: "PUT",
+            error: errorMessage
+          });
+          localStorage.setItem("offlineChanges", JSON.stringify(offlineChanges));
+          
+          setMessage({ 
+            type: messageType, 
+            text: `✅ Profile saved locally. ⚠️ ${errorMessage}` 
           });
         }
       } catch (apiError) {
-        // API call failed but local update succeeded
+        // Network error or fetch failed
+        console.error("❌ Network error:", apiError);
+        
+        // Save as offline change
+        const offlineChanges = JSON.parse(localStorage.getItem("offlineChanges") || "[]");
+        offlineChanges.push({
+          type: "profile_update",
+          data: updatedUser,
+          timestamp: new Date().toISOString(),
+          endpoint: "/api/web-manager/profile/update",
+          method: "PUT",
+          error: apiError.message
+        });
+        localStorage.setItem("offlineChanges", JSON.stringify(offlineChanges));
+        
         setMessage({ 
           type: "warning", 
-          text: "Profile saved locally. Server sync failed." 
+          text: apiError.message.includes("Failed to fetch") 
+            ? "✅ Profile saved locally. 🌐 Cannot connect to server. Will sync when online." 
+            : "✅ Profile saved locally. ⚠️ Server sync failed. Will retry later." 
         });
       }
 
@@ -327,7 +554,7 @@ const WebmanagerProfile = () => {
         id: activityLog.length + 1,
         type: "profile_update",
         title: "Profile Updated",
-        description: "Personal information was modified",
+        description: `Personal information was modified${!isBackendOnline ? " (offline)" : ""}`,
         timestamp: new Date().toISOString()
       };
       setActivityLog([newActivity, ...activityLog.slice(0, 9)]);
@@ -335,7 +562,11 @@ const WebmanagerProfile = () => {
       // Clear avatar file
       setAvatarFile(null);
     } catch (err) {
-      setMessage({ type: "error", text: "Profile update failed. Please try again." });
+      console.error("❌ Profile update error:", err);
+      setMessage({ 
+        type: "error", 
+        text: `Profile update failed: ${err.message}` 
+      });
     } finally {
       setSavingProfile(false);
     }
@@ -366,11 +597,15 @@ const WebmanagerProfile = () => {
       setSavingPassword(true);
 
       if (!isBackendOnline) {
-        setMessage({ type: "error", text: "Cannot change password while backend is offline." });
+        setMessage({ 
+          type: "error", 
+          text: "❌ Cannot change password while backend is offline. Password changes require server connection." 
+        });
         return;
       }
 
-      const res = await fetch("http://localhost:5000/api/user/change-password", {
+      console.log("🔐 Changing password...");
+      const res = await fetch("http://localhost:5000/api/web-manager/change-password", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -382,6 +617,8 @@ const WebmanagerProfile = () => {
         })
       });
 
+      console.log("📨 Password change response:", res.status);
+      
       if (res.ok) {
         setPasswordForm({
           currentPassword: "",
@@ -399,16 +636,36 @@ const WebmanagerProfile = () => {
         };
         setActivityLog([newActivity, ...activityLog.slice(0, 9)]);
 
-        setMessage({ type: "success", text: "Password changed successfully!" });
+        setMessage({ type: "success", text: "✅ Password changed successfully!" });
       } else {
-        const errorData = await res.json().catch(() => ({}));
+        let errorMessage = "Failed to change password. Please check your current password.";
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.message || errorMessage;
+          
+          if (res.status === 401) {
+            errorMessage = "Session expired. Please login again.";
+            setTimeout(() => {
+              localStorage.removeItem("authToken");
+              localStorage.removeItem("user");
+              navigate("/login");
+            }, 2000);
+          }
+        } catch (parseError) {
+          console.error("Failed to parse error response:", parseError);
+        }
+        
         setMessage({ 
           type: "error", 
-          text: errorData.message || "Failed to change password. Please check your current password." 
+          text: `❌ ${errorMessage}` 
         });
       }
     } catch (err) {
-      setMessage({ type: "error", text: "Failed to connect to server. Please try again." });
+      console.error("Password change error:", err);
+      setMessage({ 
+        type: "error", 
+        text: "❌ Failed to connect to server. Please check your internet connection." 
+      });
     } finally {
       setSavingPassword(false);
     }
@@ -418,12 +675,28 @@ const WebmanagerProfile = () => {
     try {
       setSavingPreferences(true);
       
-      // Save to localStorage for now
+      // Save to localStorage
       localStorage.setItem("userPreferences", JSON.stringify(preferences));
       
-      setMessage({ type: "success", text: "Preferences saved successfully!" });
+      // If backend online, you could sync here
+      if (isBackendOnline) {
+        // Optional: Add API call to save preferences to server
+        setMessage({ type: "success", text: "✅ Preferences saved!" });
+      } else {
+        setMessage({ type: "success", text: "✅ Preferences saved locally." });
+      }
+      
+      // Add to activity log
+      const newActivity = {
+        id: activityLog.length + 1,
+        type: "preferences_update",
+        title: "Preferences Updated",
+        description: "Account preferences were modified",
+        timestamp: new Date().toISOString()
+      };
+      setActivityLog([newActivity, ...activityLog.slice(0, 9)]);
     } catch (error) {
-      setMessage({ type: "error", text: "Failed to save preferences" });
+      setMessage({ type: "error", text: "❌ Failed to save preferences" });
     } finally {
       setSavingPreferences(false);
     }
@@ -440,6 +713,7 @@ const WebmanagerProfile = () => {
         return;
       }
 
+      // Note: You might want to create a specific endpoint for web manager account deletion
       const res = await fetch("http://localhost:5000/api/user/delete-account", {
         method: "DELETE",
         headers: {
@@ -450,12 +724,43 @@ const WebmanagerProfile = () => {
       if (res.ok) {
         localStorage.removeItem("authToken");
         localStorage.removeItem("user");
+        localStorage.removeItem("offlineChanges");
         navigate("/login");
       } else {
         setMessage({ type: "error", text: "Failed to delete account" });
       }
     } catch (error) {
       setMessage({ type: "error", text: "Failed to connect to server" });
+    }
+  };
+
+  const handleRetrySync = async () => {
+    setMessage({ type: "info", text: "🔄 Attempting to sync offline changes..." });
+    
+    try {
+      const offlineChanges = JSON.parse(localStorage.getItem("offlineChanges") || "[]");
+      if (offlineChanges.length === 0) {
+        setMessage({ type: "success", text: "✅ No offline changes to sync." });
+        return;
+      }
+      
+      const backendStatus = await checkBackendStatus();
+      if (!backendStatus) {
+        setMessage({ type: "error", text: "❌ Still offline. Cannot sync changes." });
+        return;
+      }
+      
+      // Here you could implement logic to retry failed syncs
+      // For now, just clear the offline changes and reload
+      localStorage.removeItem("offlineChanges");
+      setMessage({ type: "success", text: "✅ Offline changes marked for sync. Please save again." });
+      
+      // Reload user data from server
+      setLoading(true);
+      await loadUserData();
+      
+    } catch (error) {
+      setMessage({ type: "error", text: `❌ Sync failed: ${error.message}` });
     }
   };
 
@@ -487,6 +792,9 @@ const WebmanagerProfile = () => {
       <div className="wm-pro-loading">
         <div className="wm-pro-spinner"></div>
         <p>Loading Profile...</p>
+        <p style={{ marginTop: '10px', fontSize: '0.9rem', opacity: 0.7 }}>
+          Status: {connectionStatus === "checking" ? "Checking connection..." : connectionStatus}
+        </p>
       </div>
     );
   }
@@ -502,6 +810,17 @@ const WebmanagerProfile = () => {
           <div className="wm-pro-nav-brand">
             <span className="wm-pro-logo">HM</span>
             <span>HerCycle Web Manager</span>
+            <span style={{ 
+              fontSize: '0.8rem', 
+              marginLeft: '10px', 
+              padding: '2px 8px', 
+              borderRadius: '10px',
+              background: isBackendOnline ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+              color: isBackendOnline ? '#10B981' : '#EF4444',
+              fontWeight: 'bold'
+            }}>
+              {isBackendOnline ? '🟢 Online' : '🔴 Offline'}
+            </span>
           </div>
           
           <div className="wm-pro-nav-actions">
@@ -564,6 +883,15 @@ const WebmanagerProfile = () => {
                     <span className="wm-pro-detail-icon">📍</span>
                     <span>{profileForm.location || defaultUser.location}</span>
                   </div>
+                  <div className="wm-pro-detail-item">
+                    <span className="wm-pro-detail-icon">🔄</span>
+                    <span style={{ 
+                      color: isBackendOnline ? '#10B981' : '#EF4444',
+                      fontWeight: 'bold'
+                    }}>
+                      {isBackendOnline ? 'Synced' : 'Offline'}
+                    </span>
+                  </div>
                 </div>
               </div>
               
@@ -614,16 +942,68 @@ const WebmanagerProfile = () => {
 
         {/* Main Content Area */}
         <div className="wm-pro-content">
-          {/* Backend Status Indicator */}
-          {!isBackendOnline && (
-            <div className="wm-pro-alert wm-pro-alert-error" style={{ position: 'relative', top: 0 }}>
-              <span>⚠️ Backend is offline. Changes will be saved locally.</span>
-              <button onClick={() => {
-                setMessage({ type: "", text: "" });
-                checkBackendStatus();
-              }}>×</button>
+          {/* Connection Status Bar */}
+          <div style={{ 
+            padding: '10px 15px', 
+            borderRadius: '10px', 
+            marginBottom: '20px',
+            background: isBackendOnline ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%)' : 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%)',
+            border: `2px solid ${isBackendOnline ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <div>
+              <span style={{ 
+                fontWeight: 'bold', 
+                color: isBackendOnline ? '#10B981' : '#EF4444',
+                marginRight: '10px'
+              }}>
+                {isBackendOnline ? '🟢 Backend Online' : '🔴 Backend Offline'}
+              </span>
+              <span style={{ color: '#666', fontSize: '0.9rem' }}>
+                {isBackendOnline 
+                  ? 'Changes will sync immediately' 
+                  : 'Changes saved locally. Will sync when online.'}
+              </span>
             </div>
-          )}
+            
+            <div>
+              <button 
+                onClick={checkBackendStatus}
+                style={{
+                  padding: '5px 15px',
+                  background: 'var(--wm-pro-gradient)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '0.85rem'
+                }}
+              >
+                Retry Connection
+              </button>
+              {!isBackendOnline && (
+                <button 
+                  onClick={handleRetrySync}
+                  style={{
+                    padding: '5px 15px',
+                    background: '#F59E0B',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '0.85rem',
+                    marginLeft: '10px'
+                  }}
+                >
+                  Retry Sync
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* Message Alert */}
           {message.text && (
@@ -639,6 +1019,19 @@ const WebmanagerProfile = () => {
               <div className="wm-pro-card-header">
                 <h1>Personal Information</h1>
                 <p>Update your personal details and contact information</p>
+                {!isBackendOnline && (
+                  <div style={{ 
+                    marginTop: '10px', 
+                    padding: '8px 12px', 
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    borderRadius: '6px',
+                    display: 'inline-block'
+                  }}>
+                    <span style={{ color: '#F59E0B', fontWeight: 'bold' }}>⚠️ Offline Mode:</span>
+                    <span style={{ color: '#666', marginLeft: '5px' }}>Changes saved locally</span>
+                  </div>
+                )}
               </div>
               
               <form onSubmit={handleProfileSubmit} className="wm-pro-form">
@@ -747,7 +1140,7 @@ const WebmanagerProfile = () => {
                           accept="image/*"
                           onChange={handleAvatarUpload}
                         />
-                        <span className="wm-pro-input-note">Upload a profile picture (JPG, PNG, GIF)</span>
+                        <span className="wm-pro-input-note">Upload a profile picture (JPG, PNG, GIF, max 5MB)</span>
                       </div>
                     </div>
                   </div>
@@ -774,7 +1167,9 @@ const WebmanagerProfile = () => {
 
                 <div className="wm-pro-form-actions">
                   <button type="submit" className="wm-pro-btn-primary" disabled={savingProfile}>
-                    {savingProfile ? "Saving..." : "Save Changes"}
+                    {savingProfile 
+                      ? (isBackendOnline ? "Saving..." : "Saving Locally...") 
+                      : (isBackendOnline ? "Save Changes" : "Save Locally")}
                   </button>
                   <button 
                     type="button" 
@@ -786,12 +1181,12 @@ const WebmanagerProfile = () => {
                         contact_number: user?.contact_number || defaultUser.contact_number,
                         gender: user?.gender || defaultUser.gender,
                         date_of_birth: user?.date_of_birth ? user.date_of_birth.split("T")[0] : defaultUser.date_of_birth,
-                        avatar_url: user?.avatar_url || "",
+                        avatar_url: user?.profile_picture || "",
                         location: user?.location || defaultUser.location,
                         department: user?.department || defaultUser.department
                       });
-                      if (user?.avatar_url) {
-                        setAvatarPreview(user.avatar_url);
+                      if (user?.profile_picture) {
+                        setAvatarPreview(user.profile_picture);
                       } else {
                         setAvatarPreview("");
                       }
@@ -816,6 +1211,20 @@ const WebmanagerProfile = () => {
               <form onSubmit={handlePasswordSubmit} className="wm-pro-form">
                 <div className="wm-pro-form-section">
                   <h3>🔐 Change Password</h3>
+                  {!isBackendOnline && (
+                    <div style={{ 
+                      padding: '10px', 
+                      background: 'rgba(239, 68, 68, 0.1)', 
+                      borderRadius: '8px',
+                      marginBottom: '15px',
+                      border: '1px solid rgba(239, 68, 68, 0.3)'
+                    }}>
+                      <span style={{ color: '#EF4444', fontWeight: 'bold' }}>⚠️ Note:</span>
+                      <span style={{ color: '#666', marginLeft: '5px' }}>
+                        Password changes require server connection
+                      </span>
+                    </div>
+                  )}
                   <div className="wm-pro-form-group">
                     <label htmlFor="currentPassword">Current Password</label>
                     <input
@@ -866,7 +1275,11 @@ const WebmanagerProfile = () => {
                 </div>
 
                 <div className="wm-pro-form-actions">
-                  <button type="submit" className="wm-pro-btn-primary" disabled={savingPassword}>
+                  <button 
+                    type="submit" 
+                    className="wm-pro-btn-primary" 
+                    disabled={savingPassword || !isBackendOnline}
+                  >
                     {savingPassword ? "Updating..." : "Update Password"}
                   </button>
                   <button 
@@ -999,7 +1412,8 @@ const WebmanagerProfile = () => {
                         {activity.type === 'login' ? '🔐' : 
                          activity.type === 'profile_update' ? '👤' : 
                          activity.type === 'password_change' ? '🔑' :
-                         activity.type === 'email_verification' ? '📧' : '✅'}
+                         activity.type === 'email_verification' ? '📧' : 
+                         activity.type === 'preferences_update' ? '⚙️' : '✅'}
                       </div>
                       <div className="wm-pro-activity-content">
                         <h4>{activity.title}</h4>

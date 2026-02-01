@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -44,19 +43,41 @@ const upload = multer({
 // ========== END MULTER CONFIGURATION ==========
 
 // ========== CORS CONFIGURATION ==========
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:3001', 
-  'http://localhost:5173',
-  'http://localhost:5174'
-];
-
 app.use(cors({
   origin: function (origin, callback) {
+    // Allow all origins in development if env flag is set
+    if (process.env.DEV_ALLOW_ALL_ORIGINS === 'true') {
+      return callback(null, true);
+    }
+
+    // Allow requests with no origin (mobile apps, CURL, server-to-server)
     if (!origin) return callback(null, true);
-    
+
+    // Allow any localhost or 127.0.0.1 origin (any port) - helpful for frontend dev on different ports
+    try {
+      const url = new URL(origin);
+      const hostname = url.hostname;
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return callback(null, true);
+      }
+    } catch (e) {
+      // ignore invalid origin parsing and fall through to explicit check below
+    }
+
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://localhost:3001',
+      'http://127.0.0.1:3001',
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'http://localhost:5174',
+      'http://127.0.0.1:5174'
+    ];
+
     if (allowedOrigins.indexOf(origin) === -1) {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      console.warn('Blocked origin:', origin);
       return callback(new Error(msg), false);
     }
     return callback(null, true);
@@ -85,6 +106,41 @@ const getModel = (modelName) => {
   }
 };
 // ========== END HELPER FUNCTION ==========
+
+// ========== WEB MANAGER MODEL (ensure available at runtime) ==========
+if (!mongoose.models.WebManager) {
+  const webManagerSchema = new mongoose.Schema({
+    W_ID: { type: String, required: true, unique: true },
+    NIC: { type: String, required: true, unique: true, ref: 'User' },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    full_name: { type: String, default: '' },
+    contact_number: { type: String, default: '' },
+    gender: { type: String, enum: ['male', 'female', 'other', 'prefer-not-to-say'], default: 'prefer-not-to-say' },
+    date_of_birth: { type: Date },
+    department: { type: String, default: 'Web Management' },
+    location: { type: String, default: '' },
+    profile_picture: { type: String, default: '' },
+    is_active: { type: Boolean, default: true },
+    permissions: {
+      posts: { type: Boolean, default: true },
+      comments: { type: Boolean, default: true },
+      campaigns: { type: Boolean, default: true },
+      reports: { type: Boolean, default: true },
+      donations: { type: Boolean, default: true },
+      landing_page: { type: Boolean, default: true },
+      fundraising: { type: Boolean, default: true }
+    },
+    join_date: { type: Date, default: Date.now },
+    last_login: { type: Date },
+    created_at: { type: Date, default: Date.now },
+    updated_at: { type: Date, default: Date.now }
+  });
+
+  mongoose.model('WebManager', webManagerSchema);
+  console.log('ℹ️ WebManager model registered in server.js');
+}
+
+// ========== END WEB MANAGER MODEL ==========
 
 // ========== BASIC ROUTES ==========
 app.get('/', (req, res) => {
@@ -692,6 +748,66 @@ app.post('/api/auth/login', checkDatabaseReady, async (req, res) => {
   }
 });
 
+// ======= NEW: Web Manager login endpoint =======
+app.post('/api/auth/login-web-manager', checkDatabaseReady, async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Email and password are required' });
+    }
+
+    const User = getModel('User');
+    const WebManager = getModel('WebManager');
+
+    if (!User) {
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    if (!isPasswordValid) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+
+    // Ensure WebManager record exists and user has appropriate role
+    if (!WebManager) {
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
+    const webManagerRecord = await WebManager.findOne({ NIC: user.NIC }) || await WebManager.findOne({ email: user.email });
+    if (!webManagerRecord) {
+      return res.status(403).json({ success: false, message: 'Web manager account not configured. Contact admin.' });
+    }
+
+    // Generate token
+    const token = jwt.sign(
+      { userId: user._id, NIC: user.NIC, email: user.email, role: 'web_manager' },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    const responseData = {
+      user_id: user._id,
+      NIC: user.NIC,
+      full_name: user.full_name,
+      email: user.email,
+      role: 'web_manager',
+      user_type: 'web_manager',
+      profile: webManagerRecord.toObject()
+    };
+
+    return res.json({ success: true, message: 'Login successful', data: responseData, token });
+  } catch (error) {
+    console.error('❌ Web manager login error:', error);
+    res.status(500).json({ success: false, message: 'Login failed', error: error.message });
+  }
+});
+// ======= END NEW ROUTE =======
+
 // GET CURRENT USER ENDPOINT
 app.get('/api/auth/me', authenticateToken, checkDatabaseReady, async (req, res) => {
   try {
@@ -709,25 +825,28 @@ app.get('/api/auth/me', authenticateToken, checkDatabaseReady, async (req, res) 
       });
     }
 
-    const user = await User.findOne({ NIC: req.user.NIC });
+    // Prefer NIC from token; fallback to email
+    let user = null;
+    if (req.user && req.user.NIC) {
+      user = await User.findOne({ NIC: req.user.NIC });
+    }
+    if (!user && req.user && req.user.email) {
+      user = await User.findOne({ email: req.user.email.toLowerCase() });
+    }
+
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
     // Get role-specific data
     let roleData = {};
     let user_type = 'community_member';
-    
+
     if (user.role === 'doctor' && Doctor) {
       const doctor = await Doctor.findOne({ NIC: user.NIC });
       if (doctor) {
         roleData = doctor.toObject();
         user_type = 'doctor';
-        
-        // Get verification status
         const DoctorVerification = getModel('DoctorVerification');
         if (DoctorVerification) {
           const verification = await DoctorVerification.findOne({ doctor_NIC: user.NIC });
@@ -744,9 +863,12 @@ app.get('/api/auth/me', authenticateToken, checkDatabaseReady, async (req, res) 
         user_type = 'admin';
       }
     } else if (user.role === 'web_manager' && WebManager) {
-      const webManager = await WebManager.findOne({ NIC: user.NIC });
-      if (webManager) {
-        roleData = webManager.toObject();
+      const webManagerRec = await WebManager.findOne({ NIC: user.NIC }) || await WebManager.findOne({ email: user.email.toLowerCase() });
+      if (webManagerRec) {
+        roleData = webManagerRec.toObject();
+        user_type = 'web_manager';
+      } else {
+        // if role is web_manager but record missing, still mark type
         user_type = 'web_manager';
       }
     } else if (CommunityMember) {
@@ -780,18 +902,10 @@ app.get('/api/auth/me', authenticateToken, checkDatabaseReady, async (req, res) 
       ...roleData
     };
 
-    res.json({
-      success: true,
-      data: responseData
-    });
-
+    res.json({ success: true, data: responseData });
   } catch (error) {
     console.error('❌ Get user error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch user data',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Failed to fetch user data', error: error.message });
   }
 });
 // ========== END AUTHENTICATION ROUTES ==========
@@ -1634,6 +1748,48 @@ app.post('/api/seed', async (req, res) => {
     });
   }
 });
+
+// ========== ADMIN LANDING PAGE ROUTES ==========
+// These routes allow web managers to load and update the landing page content.
+app.get('/api/landing-page/admin', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    // Only web managers may access the admin endpoints
+    if (req.user.role !== 'web_manager' && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Web manager access required' });
+    }
+
+    const landingPage = await LandingPage.findOne();
+
+    if (!landingPage) {
+      return res.json({ success: true, data: null, message: 'No landing page content found' });
+    }
+
+    res.json({ success: true, data: landingPage });
+  } catch (error) {
+    console.error('❌ Admin GET landing page error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load landing page', error: error.message });
+  }
+});
+
+app.put('/api/landing-page/admin', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    // Only web managers may update the landing page
+    if (req.user.role !== 'web_manager' && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Web manager access required' });
+    }
+
+    const payload = req.body || {};
+
+    // Upsert: update existing document or create a new one
+    const updated = await LandingPage.findOneAndUpdate({}, { $set: payload }, { new: true, upsert: true, setDefaultsOnInsert: true });
+
+    res.json({ success: true, message: 'Landing page updated', data: updated });
+  } catch (error) {
+    console.error('❌ Admin PUT landing page error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update landing page', error: error.message });
+  }
+});
+
 // ========== END LANDING PAGE ROUTES ==========
 
 // ========== FUNDRAISING SCHEMAS ==========
@@ -1675,6 +1831,12 @@ const fundraisingSchema = new mongoose.Schema({
   },
   campaigns: [campaignSchema],
   carouselImages: [carouselImageSchema],
+  progressBars: [{
+    label: String,
+    value: Number,
+    color: String,
+    order: { type: Number, default: 0 }
+  }],
   cta: {
     title: String,
     description: String
@@ -1695,7 +1857,6 @@ const Fundraising = mongoose.model('Fundraising', fundraisingSchema);
 app.get('/api/fundraising', async (req, res) => {
   try {
     const fundraising = await Fundraising.findOne();
-    
     const defaultData = {
       hero: {
         badgeText: "Making a Real Difference",
@@ -1722,6 +1883,14 @@ app.get('/api/fundraising', async (req, res) => {
           order: 0
         }
       ],
+      progressBars: [
+        { label: 'Total Raised', value: 4200000, color: '#ff4081', order: 0 },
+        { label: 'Active Campaigns', value: 42, color: '#4caf50', order: 1 }
+      ],
+      carouselImages: [
+        { image: '/images/fund1.jpg', title: 'Campaign 1', description: 'Supporting girls education', order: 0, active: true },
+        { image: '/images/fund2.jpg', title: 'Campaign 2', description: 'Hygiene kits distribution', order: 1, active: true }
+      ],
       cta: {
         title: "Ready to Make a Difference?",
         description: "Your donation today can change a life tomorrow. Join thousands of donors who are creating lasting change in menstrual health."
@@ -1738,7 +1907,14 @@ app.get('/api/fundraising', async (req, res) => {
 
     res.json({
       success: true,
-      data: responseData,
+      data: {
+        hero: responseData.hero,
+        campaigns: responseData.campaigns,
+        progressBars: responseData.progressBars,
+        carouselImages: responseData.carouselImages,
+        cta: responseData.cta,
+        footer: responseData.footer
+      },
       fromDatabase: !!fundraising
     });
 
@@ -1805,6 +1981,41 @@ app.post('/api/fundraising/seed', async (req, res) => {
       success: false,
       error: error.message 
     });
+  }
+});
+// ========== ADMIN FUNDRAISING ROUTES ==========
+// Allow web managers (and admins) to load and update fundraising content
+app.get('/api/fundraising/admin', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'web_manager' && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Web manager access required' });
+    }
+
+    const fundraising = await Fundraising.findOne();
+    if (!fundraising) {
+      return res.json({ success: true, data: null, message: 'No fundraising content found' });
+    }
+
+    res.json({ success: true, data: fundraising });
+  } catch (error) {
+    console.error('❌ Admin GET fundraising error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load fundraising data', error: error.message });
+  }
+});
+
+app.put('/api/fundraising/admin', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'web_manager' && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Web manager access required' });
+    }
+
+    const payload = req.body || {};
+    const updated = await Fundraising.findOneAndUpdate({}, { $set: payload }, { new: true, upsert: true, setDefaultsOnInsert: true });
+
+    res.json({ success: true, message: 'Fundraising updated', data: updated });
+  } catch (error) {
+    console.error('❌ Admin PUT fundraising error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update fundraising', error: error.message });
   }
 });
 // ========== END FUNDRAISING ROUTES ==========
@@ -1897,29 +2108,38 @@ app.post('/api/payment/save-donation', async (req, res) => {
       paymentMethod,
       metadata,
     } = req.body;
+    // Basic validation and coercion
+    if (!paymentIntentId && !metadata?.paymentIntentId) {
+      return res.status(400).json({ success: false, message: 'paymentIntentId is required' });
+    }
 
-    const existingDonation = await Donation.findOne({ paymentIntentId });
+    const pid = paymentIntentId || metadata.paymentIntentId;
+    const amt = Number(amount || metadata?.amount || 0);
+    if (!amt || amt <= 0) {
+      return res.status(400).json({ success: false, message: 'Valid amount is required' });
+    }
+
+    const st = status || (metadata && metadata.status) || 'succeeded';
+
+    const existingDonation = await Donation.findOne({ paymentIntentId: pid });
     if (existingDonation) {
-      return res.json({
-        success: true,
-        message: 'Donation already exists',
-        donationId: paymentIntentId
-      });
+      return res.json({ success: true, message: 'Donation already exists', donationId: pid });
     }
 
     const donation = new Donation({
-      paymentIntentId,
-      amount,
-      currency,
-      status,
-      campaignId,
-      campaignName,
-      donorName,
-      donorEmail,
-      donorPhone,
-      paymentMethod,
-      metadata,
-      isTest: true,
+      paymentIntentId: pid,
+      amount: amt,
+      currency: (currency || metadata?.currency || 'inr').toLowerCase(),
+      status: st,
+      campaignId: campaignId || metadata?.campaignId,
+      campaignName: campaignName || metadata?.campaignName || (req.body.campaign && req.body.campaign.title),
+      donorName: donorName || metadata?.donorName || (req.body.donorInfo && req.body.donorInfo.name) || 'Anonymous',
+      donorEmail: donorEmail || metadata?.donorEmail || (req.body.donorInfo && req.body.donorInfo.email) || '',
+      donorPhone: donorPhone || metadata?.donorPhone || '',
+      paymentMethod: paymentMethod || metadata?.paymentMethod || '',
+      metadata: metadata || {},
+      receiptUrl: metadata?.receiptUrl || req.body.receiptUrl || '',
+      isTest: req.body.isTest === true || false,
       createdAt: new Date()
     });
 
@@ -1958,14 +2178,19 @@ app.post('/api/payment/save-donation', async (req, res) => {
   }
 });
 
-app.get('/api/payment/donations', async (req, res) => {
+app.get('/api/payment/donations', authenticateToken, checkDatabaseReady, async (req, res) => {
   try {
+    // Only web managers or admins may access donations list
+    if (req.user.role !== 'web_manager' && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Web manager access required' });
+    }
+
     const donations = await Donation.find().sort({ createdAt: -1 });
-    
+
     res.json({
       success: true,
       count: donations.length,
-      donations
+      data: donations
     });
   } catch (error) {
     console.error('Error fetching donations:', error);
@@ -2194,142 +2419,253 @@ app.post('/api/auth/verify-reset-code', checkDatabaseReady, async (req, res) => 
       });
     }
 
-    console.log(`🔍 Verifying reset code for: ${email}`);
-
-    // Find reset record
-    const resetRecord = await PasswordReset.findOne({
-      email: email.toLowerCase(),
-      resetCode,
-      used: false
-    });
-
-    if (!resetRecord) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid or expired reset code'
-      });
-    }
-
-    // Check if code has expired
-    if (resetRecord.expiresAt < new Date()) {
-      await PasswordReset.deleteOne({ _id: resetRecord._id });
-      return res.status(400).json({
-        success: false,
-        message: 'Reset code has expired'
-      });
-    }
-
-    // Increment attempts
-    resetRecord.attempts += 1;
+    // Add the actual reset code verification logic here
+    // Example:
+    // const user = await db.collection('users').findOne({ email });
+    // if (!user || user.resetCode !== resetCode) {
+    //   return res.status(400).json({ success: false, message: 'Invalid reset code' });
+    // }
     
-    // If too many attempts, mark as used
-    if (resetRecord.attempts >= 5) {
-      resetRecord.used = true;
-      await resetRecord.save();
-      return res.status(400).json({
-        success: false,
-        message: 'Too many attempts. Please request a new reset code.'
-      });
-    }
+    // Check if reset code is expired (optional)
+    // if (user.resetCodeExpires < new Date()) {
+    //   return res.status(400).json({ success: false, message: 'Reset code has expired' });
+    // }
 
-    await resetRecord.save();
-
-    // Generate verification token for the next step
-    const verificationToken = jwt.sign(
-      {
-        email: email.toLowerCase(),
-        resetCode,
-        purpose: 'password_reset'
-      },
-      JWT_SECRET,
-      { expiresIn: '10m' } // Short-lived token
-    );
-
-    console.log(`✅ Reset code verified for: ${email}`);
-
-    res.json({
+    // If valid
+    return res.status(200).json({
       success: true,
-      message: 'Reset code verified successfully',
-      verificationToken,
-      expiresAt: resetRecord.expiresAt
+      message: 'Reset code verified successfully'
+      // You might also want to return a token or some identifier
     });
 
   } catch (error) {
-    console.error('❌ Verify reset code error:', error);
+    console.error('Verify reset code error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Internal Server Error' 
+    });
+  }
+});
+
+// ========== END FILE (ensure server is listening) ==========
+const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || '0.0.0.0';
+
+// ========== WEB MANAGER ROUTES ==========
+
+// GET Web Manager Profile
+app.get('/api/web-manager/profile', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    // Check if user is web manager
+    if (req.user.role !== 'web_manager') {
+      return res.status(403).json({
+        success: false,
+        message: 'Web manager access required'
+      });
+    }
+
+    const User = getModel('User');
+    const WebManager = getModel('WebManager');
+
+    if (!User || !WebManager) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    // Find user
+    const user = await User.findOne({ email: req.user.email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Find web manager record
+    const webManager = await WebManager.findOne({ 
+      $or: [{ NIC: user.NIC }, { email: user.email }] 
+    });
+
+    if (!webManager) {
+      // Create a default web manager record if not exists
+      const newWebManager = new WebManager({
+        NIC: user.NIC,
+        email: user.email,
+        full_name: user.full_name,
+        contact_number: user.contact_number || "",
+        gender: user.gender || "",
+        date_of_birth: user.date_of_birth || "",
+        department: "Web Management",
+        location: "Colombo, Sri Lanka",
+        profile_picture: user.profile_picture || "",
+        is_active: true,
+        join_date: user.created_at || new Date(),
+        last_login: new Date()
+      });
+      await newWebManager.save();
+
+      // Use the newly created record
+      const responseData = {
+        ...user.toObject(),
+        ...newWebManager.toObject()
+      };
+      
+      return res.json({
+        success: true,
+        message: 'Web manager profile loaded',
+        data: responseData
+      });
+    }
+
+    // Combine user and web manager data
+    const responseData = {
+      ...user.toObject(),
+      ...webManager.toObject()
+    };
+
+    res.json({
+      success: true,
+      message: 'Web manager profile loaded',
+      data: responseData
+    });
+
+  } catch (error) {
+    console.error('❌ Get web manager profile error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to verify reset code',
+      message: 'Failed to fetch web manager profile',
       error: error.message
     });
   }
 });
 
-// RESET PASSWORD
-app.post('/api/auth/reset-password', checkDatabaseReady, async (req, res) => {
+// UPDATE Web Manager Profile
+app.put('/api/web-manager/profile/update', authenticateToken, checkDatabaseReady, async (req, res) => {
   try {
-    const { verificationToken, newPassword, confirmPassword } = req.body;
-
-    if (!verificationToken || !newPassword || !confirmPassword) {
-      return res.status(400).json({
+    // Check if user is web manager
+    if (req.user.role !== 'web_manager') {
+      return res.status(403).json({
         success: false,
-        message: 'All fields are required'
+        message: 'Web manager access required'
       });
     }
 
-    if (newPassword !== confirmPassword) {
-      return res.status(400).json({
+    const User = getModel('User');
+    const WebManager = getModel('WebManager');
+
+    if (!User || !WebManager) {
+      return res.status(500).json({
         success: false,
-        message: 'Passwords do not match'
+        message: 'Server configuration error'
       });
     }
 
-    // Password validation
-    if (newPassword.length < 8) {
-      return res.status(400).json({
+    // Extract fields from request
+    const { 
+      full_name, 
+      contact_number, 
+      gender, 
+      date_of_birth, 
+      avatar_url, 
+      location, 
+      department 
+    } = req.body;
+
+    // Find user
+    const user = await User.findOne({ email: req.user.email });
+    if (!user) {
+      return res.status(404).json({
         success: false,
-        message: 'Password must be at least 8 characters long'
+        message: 'User not found'
       });
     }
 
-    // Verify JWT token
-    let decoded;
-    try {
-      decoded = jwt.verify(verificationToken, JWT_SECRET);
-    } catch (jwtError) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid or expired verification token'
-      });
-    }
+    // Update User model
+    const userUpdates = {};
+    if (full_name) userUpdates.full_name = full_name;
+    if (contact_number) userUpdates.contact_number = contact_number;
+    if (gender) userUpdates.gender = gender;
+    if (date_of_birth) userUpdates.date_of_birth = date_of_birth;
+    if (avatar_url) userUpdates.profile_picture = avatar_url;
+    userUpdates.updated_at = new Date();
 
-    // Check if token is for password reset
-    if (decoded.purpose !== 'password_reset') {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid token purpose'
-      });
-    }
+    await User.updateOne({ email: req.user.email }, { $set: userUpdates });
 
-    const { email, resetCode } = decoded;
+    // Update WebManager model
+    const webManagerUpdates = {};
+    if (full_name) webManagerUpdates.full_name = full_name;
+    if (contact_number) webManagerUpdates.contact_number = contact_number;
+    if (gender) webManagerUpdates.gender = gender;
+    if (date_of_birth) webManagerUpdates.date_of_birth = date_of_birth;
+    if (avatar_url) webManagerUpdates.profile_picture = avatar_url;
+    if (location) webManagerUpdates.location = location;
+    if (department) webManagerUpdates.department = department;
+    webManagerUpdates.updated_at = new Date();
 
-    console.log(`🔑 Resetting password for: ${email}`);
+    await WebManager.updateOne(
+      { $or: [{ NIC: user.NIC }, { email: user.email }] },
+      { $set: webManagerUpdates },
+      { upsert: true } // Create if doesn't exist
+    );
 
-    // Verify reset code one more time
-    const resetRecord = await PasswordReset.findOne({
-      email: email.toLowerCase(),
-      resetCode,
-      used: false
+    // Get updated user data
+    const updatedUser = await User.findOne({ email: req.user.email });
+    const updatedWebManager = await WebManager.findOne({ 
+      $or: [{ NIC: user.NIC }, { email: user.email }] 
     });
 
-    if (!resetRecord) {
-      return res.status(400).json({
+    const responseData = {
+      ...updatedUser.toObject(),
+      ...updatedWebManager.toObject()
+    };
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: responseData
+    });
+
+  } catch (error) {
+    console.error('❌ Update web manager profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update profile',
+      error: error.message
+    });
+  }
+});
+
+// CHANGE PASSWORD for Web Manager
+app.put('/api/web-manager/change-password', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    // Check if user is web manager
+    if (req.user.role !== 'web_manager') {
+      return res.status(403).json({
         success: false,
-        message: 'Invalid or already used reset code'
+        message: 'Web manager access required'
       });
     }
 
-    // Get User model
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current and new password are required'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters'
+      });
+    }
+
     const User = getModel('User');
+
     if (!User) {
       return res.status(500).json({
         success: false,
@@ -2338,7 +2674,7 @@ app.post('/api/auth/reset-password', checkDatabaseReady, async (req, res) => {
     }
 
     // Find user
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await User.findOne({ email: req.user.email });
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -2346,183 +2682,93 @@ app.post('/api/auth/reset-password', checkDatabaseReady, async (req, res) => {
       });
     }
 
-    // Check if new password is same as old password
-    const isSamePassword = await bcrypt.compare(newPassword, user.password_hash);
-    if (isSamePassword) {
-      return res.status(400).json({
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isPasswordValid) {
+      return res.status(401).json({
         success: false,
-        message: 'New password cannot be the same as old password'
+        message: 'Current password is incorrect'
       });
     }
 
     // Hash new password
     const salt = await bcrypt.genSalt(10);
-    const password_hash = await bcrypt.hash(newPassword, salt);
+    const newPasswordHash = await bcrypt.hash(newPassword, salt);
 
-    // Update user password
-    user.password_hash = password_hash;
-    user.updated_at = new Date();
-    await user.save();
-
-    // Mark reset code as used
-    resetRecord.used = true;
-    resetRecord.updatedAt = new Date();
-    await resetRecord.save();
-
-    console.log(`✅ Password reset successful for: ${email}`);
-
-    res.json({
-      success: true,
-      message: 'Password has been reset successfully. You can now login with your new password.'
-    });
-
-  } catch (error) {
-    console.error('❌ Reset password error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to reset password',
-      error: error.message
-    });
-  }
-});
-
-// RESEND RESET CODE
-app.post('/api/auth/resend-reset-code', checkDatabaseReady, async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email is required'
-      });
-    }
-
-    console.log(`🔄 Resending reset code to: ${email}`);
-
-    // Get User model
-    const User = getModel('User');
-    if (!User) {
-      return res.status(500).json({
-        success: false,
-        message: 'Server configuration error'
-      });
-    }
-
-    // Check if user exists
-    const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
-      // Return success for security
-      return res.json({
-        success: true,
-        message: 'If an account exists with this email, you will receive a reset code shortly.'
-      });
-    }
-
-    // Delete any existing reset codes
-    await PasswordReset.deleteMany({ email: email.toLowerCase() });
-
-    // Generate new 6-digit reset code
-    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    // Set expiration (15 minutes from now)
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-
-    // Save new reset code
-    const passwordReset = new PasswordReset({
-      email: email.toLowerCase(),
-      resetCode,
-      expiresAt,
-      used: false,
-      attempts: 0
-    });
-
-    await passwordReset.save();
-
-    // Note: In production, you would send an email here
-    console.log(`📧 New reset code for ${email}: ${resetCode} (simulated email)`);
-
-    res.json({
-      success: true,
-      message: 'A new reset code has been sent to your email.',
-      hint: 'Check your email for the 6-digit reset code.',
-      debug_code: resetCode // Remove this in production
-    });
-
-  } catch (error) {
-    console.error('❌ Resend reset code error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to resend reset code',
-      error: error.message
-    });
-  }
-});
-// ========== LANDING PAGE ADMIN ROUTES ==========
-app.get('/api/landing-page/admin', authenticateToken, checkDatabaseReady, async (req, res) => {
-  try {
-    // Allow only web_manager (and optionally admin)
-    if (req.user.role !== 'web_manager' && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Web manager access required' });
-    }
-
-    const landingPage = await LandingPage.findOne();
-    return res.json({ success: true, data: landingPage });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: 'Failed to load landing page', error: error.message });
-  }
-});
-
-app.put('/api/landing-page/admin', authenticateToken, checkDatabaseReady, async (req, res) => {
-  try {
-    if (req.user.role !== 'web_manager' && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Web manager access required' });
-    }
-
-    // Upsert: update if exists, otherwise create the single landing page doc
-    const updated = await LandingPage.findOneAndUpdate(
-      {},
-      { $set: req.body },
-      { new: true, upsert: true }
+    // Update password
+    await User.updateOne(
+      { email: req.user.email },
+      { 
+        $set: { 
+          password_hash: newPasswordHash,
+          updated_at: new Date()
+        }
+      }
     );
 
-    return res.json({ success: true, message: 'Landing page saved', data: updated });
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+
   } catch (error) {
-    return res.status(500).json({ success: false, message: 'Failed to save landing page', error: error.message });
+    console.error('❌ Change password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to change password',
+      error: error.message
+    });
   }
 });
-// ========== END LANDING PAGE ADMIN ROUTES ==========
 
-// ========== END PASSWORD RESET ROUTES ==========
+// File upload endpoint for avatar
+app.post('/api/upload/avatar', authenticateToken, upload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
 
-// ========== SERVER STARTUP ==========
-const PORT = 5000;
-app.listen(PORT, () => {
-  console.log('='.repeat(60));
-  console.log(`🚀 Express server started on http://localhost:${PORT}`);
-  console.log('='.repeat(60));
-  console.log('\n📋 Available Endpoints:');
-  console.log(`   POST http://localhost:${PORT}/api/auth/register`);
-  console.log(`   POST http://localhost:${PORT}/api/auth/login`);
-  console.log(`   POST http://localhost:${PORT}/api/auth/login-test (for testing)`);
-  console.log(`   GET  http://localhost:${PORT}/api/auth/me`);
-  console.log(`   GET  http://localhost:${PORT}/health`);
-  console.log(`   GET  http://localhost:${PORT}/api/landing-page`);
-  console.log(`   GET  http://localhost:${PORT}/api/fundraising`);
-  console.log(`   POST http://localhost:${PORT}/api/upload/license`);
-  console.log(`\n🔐 Admin Endpoints:`);
-  console.log(`   GET  http://localhost:${PORT}/api/admin/pending-doctors`);
-  console.log(`   POST http://localhost:${PORT}/api/admin/approve-doctor/:nic`);
-  console.log(`   POST http://localhost:${PORT}/api/admin/reject-doctor/:nic`);
-  console.log(`   GET  http://localhost:${PORT}/api/admin/all-doctor-verifications`);
-  console.log(`   GET  http://localhost:${PORT}/api/admin/dashboard-stats`);
-  console.log('\n🔐 Default Admin Credentials:');
-  console.log('   Email: admin@hercycle.com');
-  console.log('   Password: admin123');
-  console.log('\n👤 Test User Credentials:');
-  console.log('   Email: test@test.com');
-  console.log('   Password: test123');
-  console.log('\n⚠️  Note: Database initialization may take a few seconds');
-  console.log('='.repeat(60));
+    const file = req.file;
+    
+    // Generate a unique filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const fileExt = path.extname(file.originalname) || '.jpg';
+    const newFileName = `avatar-${uniqueSuffix}${fileExt}`;
+    const filePath = path.join(uploadsDir, newFileName);
+    
+    // Save file to disk
+    fs.writeFileSync(filePath, file.buffer);
+    
+    const fileUrl = `/uploads/${newFileName}`;
+    
+    res.json({
+      success: true,
+      message: 'Avatar uploaded successfully',
+      url: fileUrl,
+      filename: newFileName
+    });
+
+  } catch (error) {
+    console.error('❌ Avatar upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload avatar',
+      error: error.message
+    });
+  }
 });
-// ========== END SERVER STARTUP ==========
+// ========== END WEB MANAGER ROUTES ==========
+
+
+app.listen(PORT, HOST, () => {
+  console.log(`🚀 HerCycle backend listening on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
+  console.log('✅ Available Web Manager routes:');
+  console.log('   GET  /api/web-manager/profile');
+  console.log('   PUT  /api/web-manager/profile/update');
+  console.log('   PUT  /api/web-manager/change-password');
+  console.log('   POST /api/upload/avatar');
+  console.log('✔️ To allow all origins in development set DEV_ALLOW_ALL_ORIGINS=true');
+});

@@ -198,10 +198,21 @@ const DonationOverview = () => {
       const res = await fetch("http://localhost:5000/api/payment/donations", {
         headers,
       });
+      if (res.status === 401 || res.status === 403) {
+        // Unauthorized - redirect to login
+        navigate('/login');
+        return;
+      }
       if (!res.ok) throw new Error("Failed to fetch donations");
 
       const json = await res.json();
-      setDonations(Array.isArray(json?.data) ? json.data : []);
+      // support both { data: [...] } and { donations: [...] }
+      const list = Array.isArray(json?.data)
+        ? json.data
+        : Array.isArray(json?.donations)
+        ? json.donations
+        : [];
+      setDonations(list);
     } catch (e) {
       console.error(e);
       setError(e?.message || "Failed to load donations");

@@ -58,13 +58,16 @@ const FundraisingAdminPanel = () => {
     }
   });
 
-  // Fetch data from API
+  // Fetch data from API (include token if present)
   const fetchFundraisingData = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const response = await fetch('http://localhost:5000/api/fundraising/admin');
+
+      const token = localStorage.getItem('authToken');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const response = await fetch('http://localhost:5000/api/fundraising/admin', { headers });
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -449,6 +452,12 @@ const FundraisingAdminPanel = () => {
       setIsSaving(true);
       setNotification(null);
       
+      const token = localStorage.getItem('authToken');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
+
       // Calculate data size
       const dataSize = JSON.stringify(formData).length;
       console.log('Original data size:', (dataSize / 1024 / 1024).toFixed(2), 'MB');
@@ -467,9 +476,7 @@ const FundraisingAdminPanel = () => {
       
       const response = await fetch('http://localhost:5000/api/fundraising/admin', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(dataToSend)
       });
       
@@ -516,11 +523,16 @@ const FundraisingAdminPanel = () => {
     }
   };
 
-  // Quick save without images (for testing)
+  // Quick save without images (include token)
   const handleQuickSave = async () => {
     try {
       setIsSaving(true);
-      
+      const token = localStorage.getItem('authToken');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
+
       // Create data without images
       const dataWithoutImages = {
         ...formData,
@@ -536,7 +548,7 @@ const FundraisingAdminPanel = () => {
       
       const response = await fetch('http://localhost:5000/api/fundraising/admin', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(dataWithoutImages)
       });
       
@@ -555,16 +567,20 @@ const FundraisingAdminPanel = () => {
     }
   };
 
-  // Seed database
+  // Seed database (include token if available)
   const handleSeed = async () => {
     if (!window.confirm('Seed database with default data? This will replace current data.')) {
       return;
     }
-    
+
     try {
       setLoading(true);
+      const token = localStorage.getItem('authToken');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
       const response = await fetch('http://localhost:5000/api/fundraising/seed', {
-        method: 'POST'
+        method: 'POST',
+        headers
       });
       
       const result = await response.json();

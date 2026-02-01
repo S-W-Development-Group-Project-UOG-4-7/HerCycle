@@ -1358,7 +1358,73 @@ async function setupDatabase() {
     console.log('   Role: User');
     console.log('\n💡 Check MongoDB Compass to see all collections created.');
     console.log('='.repeat(60));
-    
+    // Ensure a default web manager user exists for initial admin tasks
+    try {
+      const User = mongoose.modelNames().includes('User') ? mongoose.model('User') : null;
+      const WebManager = mongoose.modelNames().includes('WebManager') ? mongoose.model('WebManager') : null;
+
+      if (User && WebManager) {
+        const defaultEmail = process.env.WEB_MANAGER_EMAIL || 'webmanager@hercycle.local';
+        const defaultNIC = process.env.WEB_MANAGER_NIC || 'WEBMGR0001';
+        const defaultPassword = process.env.WEB_MANAGER_PASSWORD || 'webmanager123';
+
+        (async () => {
+          try {
+            let user = await User.findOne({ $or: [{ email: defaultEmail }, { NIC: defaultNIC }] });
+            if (!user) {
+              const salt = await bcrypt.genSalt(10);
+              const password_hash = await bcrypt.hash(defaultPassword, salt);
+              user = new User({
+                NIC: defaultNIC,
+                full_name: 'Default Web Manager',
+                email: defaultEmail,
+                password_hash,
+                gender: 'prefer-not-to-say',
+                role: 'web_manager',
+                isExisting: 'active',
+                is_active: true,
+                created_at: new Date(),
+                updated_at: new Date()
+              });
+              await user.save();
+              console.log('✅ Default web manager user created:', defaultEmail);
+            } else {
+              // Ensure role is web_manager
+              if (user.role !== 'web_manager') {
+                user.role = 'web_manager';
+                await user.save();
+                console.log('ℹ️ Updated existing user role to web_manager for:', defaultEmail);
+              }
+            }
+
+            let wm = await WebManager.findOne({ $or: [{ NIC: user.NIC }, { email: user.email }] });
+            if (!wm) {
+              wm = new WebManager({
+                W_ID: `WM_${Date.now()}`,
+                NIC: user.NIC,
+                email: user.email,
+                full_name: user.full_name,
+                contact_number: user.contact_number || '',
+                gender: user.gender || 'prefer-not-to-say',
+                department: 'Web Management',
+                location: 'Head Office',
+                profile_picture: user.profile_picture || '',
+                is_active: true,
+                join_date: user.created_at || new Date(),
+                last_login: new Date()
+              });
+              await wm.save();
+              console.log('✅ Default WebManager record created');
+            }
+          } catch (seedErr) {
+            console.error('❌ Failed to seed default web manager:', seedErr);
+          }
+        })();
+      }
+    } catch (err) {
+      console.error('❌ Error ensuring default web manager:', err);
+    }
+
     return {
       success: true,
       message: 'Database setup completed successfully!',
