@@ -661,6 +661,10 @@ app.post('/api/auth/login', checkDatabaseReady, async (req, res) => {
       });
     }
 
+    // Update last_login timestamp
+    user.last_login = new Date();
+    await user.save();
+
     // Check if user is suspended or deleted
     if (user.isExisting === 'suspended' || user.isExisting === 'deleted') {
       return res.status(403).json({
@@ -1026,6 +1030,10 @@ app.post('/api/admin/approve-doctor/:nic', authenticateToken, checkDatabaseReady
     const doctor = await Doctor.findOne({ NIC: nic });
     const user = await User.findOne({ NIC: nic });
 
+    // ===== PHASE 3: Send approval email notification to doctor =====
+    const { sendDoctorApprovalEmail } = require('./emailService');
+    await sendDoctorApprovalEmail(user.email, user.full_name, doctor.specialty);
+
     console.log(`✅ Doctor approved: ${nic} by ${req.user.email}`);
 
     res.json({
@@ -1116,6 +1124,13 @@ app.post('/api/admin/reject-doctor/:nic', authenticateToken, checkDatabaseReady,
         }
       }
     );
+
+    // ===== PHASE 3: Send rejection email notification with reason =====
+    const user = await User.findOne({ NIC: nic });
+    if (user) {
+      const { sendDoctorRejectionEmail } = require('./emailService');
+      await sendDoctorRejectionEmail(user.email, user.full_name, reason);
+    }
 
     console.log(`❌ Doctor rejected: ${nic} by ${req.user.email}`);
 
@@ -1383,7 +1398,6 @@ app.put('/api/admin/doctors/:nic', authenticateToken, checkDatabaseReady, async 
       data: doctor
     });
   } catch (error) {
-    console.error('❌ Update doctor status error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update doctor status',
@@ -1391,8 +1405,180 @@ app.put('/api/admin/doctors/:nic', authenticateToken, checkDatabaseReady, async 
     });
   }
 });
+
+// ===== PHASE 3: DOCTOR MANAGEMENT ENDPOINTS =====
+// These endpoints enhance admin capabilities for doctor verification workflow
+
+// REQUEST MORE INFO FROM DOCTOR
+// Allows admin to request additional information via email during verification
+app.post('/api/admin/doctor/request-info', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { nic, message } = req.body;
+    const User = getModel('User');
+    const Doctor = getModel('Doctor');
+
+    const user = await User.findOne({ NIC: nic });
+    const doctor = await Doctor.findOne({ NIC: nic });
+
+    if (!user || !doctor) {
+      return res.status(404).json({ success: false, message: 'Doctor not found' });
+    }
+
+    const { sendDoctorInfoRequestEmail } = require('./emailService');
+    await sendDoctorInfoRequestEmail(user.email, user.full_name, doctor.specialty, message);
+
+    console.log(`✅ Info request sent to: ${user.email}`);
+    res.json({ success: true, message: 'Information request sent successfully' });
+  } catch (error) {
+    console.error('Error sending info request:', error);
+    res.status(500).json({ success: false, message: 'Failed to send request', error: error.message });
+  }
+});
+
+// GET DOCTOR VERIFICATION HISTORY  
+// Returns a comprehensive list of all doctors with their verification status and details
+// Used by the Admin Dashboard "Verification History" tab for audit trail
+app.get('/api/admin/doctor-verifications', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const DoctorVerification = getModel('DoctorVerification');
+    const Doctor = getModel('Doctor');
+    const User = getModel('User');
+
+    const doctors = await Doctor.find({}).sort({ created_at: -1 }).limit(100);
+
+    const doctorsWithUserInfo = await Promise.all(
+      doctors.map(async (doctor) => {
+        const user = await User.findOne({ NIC: doctor.NIC });
+        const verification = await DoctorVerification.findOne({ doctor_NIC: doctor.NIC }).sort({ submitted_at: -1 });
+        return {
+          ...doctor.toObject(),
+          user_name: user?.full_name || 'Unknown',
+          user_email: user?.email || 'N/A',
+          license_number: verification?.registration_details?.license_number || 'N/A',
+          verified_at: doctor.activated_at
+        };
+      })
+    );
+
+    res.json({ success: true, data: doctorsWithUserInfo });
+  } catch (error) {
+    console.error('Error fetching verification history:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch history', error: error.message });
+  }
+});
+
+// GET ALL POSTS BY A SPECIFIC DOCTOR
+// Allows admin to review a doctor's community contributions before approval
+// Helps assess content quality and professional conduct
+app.get('/api/admin/doctor-posts/:nic', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { nic } = req.params;
+    const Post = getModel('Post');
+
+    // Find posts where author is this doctor's NIC
+    const posts = await Post.find({ author_nic: nic })
+      .sort({ created_at: -1 })
+      .limit(50); // Limit to recent 50 posts
+
+    const postCount = await Post.countDocuments({ author_nic: nic });
+
+    res.json({
+      success: true,
+      data: {
+        posts: posts || [],
+        total_count: postCount
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching doctor posts:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch doctor posts', error: error.message });
+  }
+});
 // ========== END ADMIN ROUTES ==========
 
+
+// ========== ADMIN ANALYTICS ENDPOINTS ==========
+// USER GROWTH ANALYTICS
+app.get('/api/admin/analytics/user-growth', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const User = getModel('User');
+    if (!User) {
+      return res.json({ success: true, data: { growth: [], total_new_users: 0, date_range: 'all' } });
+    }
+
+    const { days } = req.query;
+    let dateFilter = {};
+    let dateRange = 'all';
+
+    if (days && days !== 'all') {
+      const daysAgo = new Date();
+      daysAgo.setDate(daysAgo.getDate() - parseInt(days));
+      dateFilter = { created_at: { $gte: daysAgo } };
+      dateRange = days;
+    }
+
+    // Get daily user counts
+    const dailyUsers = await User.aggregate([
+      { $match: dateFilter },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$created_at' } },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Calculate cumulative counts
+    let cumulative = 0;
+    if (days && days !== 'all') {
+      // Get users before the date range for accurate cumulative count
+      const usersBeforeRange = await User.countDocuments({
+        created_at: { $lt: dateFilter.created_at.$gte }
+      });
+      cumulative = usersBeforeRange;
+    }
+
+    const growthData = dailyUsers.map(day => {
+      cumulative += day.count;
+      return {
+        date: day._id,
+        count: day.count,
+        cumulative: cumulative
+      };
+    });
+
+    const totalNewUsers = dailyUsers.reduce((sum, day) => sum + day.count, 0);
+
+    res.json({
+      success: true,
+      data: {
+        growth: growthData,
+        total_new_users: totalNewUsers,
+        date_range: dateRange
+      }
+    });
+  } catch (error) {
+    console.error('❌ User growth analytics error:', error);
+    res.status(500).json({ success: false, message: 'Analytics failed', error: error.message });
+  }
+});
 
 // GET ADMIN DASHBOARD STATS
 app.get('/api/admin/dashboard-stats', authenticateToken, checkDatabaseReady, async (req, res) => {

@@ -1,5 +1,7 @@
 // DoctorVerification.jsx - Doctor License Verification Section with Activation Controls
 import React, { useState, useEffect, useCallback } from 'react';
+import DoctorPostsModal from '../components/DoctorPostsModal';
+import RequestInfoModal from '../components/RequestInfoModal';
 
 const DoctorVerification = () => {
     const [activeView, setActiveView] = useState('pending'); // 'pending' or 'all'
@@ -13,6 +15,8 @@ const DoctorVerification = () => {
     const [isRejectMode, setIsRejectMode] = useState(false);
     const [statusModalDoctor, setStatusModalDoctor] = useState(null);
     const [specialtySearch, setSpecialtySearch] = useState(''); // Search state
+    const [postsModalDoctor, setPostsModalDoctor] = useState(null); // For viewing posts
+    const [requestInfoDoctor, setRequestInfoDoctor] = useState(null); // For requesting info
 
     const fetchPendingDoctors = useCallback(async () => {
         setLoading(true);
@@ -272,6 +276,20 @@ const DoctorVerification = () => {
                                                     📄 View License
                                                 </button>
                                             )}
+                                            <button
+                                                onClick={() => setPostsModalDoctor({ nic: doctor.doctor_NIC, name: doctor.user_info?.full_name || 'Doctor' })}
+                                                className="secondary-btn"
+                                                style={{ fontSize: '0.9rem', background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(37, 99, 235, 0.2) 100%)', border: '1px solid #3b82f6', color: '#3b82f6' }}
+                                            >
+                                                📝 View Posts
+                                            </button>
+                                            <button
+                                                onClick={() => setRequestInfoDoctor({ nic: doctor.doctor_NIC, name: doctor.user_info?.full_name || 'Doctor' })}
+                                                className="secondary-btn"
+                                                style={{ fontSize: '0.9rem', background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(217, 119, 6, 0.2) 100%)', border: '1px solid #f59e0b', color: '#f59e0b' }}
+                                            >
+                                                ❓ Request Info
+                                            </button>
                                             <button onClick={() => { setSelectedDoctor(doctor); setIsRejectMode(false); }} className="primary-btn" style={{ fontSize: '0.9rem', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
                                                 ✅ Approve
                                             </button>
@@ -438,6 +456,28 @@ const DoctorVerification = () => {
                     </div>
                 )
             }
+
+            {/* Doctor Posts Modal */}
+            {postsModalDoctor && (
+                <DoctorPostsModal
+                    doctorNIC={postsModalDoctor.nic}
+                    doctorName={postsModalDoctor.name}
+                    onClose={() => setPostsModalDoctor(null)}
+                />
+            )}
+
+            {/* Request Info Modal */}
+            {requestInfoDoctor && (
+                <RequestInfoModal
+                    doctorNIC={requestInfoDoctor.nic}
+                    doctorName={requestInfoDoctor.name}
+                    onClose={() => setRequestInfoDoctor(null)}
+                    onSuccess={(msg) => {
+                        setMessage({ type: 'success', text: msg });
+                        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+                    }}
+                />
+            )}
         </div >
     );
 };

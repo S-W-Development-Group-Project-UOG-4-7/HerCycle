@@ -10,6 +10,7 @@ import PostCommentAnalytics from './sections/PostCommentAnalytics';
 import WarningHistory from './sections/WarningHistory';
 import PrivilegeControls from './sections/PrivilegeControls';
 import DoctorVerification from './sections/DoctorVerification';
+import DoctorVerificationHistory from './sections/DoctorVerificationHistory';
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
@@ -65,6 +66,7 @@ const AdminDashboard = () => {
         { id: 'profile', icon: '👤', label: 'Admin Profile' },
         { id: 'credentials', icon: '🔑', label: 'Give Credentials' },
         { id: 'doctor-verification', icon: '🩺', label: 'Verify Doctors' },
+        { id: 'history', icon: '📜', label: 'Verif. History' },
         { id: 'donations', icon: '💰', label: 'Donations Analytics' },
         { id: 'community', icon: '👥', label: 'Community' },
         { id: 'users', icon: '📊', label: 'User Analytics' },
@@ -144,6 +146,7 @@ const AdminDashboard = () => {
                     {activeTab === 'posts' && <PostCommentAnalytics />}
                     {activeTab === 'warnings' && <WarningHistory />}
                     {activeTab === 'privileges' && <PrivilegeControls />}
+                    {activeTab === 'history' && <DoctorVerificationHistory />}
                 </main>
             </div>
         </div>

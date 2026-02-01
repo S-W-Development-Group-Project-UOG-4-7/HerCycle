@@ -45,6 +45,18 @@ const PostCommentAnalytics = () => {
                         <div className="stat-value">{analytics?.total_reports || 0}</div>
                         <div className="stat-label">Total Reports</div>
                     </div>
+                    <div className="stat-card purple" style={{ borderColor: '#9333ea' }}>
+                        <div className="stat-value">{analytics?.comment_to_post_ratio || 0}</div>
+                        <div className="stat-label">💬 Comments per Post</div>
+                        <div style={{
+                            fontSize: '0.75rem',
+                            opacity: 0.8,
+                            marginTop: '0.25rem',
+                            color: (analytics?.comment_to_post_ratio || 0) >= 2 ? '#10b981' : (analytics?.comment_to_post_ratio || 0) >= 1 ? '#eab308' : '#ef4444'
+                        }}>
+                            {(analytics?.comment_to_post_ratio || 0) >= 2 ? '✓ High engagement' : (analytics?.comment_to_post_ratio || 0) >= 1 ? '○ Moderate' : '⚠️ Low engagement'}
+                        </div>
+                    </div>
                 </div>
             </div>
             <div className="section-card">

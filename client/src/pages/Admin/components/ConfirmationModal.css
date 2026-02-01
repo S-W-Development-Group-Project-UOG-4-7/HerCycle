@@ -181,20 +181,58 @@
 
 /* Responsive design */
 @media (max-width: 640px) {
-    .confirmation-modal {
-        width: 95%;
+    .confirmation-modal-content {
+        width: 90%;
+        max-width: 90vw;
         margin: 1rem;
+        padding: 1.5rem;
     }
 
-    .confirmation-modal-header h2 {
+    .confirmation-modal-header {
+        padding-bottom: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .confirmation-modal-title {
         font-size: 1.25rem;
     }
 
-    .confirmation-modal-footer {
-        flex-direction: column;
+    .confirmation-modal-body {
+        padding: 1rem 0;
+        font-size: 0.95rem;
+        line-height: 1.6;
     }
 
-    .confirmation-modal-btn {
+    .confirmation-modal-footer {
+        flex-direction: column-reverse;
+        gap: 0.75rem;
+        padding-top: 1rem;
+    }
+
+    .confirmation-modal-footer button {
         width: 100%;
+        padding: 0.875rem 1.5rem;
+        font-size: 0.95rem;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .confirmation-modal-content {
+        width: 95%;
+        padding: 1.25rem;
+    }
+
+    .confirmation-modal-title {
+        font-size: 1.15rem;
+    }
+
+    .confirmation-modal-body {
+        font-size: 0.9rem;
+    }
+
+    .confirmation-modal-footer button {
+        padding: 0.75rem 1.25rem;
+        font-size: 0.9rem;
     }
 }

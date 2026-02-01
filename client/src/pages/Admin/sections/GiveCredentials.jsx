@@ -230,30 +230,31 @@ const GiveCredentials = () => {
                 {/* Temporary Password Display */}
                 {temporaryPassword && (
                     <div className="alert alert-success" style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: '1rem',
-                        padding: '1rem'
+                        marginBottom: '1.5rem',
+                        padding: '1.25rem',
+                        borderRadius: '12px'
                     }}>
-                        <div style={{ flex: 1 }}>
-                            <strong>🔐 Temporary Password:</strong>
-                            <code style={{
-                                display: 'block',
-                                background: 'rgba(255,255,255,0.2)',
-                                padding: '0.5rem',
-                                borderRadius: '4px',
-                                marginTop: '0.5rem',
-                                fontSize: '1.1rem',
-                                fontWeight: 600,
-                                letterSpacing: '1px'
-                            }}>
-                                {temporaryPassword}
-                            </code>
-                            <small style={{ display: 'block', marginTop: '0.5rem', opacity: '0.8' }}>
-                                This password will disappear in 30 seconds. Make sure to copy it!
-                            </small>
+                        <h4 style={{
+                            margin: '0 0 0.75rem 0',
+                            fontSize: '1.1rem',
+                            fontWeight: 600
+                        }}>New Temporary Password Generated</h4>
+                        <div style={{
+                            background: 'rgba(255, 255, 255, 0.2)',
+                            padding: '0.875rem',
+                            borderRadius: '8px',
+                            fontFamily: 'monospace',
+                            fontSize: 'clamp(0.9rem, 2.5vw, 1.15rem)',
+                            fontWeight: 600,
+                            letterSpacing: '0.05em',
+                            marginBottom: '0.75rem',
+                            wordBreak: 'break-all'
+                        }}>
+                            {temporaryPassword}
                         </div>
+                        <small style={{ display: 'block', opacity: '0.8', marginBottom: '1rem' }}>
+                            This password will disappear in 30 seconds. Make sure to copy it!
+                        </small>
                         <button
                             onClick={() => copyToClipboard(temporaryPassword)}
                             className="secondary-btn"
@@ -379,29 +380,47 @@ const GiveCredentials = () => {
                                     <td data-label="NIC">{wm.NIC}</td>
                                     <td data-label="Status"><span className={`badge ${wm.is_active ? 'badge-success' : 'badge-danger'}`}>{wm.is_active ? 'Active' : 'Inactive'}</span></td>
                                     <td data-label="Actions">
-                                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'nowrap', alignItems: 'center' }}>
                                             <button
                                                 onClick={() => updateWebManager(wm.NIC, !wm.is_active)}
-                                                className="secondary-btn"
-                                                style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}
+                                                className="action-btn"
+                                                style={{
+                                                    fontSize: '0.8rem',
+                                                    padding: '0.4rem 0.8rem',
+                                                    whiteSpace: 'nowrap',
+                                                    background: wm.is_active ? 'rgba(239, 68, 68, 0.25)' : 'rgba(16, 185, 129, 0.25)',
+                                                    border: wm.is_active ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(16, 185, 129, 0.4)'
+                                                }}
                                             >
-                                                {wm.is_active ? 'Deactivate' : 'Activate'}
+                                                {wm.is_active ? '⊘' : '✓'}
                                             </button>
                                             <button
                                                 onClick={() => setResetPasswordModalUser(wm)}
-                                                className="secondary-btn"
-                                                style={{ fontSize: '0.85rem', padding: '0.5rem 1rem', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+                                                className="action-btn"
+                                                style={{
+                                                    fontSize: '0.8rem',
+                                                    padding: '0.4rem 0.8rem',
+                                                    whiteSpace: 'nowrap',
+                                                    background: 'rgba(16, 185, 129, 0.25)',
+                                                    border: '1px solid rgba(16, 185, 129, 0.4)'
+                                                }}
                                                 title="Reset Password"
                                             >
-                                                🔑 Reset
+                                                🔑
                                             </button>
                                             <button
                                                 onClick={() => setDeleteModalUser(wm)}
-                                                className="secondary-btn"
-                                                style={{ fontSize: '0.85rem', padding: '0.5rem 1rem', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' }}
+                                                className="action-btn"
+                                                style={{
+                                                    fontSize: '0.8rem',
+                                                    padding: '0.4rem 0.8rem',
+                                                    whiteSpace: 'nowrap',
+                                                    background: 'rgba(239, 68, 68, 0.25)',
+                                                    border: '1px solid rgba(239, 68, 68, 0.4)'
+                                                }}
                                                 title="Delete User"
                                             >
-                                                🗑️ Delete
+                                                🗑️
                                             </button>
                                         </div>
                                     </td>
