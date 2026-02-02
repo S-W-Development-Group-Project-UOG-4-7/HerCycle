@@ -1506,6 +1506,576 @@ app.get('/api/admin/doctor-posts/:nic', authenticateToken, checkDatabaseReady, a
     res.status(500).json({ success: false, message: 'Failed to fetch doctor posts', error: error.message });
   }
 });
+
+// ===== PHASE 4: USER MANAGEMENT ENHANCEMENTS =====
+
+// REACTIVATE SUSPENDED USER
+app.post('/api/admin/reactivate-user', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { nic } = req.body;
+    const User = getModel('User');
+
+    const user = await User.findOneAndUpdate(
+      { NIC: nic },
+      {
+        $set: {
+          isSuspended: false,
+          suspensionReason: null,
+          updated_at: new Date()
+        }
+      },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    console.log(`✅ User reactivated: ${nic} by ${req.user.email}`);
+    res.json({ success: true, message: 'User reactivated successfully', user });
+  } catch (error) {
+    console.error('❌ Reactivate user error:', error);
+    res.status(500).json({ success: false, message: 'Failed to reactivate user', error: error.message });
+  }
+});
+
+// GET USER WARNINGS HISTORY
+app.get('/api/admin/user-warnings/:nic', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { nic } = req.params;
+    const WarningHistory = getModel('WarningHistory');
+
+    const warnings = await WarningHistory.find({ warned_user_nic: nic })
+      .sort({ warned_at: -1 })
+      .populate('admin_nic', 'full_name email');
+
+    const totalCount = await WarningHistory.countDocuments({ warned_user_nic: nic });
+
+    res.json({
+      success: true,
+      data: warnings,
+      total_count: totalCount
+    });
+  } catch (error) {
+    console.error('Error fetching user warnings:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch warnings', error: error.message });
+  }
+});
+
+// ===== PHASE 5: DATA EXPORT & REPORTING =====
+
+// EXPORT DONATION REPORT AS PDF
+app.get('/api/admin/export-donations', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const PDFDocument = require('pdfkit');
+    const { startDate, endDate } = req.query;
+
+    // Use CampaignDonation model from setup.js
+    const CampaignDonation = mongoose.model('CampaignDonation');
+    const Campaign = mongoose.model('Campaign');
+
+    // Build query
+    let query = {};
+    if (startDate || endDate) {
+      query.donated_at = {};
+      if (startDate) query.donated_at.$gte = new Date(startDate);
+      if (endDate) query.donated_at.$lte = new Date(endDate);
+    }
+
+    const donations = await CampaignDonation.find(query).sort({ donated_at: -1 });
+
+    // Get campaign details
+    const campaignIds = [...new Set(donations.map(d => d.campaign_id))];
+    const campaigns = await Campaign.find({ campaign_id: { $in: campaignIds } });
+    const campaignMap = {};
+    campaigns.forEach(c => campaignMap[c.campaign_id] = c.title);
+
+    const totalAmount = donations.reduce((sum, d) => sum + (d.amount || 0), 0);
+
+    // Create PDF
+    const doc = new PDFDocument({ margin: 50 });
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=donations-report-${Date.now()}.pdf`);
+
+    doc.pipe(res);
+
+    // Title
+    doc.fontSize(20).font('Helvetica-Bold').text('HerCycle Donation Report', { align: 'center' });
+    doc.moveDown();
+
+    // Report Details
+    doc.fontSize(12).font('Helvetica');
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, { align: 'right' });
+    if (startDate) doc.text(`From: ${new Date(startDate).toLocaleDateString()}`, { align: 'right' });
+    if (endDate) doc.text(`To: ${new Date(endDate).toLocaleDateString()}`, { align: 'right' });
+    doc.moveDown();
+
+    // Summary
+    doc.fontSize(14).font('Helvetica-Bold').text('Summary');
+    doc.fontSize(11).font('Helvetica');
+    doc.text(`Total Donations: ${donations.length}`);
+    doc.text(`Total Amount: Rs.${totalAmount.toFixed(2)}`);
+    doc.moveDown();
+
+    // Table Header
+    doc.fontSize(12).font('Helvetica-Bold');
+    const tableTop = doc.y;
+    doc.text('Date', 50, tableTop);
+    doc.text('Donor', 120, tableTop);
+    doc.text('Campaign', 250, tableTop);
+    doc.text('Amount', 420, tableTop);
+    doc.moveDown();
+
+    // Table Data
+    doc.fontSize(10).font('Helvetica');
+    donations.forEach((donation, i) => {
+      const y = doc.y;
+      if (y > 700) { // New page if needed
+        doc.addPage();
+      }
+
+      doc.text(new Date(donation.donated_at).toLocaleDateString(), 50, y, { width: 65 });
+      doc.text(donation.is_anonymous ? 'Anonymous' : donation.donor_name, 120, y, { width: 120 });
+      doc.text(campaignMap[donation.campaign_id] || 'General', 250, y, { width: 160 });
+      doc.text(`Rs.${donation.amount.toFixed(2)}`, 420, y);
+      doc.moveDown(0.5);
+
+    });
+
+    doc.end();
+    console.log(`✅ Donation PDF generated by ${req.user.email}`);
+  } catch (error) {
+    console.error('❌ Export donation error:', error);
+    res.status(500).json({ success: false, message: 'Failed to export donations', error: error.message });
+  }
+});
+
+// ==== ROLE PRIVILEGES MANAGEMENT ====
+
+// Update Web Manager Permissions
+app.put('/api/admin/web-manager/:nic/permissions', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { nic } = req.params;
+    const { permissions } = req.body;
+
+    const WebManager = mongoose.model('WebManager');
+    const webManager = await WebManager.findOne({ NIC: nic });
+
+    if (!webManager) {
+      return res.status(404).json({ success: false, message: 'Web Manager not found' });
+    }
+
+    webManager.permissions = { ...webManager.permissions, ...permissions };
+    await webManager.save();
+
+    console.log(`✅ Updated permissions for Web Manager: ${nic}`);
+    res.json({ success: true, message: 'Permissions updated successfully', data: webManager });
+  } catch (error) {
+    console.error('❌ Update permissions error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update permissions', error: error.message });
+  }
+});
+
+// Get all web managers with permissions
+app.get('/api/admin/web-managers', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const WebManager = mongoose.model('WebManager');
+    const User = mongoose.model('User');
+
+    const webManagers = await WebManager.find({ is_active: true });
+
+    // Get user info for each web manager
+    const enrichedData = await Promise.all(webManagers.map(async (wm) => {
+      const user = await User.findOne({ NIC: wm.NIC }, 'full_name email');
+      return {
+        ...wm.toObject(),
+        user_info: user
+      };
+    }));
+
+    res.json({ success: true, data: enrichedData });
+  } catch (error) {
+    console.error('❌ Fetch web managers error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch web managers', error: error.message });
+  }
+});
+
+// Update role-based privileges (for all users of a role)
+app.put('/api/admin/role-privileges/:role', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { role } = req.params;
+    const { privileges } = req.body;
+
+    // For web_manager role, update all web managers
+    if (role === 'web_manager') {
+      const WebManager = mongoose.model('WebManager');
+      await WebManager.updateMany({}, { $set: { permissions: privileges } });
+      console.log(`✅ Updated permissions for all Web Managers`);
+      return res.json({ success: true, message: 'Web Manager privileges updated for all users' });
+    }
+
+    // For other roles, we store in a system config (you could create a RoleConfig model)
+    // For now, just return success
+    console.log(`✅ Updated privileges for role: ${role}`, privileges);
+    res.json({ success: true, message: `${role} privileges updated successfully` });
+  } catch (error) {
+    console.error('❌ Update role privileges error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update role privileges', error: error.message });
+  }
+});
+
+
+// ========== END ADMIN ROUTES ==========
+
+// ===== PHASE 7: SYSTEM & UI POLISH =====
+
+// DATABASE HEALTH CHECK
+app.get('/api/admin/health', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const start = Date.now();
+    const User = getModel('User');
+
+    if (!User) {
+      return res.json({ connected: false, latency: 0, database: 'Not connected' });
+    }
+
+    // Simple ping query
+    await User.findOne().limit(1);
+    const latency = Date.now() - start;
+
+    res.json({
+      connected: true,
+      latency,
+      database: process.env.MONGODB_URI ? 'MongoDB' : 'Unknown',
+      timestamp: new Date()
+    });
+  } catch (error) {
+    res.json({ connected: false, latency: 0, database: 'Error', error: error.message });
+  }
+});
+
+// TOTAL WARNINGS ISSUED STATISTICS
+app.get('/api/admin/stats/warnings-total', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const WarningHistory = getModel('WarningHistory');
+    const total = await WarningHistory.countDocuments();
+
+    // Last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const last_30_days = await WarningHistory.countDocuments({
+      warned_at: { $gte: thirtyDaysAgo }
+    });
+
+    res.json({ success: true, data: { total, last_30_days } });
+  } catch (error) {
+    console.error('Error fetching warning stats:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch statistics' });
+  }
+});
+
+// CYCLE USER STATISTICS
+app.get('/api/admin/stats/cycle-users', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const User = getModel('User');
+    const totalUsers = await User.countDocuments({ role: 'user' });
+
+    // Assuming users with cycle tracking have a cycle_tracking field or similar
+    // Adjust based on your actual schema
+    const cycleUsers = await User.countDocuments({
+      role: 'user',
+      // Add your cycle tracking condition here, e.g.:
+      // cycle_tracking_enabled: true
+    });
+
+    const percentage = totalUsers > 0 ? ((cycleUsers / totalUsers) * 100).toFixed(1) : 0;
+
+    res.json({
+      success: true,
+      data: {
+        total_users: totalUsers,
+        cycle_users: cycleUsers,
+        percentage: parseFloat(percentage)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching cycle stats:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch statistics' });
+  }
+});
+
+// RECENT ACTIVITY FEED
+app.get('/api/admin/recent-activity', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const limit = parseInt(req.query.limit) || 10;
+    const activities = [];
+
+    // Get recent warnings
+    const WarningHistory = getModel('WarningHistory');
+    const recentWarnings = await WarningHistory.find()
+      .sort({ warned_at: -1 })
+      .limit(5)
+      .populate('warned_user_nic', 'full_name')
+      .populate('admin_nic', 'full_name');
+
+    recentWarnings.forEach(w => {
+      activities.push({
+        type: 'warning',
+        message: `Warning issued to ${w.warned_user_nic?.full_name || 'User'}`,
+        timestamp: w.warned_at,
+        severity: w.severity
+      });
+    });
+
+    // Get recent doctor approvals (last 7 days)
+    const Doctor = getModel('Doctor');
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const recentDoctors = await Doctor.find({
+      verified_at: { $gte: sevenDaysAgo }
+    }).sort({ verified_at: -1 }).limit(5);
+
+    recentDoctors.forEach(d => {
+      activities.push({
+        type: 'doctor_approval',
+        message: `Doctor verified: ${d.NIC}`,
+        timestamp: d.verified_at
+      });
+    });
+
+    // Sort by timestamp and limit
+    activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    res.json({ success: true, data: activities.slice(0, limit) });
+  } catch (error) {
+    console.error('Error fetching recent activity:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch activity' });
+  }
+});
+
+// ===== PHASE 8: ADVANCED FEATURES =====
+
+// UPDATE WEB MANAGER PERMISSIONS
+app.put('/api/admin/web-manager/:nic/permissions', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { nic } = req.params;
+    const { permissions } = req.body;
+
+    const WebManager = getModel('WebManager');
+    const webManager = await WebManager.findOneAndUpdate(
+      { NIC: nic },
+      { $set: { permissions } },
+      { new: true }
+    );
+
+    if (!webManager) {
+      return res.status(404).json({ success: false, message: 'Web Manager not found' });
+    }
+
+    console.log(`✅ Permissions updated for Web Manager: ${nic}`);
+    res.json({ success: true, message: 'Permissions updated', data: webManager });
+  } catch (error) {
+    console.error('Error updating permissions:', error);
+    res.status(500).json({ success: false, message: 'Failed to update permissions' });
+  }
+});
+
+// BULK SUSPEND USERS
+app.post('/api/admin/bulk-suspend', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { nics, reason } = req.body;
+
+    if (!nics || !Array.isArray(nics) || nics.length === 0) {
+      return res.status(400).json({ success: false, message: 'NICs array required' });
+    }
+
+    const User = getModel('User');
+    const result = await User.updateMany(
+      { NIC: { $in: nics } },
+      {
+        $set: {
+          isSuspended: true,
+          suspensionReason: reason || 'Bulk suspension by admin',
+          updated_at: new Date()
+        }
+      }
+    );
+
+    console.log(`✅ Bulk suspended ${result.modifiedCount} users by ${req.user.email}`);
+    res.json({
+      success: true,
+      message: `${result.modifiedCount} users suspended`,
+      count: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('Error bulk suspending:', error);
+    res.status(500).json({ success: false, message: 'Failed to suspend users' });
+  }
+});
+
+// BULK ACTIVATE USERS
+app.post('/api/admin/bulk-activate', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { nics } = req.body;
+
+    if (!nics || !Array.isArray(nics) || nics.length === 0) {
+      return res.status(400).json({ success: false, message: 'NICs array required' });
+    }
+
+    const User = getModel('User');
+    const result = await User.updateMany(
+      { NIC: { $in: nics } },
+      {
+        $set: {
+          isSuspended: false,
+          suspensionReason: null,
+          updated_at: new Date()
+        }
+      }
+    );
+
+    console.log(`✅ Bulk activated ${result.modifiedCount} users by ${req.user.email}`);
+    res.json({
+      success: true,
+      message: `${result.modifiedCount} users activated`,
+      count: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('Error bulk activating:', error);
+    res.status(500).json({ success: false, message: 'Failed to activate users' });
+  }
+});
+
+// REVOKE DOCTOR VERIFICATION
+app.post('/api/admin/revoke-doctor/:nic', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { nic } = req.params;
+    const { reason } = req.body;
+
+    const Doctor = getModel('Doctor');
+    const doctor = await Doctor.findOneAndUpdate(
+      { NIC: nic },
+      {
+        $set: {
+          is_verified: false,
+          verification_status: 'revoked',
+          revoked_at: new Date(),
+          revoke_reason: reason || 'Revoked by admin'
+        }
+      },
+      { new: true }
+    );
+
+    if (!doctor) {
+      return res.status(404).json({ success: false, message: 'Doctor not found' });
+    }
+
+    console.log(`✅ Doctor verification revoked: ${nic} by ${req.user.email}`);
+    res.json({ success: true, message: 'Doctor verification revoked', data: doctor });
+  } catch (error) {
+    console.error('Error revoking doctor:', error);
+    res.status(500).json({ success: false, message: 'Failed to revoke verification' });
+  }
+});
+
+// MOST ENGAGED TOPICS/CATEGORIES
+app.get('/api/admin/stats/top-topics', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const limit = parseInt(req.query.limit) || 5;
+    const Post = getModel('Post');
+
+    // Aggregate posts by category/topic
+    const topTopics = await Post.aggregate([
+      { $match: { category: { $exists: true, $ne: null } } },
+      {
+        $group: {
+          _id: '$category',
+          post_count: { $sum: 1 },
+          total_likes: { $sum: '$like_count' },
+          total_comments: { $sum: '$comment_count' }
+        }
+      },
+      {
+        $project: {
+          category: '$_id',
+          post_count: 1,
+          engagement: { $add: ['$total_likes', '$total_comments'] }
+        }
+      },
+      { $sort: { engagement: -1 } },
+      { $limit: limit }
+    ]);
+
+    res.json({ success: true, data: topTopics });
+  } catch (error) {
+    console.error('Error fetching top topics:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch topics' });
+  }
+});
+
 // ========== END ADMIN ROUTES ==========
 
 

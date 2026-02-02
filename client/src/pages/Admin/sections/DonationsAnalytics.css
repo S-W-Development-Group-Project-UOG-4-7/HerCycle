@@ -1,0 +1,100 @@
+/* DonationsAnalytics Responsive Styles */
+
+/* Export Controls Container */
+.export-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.date-filters {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.date-input-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.date-label {
+    font-size: 0.9rem;
+    color: rgb(97, 28, 175);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.date-input {
+    width: 150px;
+    padding: 0.5rem;
+}
+
+.export-btn {
+    white-space: nowrap;
+}
+
+/* Tablet Responsive */
+@media (max-width: 1024px) {
+    .export-controls {
+        width: 100%;
+    }
+
+    .date-input {
+        width: 140px;
+    }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .export-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .date-filters {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .date-input-group {
+        width: 100%;
+    }
+
+    .date-label {
+        min-width: 50px;
+    }
+
+    .date-input {
+        flex: 1;
+        width: 100%;
+    }
+
+    .export-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Small Mobile */
+@media (max-width: 480px) {
+    .date-input-group {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+
+    .date-label {
+        font-size: 0.85rem;
+    }
+
+    .date-input {
+        width: 100%;
+        padding: 0.625rem;
+    }
+}

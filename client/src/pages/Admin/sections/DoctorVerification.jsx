@@ -169,17 +169,57 @@ const DoctorVerification = () => {
 
                 {/* Search Box */}
                 <div style={{ marginBottom: '1.5rem' }}>
-                    <label className="form-label" style={{ display: 'block', marginBottom: '0.5rem' }}>
-                        Search by Specialty
+                    <label
+                        className="form-label"
+                        style={{
+                            display: 'block',
+                            marginBottom: '0.5rem',
+                            fontWeight: 600,
+                            color: 'rgb(97, 28, 175)'
+                        }}
+                    >
+                        🔍 Filter by Specialty
                     </label>
-                    <input
-                        type="text"
-                        placeholder="🔍 Type to filter doctors by specialty (e.g., cardiology, gynecology)..."
+                    <select
                         className="form-input"
                         value={specialtySearch}
                         onChange={(e) => setSpecialtySearch(e.target.value)}
-                        style={{ width: '100%', maxWidth: '600px' }}
-                    />
+                        style={{
+                            width: '100%',
+                            maxWidth: '600px',
+                            padding: '0.75rem 1rem',
+                            fontSize: '0.95rem',
+                            fontWeight: 500,
+                            color: '#1f2937',
+                            background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)',
+                            backdropFilter: 'blur(10px)',
+                            border: '2px solid rgba(139, 92, 246, 0.3)',
+                            borderRadius: '12px',
+                            cursor: 'pointer',
+                            outline: 'none',
+                            transition: 'all 0.3s ease'
+                        }}
+                        onMouseOver={(e) => {
+                            e.target.style.borderColor = 'rgb(139, 92, 246)';
+                            e.target.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.15)';
+                        }}
+                        onMouseOut={(e) => {
+                            e.target.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+                            e.target.style.boxShadow = 'none';
+                        }}
+                    >
+                        <option value="">All Specialties</option>
+                        <option value="Gynecology">Gynecology</option>
+                        <option value="Obstetrics">Obstetrics</option>
+                        <option value="General Practice">General Practice</option>
+                        <option value="Reproductive Endocrinology">Reproductive Endocrinology</option>
+                        <option value="Maternal-Fetal Medicine">Maternal-Fetal Medicine</option>
+                        <option value="Gynecologic Oncology">Gynecologic Oncology</option>
+                        <option value="Adolescent Medicine">Adolescent Medicine</option>
+                        <option value="Family Medicine">Family Medicine</option>
+                        <option value="Internal Medicine">Internal Medicine</option>
+                        <option value="Pediatrics">Pediatrics</option>
+                    </select>
                     {specialtySearch && (
                         <small style={{ display: 'block', marginTop: '0.5rem', color: '#6b7280' }}>
                             Filtered results: {activeView === 'pending' ? filteredPendingDoctors.length : filteredAllDoctors.length} doctor(s)

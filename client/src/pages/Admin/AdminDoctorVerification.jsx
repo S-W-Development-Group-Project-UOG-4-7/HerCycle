@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './AdminDoctorVerification.css';
+import './AdminDashboard.css'; // Using shared admin dashboard styles
 
 const AdminDoctorVerification = () => {
   const navigate = useNavigate();

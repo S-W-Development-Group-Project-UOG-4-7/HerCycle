@@ -56,11 +56,11 @@
 
 /* Header - Glassmorphic */
 .admin-header {
-    background: rgba(71, 62, 62, 0.15);
+    background: rgba(246, 217, 253, 0.371);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    color: rgb(97, 28, 175);
+    border-bottom: 1px solid rgba(225, 219, 219, 0.872);
+    color: rgb(255, 255, 255);
     padding: 1.5rem 2rem;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     margin-bottom: 0;
@@ -78,17 +78,17 @@
     font-size: 1.75rem;
     font-weight: 700;
     margin: 0;
-    color: rgb(97, 28, 175);
+    color: rgb(232, 219, 244);
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
 .brand-cycle {
-    color: rgb(97, 28, 175);
+    color: rgb(255, 255, 255);
     font-weight: 800;
 }
 
 .admin-subtitle {
-    color: rgb(97, 28, 175);
+    color: rgb(248, 247, 249);
     font-size: 0.9rem;
     margin-top: 0.25rem;
     margin-bottom: 0;
@@ -129,7 +129,7 @@
     justify-content: center;
     width: 100%;
     height: 100%;
-    color: rgb(97, 28, 175);
+    color: rgb(245, 242, 248);
 }
 
 .admin-details {
@@ -139,7 +139,7 @@
 }
 
 .admin-name {
-    color: rgb(97, 28, 175);
+    color: rgb(245, 242, 247);
     font-weight: 600;
     font-size: 0.95rem;
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
@@ -147,27 +147,27 @@
 }
 
 .admin-role {
-    color: rgb(97, 28, 175);
-    font-size: 0.8rem;
+    color: rgb(255, 255, 255);
+    font-size: 0.88rem;
     margin: 0;
 }
 
 .logout-btn {
     padding: 0.5rem 1.25rem;
-    background: rgba(227, 142, 252, 0.219);
+    background: rgba(252, 142, 142, 0.219);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: rgb(97, 28, 175);
+    border: 1px solid rgba(171, 53, 53, 0.3);
+    color: rgb(130, 7, 7);
     border-radius: 8px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(208, 31, 31, 0.382);
     white-space: nowrap;
 }
 
 .logout-btn:hover {
-    background: rgba(236, 104, 210, 0.35);
+    background: rgba(216, 31, 179, 0.35);
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
@@ -188,7 +188,7 @@
 }
 
 .admin-nav {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(249, 213, 252, 0.889);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-radius: 16px;
@@ -213,7 +213,7 @@
     margin-bottom: 0.5rem;
     font-size: 0.95rem;
     color: rgb(97, 28, 175);
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .nav-tab:last-child {
@@ -250,14 +250,14 @@
 
 /* Section Cards - Glassmorphic */
 .section-card {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(228, 203, 254, 0.992);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 16px;
     padding: 1.5rem;
     margin-bottom: 1.5rem;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 32px rgba(156, 150, 150, 0.848);
     transition: all 0.3s ease;
 }
 
@@ -266,7 +266,7 @@
 }
 
 .section-card:hover {
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 12px 40px rgba(168, 158, 158, 0.817);
     transform: translateY(-2px);
 }
 
@@ -276,7 +276,7 @@
     align-items: center;
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+    border-bottom: 2px solid rgba(112, 25, 189, 0.939);
 }
 
 .section-title {
@@ -286,7 +286,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    text-shadow: 0 2px 8px rgba(210, 186, 186, 0.778);
     margin: 0;
 }
 
@@ -294,7 +294,7 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: rgb(97, 28, 175);
+    background: rgb(106, 52, 168);
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
     flex-shrink: 0;
 }
@@ -302,21 +302,21 @@
 /* Buttons */
 .primary-btn {
     padding: 0.75rem 1.5rem;
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.694);
     backdrop-filter: blur(10px);
-    color: rgb(97, 28, 175);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: rgb(73, 16, 137);
+    border: 1px solid rgba(255, 255, 255, 0.098);
     border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.48);
 }
 
 .primary-btn:hover {
     background: rgba(255, 255, 255, 0.35);
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.489);
 }
 
 .primary-btn:disabled {
@@ -327,10 +327,10 @@
 
 .secondary-btn {
     padding: 0.75rem 1.5rem;
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.694);
     backdrop-filter: blur(10px);
-    color: rgb(97, 28, 175);
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: rgb(73, 16, 137);
+    border: 1px solid rgba(255, 255, 255, 0.098);
     border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
@@ -339,7 +339,7 @@
 }
 
 .secondary-btn:hover {
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.35);
 }
 
 .danger-btn {
@@ -359,7 +359,7 @@
 .form-label {
     display: block;
     font-weight: 600;
-    color: rgb(97, 28, 175);
+    color: rgb(93, 1, 198);
     margin-bottom: 0.5rem;
     font-size: 0.9rem;
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
@@ -426,19 +426,19 @@
 }
 
 .data-table thead {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.602);
 }
 
 .data-table thead tr {
-    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.39);
 }
 
 .data-table th {
     padding: 0.75rem 1rem;
     text-align: left;
-    font-weight: 600;
+    font-weight: 700;
     color: rgb(97, 28, 175);
-    font-size: 0.875rem;
+    font-size: 0.888rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     white-space: nowrap;
@@ -447,7 +447,7 @@
 
 .data-table td {
     padding: 1rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(58, 53, 53, 0.57);
     color: rgb(97, 28, 175);
 }
 
@@ -468,7 +468,7 @@
 }
 
 .stat-card {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.03);
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 16px;
@@ -513,7 +513,7 @@
 }
 
 .stat-value {
-    font-size: 2rem;
+    font-size: 0.975rem;
     font-weight: 700;
     color: rgb(97, 28, 175);
     margin-bottom: 0.25rem;
@@ -523,9 +523,9 @@
 }
 
 .stat-label {
-    font-size: 0.875rem;
+    font-size: 0.975rem;
     color: rgb(97, 28, 175);
-    font-weight: 500;
+    font-weight: 700;
     position: relative;
     z-index: 1;
     margin: 0;
@@ -1395,3 +1395,150 @@
 }
 
 /* ========== END PHASE 2 RESPONSIVE STYLES ========== */
+/* ==================== PHASE 7: WIDGET STYLES ==================== */
+
+/* Activity Feed */
+.activity-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.activity-item {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    border-left: 3px solid rgb(139, 92, 246);
+    transition: all 0.3s ease;
+}
+
+.activity-item:hover {
+    background: rgba(255, 255, 255, 0.7);
+    transform: translateX(4px);
+}
+
+.activity-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-content p {
+    margin: 0 0 0.25rem 0;
+    color: rgb(97, 28, 175);
+    font-weight: 500;
+}
+
+.activity-time {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+/* Health Status Enhancements */
+.stat-card.green {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.stat-card.red {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.stat-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.stat-content {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Top Topics Chart */
+.topics-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.topic-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.topic-item:hover {
+    background: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15);
+}
+
+.topic-name {
+    font-weight: 600;
+    color: rgb(97, 28, 175);
+}
+
+.topic-stats {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+/* Bulk Action Controls */
+.bulk-actions-bar {
+    display: flex;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: rgba(139, 92, 246, 0.1);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    align-items: center;
+}
+
+.bulk-actions-bar .selected-count {
+    font-weight: 600;
+    color: rgb(97, 28, 175);
+}
+
+.checkbox-cell {
+    width: 40px;
+    text-align: center;
+}
+
+.checkbox-cell input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: rgb(139, 92, 246);
+}
+
+@media (max-width: 768px) {
+    .activity-feed {
+        max-height: 300px;
+    }
+
+    .activity-item {
+        padding: 0.5rem;
+    }
+
+    .bulk-actions-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .topic-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}

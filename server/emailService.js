@@ -235,10 +235,64 @@ async function sendDoctorInfoRequestEmail(toEmail, doctorName, specialty, adminM
   }
 }
 
+// PHASE 4: Send user suspension notification email
+async function sendUserSuspensionEmail(toEmail, userName, reason) {
+  try {
+    console.log(`📧 Sending suspension notification to: ${toEmail}`);
+
+    const mailOptions = {
+      from: `"HerCycle Support" <${process.env.EMAIL_USER}>`,
+      to: toEmail,
+      subject: 'HerCycle - Account Suspended',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #DC2626;">Account Suspension Notice</h2>
+          <p>Dear ${userName},</p>
+          <p>We regret to inform you that your HerCycle account has been temporarily suspended.</p>
+          
+          <div style="background-color: #FEF2F2; padding: 20px; margin: 20px 0; border-left: 4px solid #DC2626; border-radius: 4px;">
+            <h3 style="color: #DC2626; margin-top: 0;">Reason for Suspension:</h3>
+            <p style="margin: 0;">${reason}</p>
+          </div>
+
+          <p>If you believe this suspension was made in error or would like to appeal this decision, please contact our support team.</p>
+          
+          <p>To reactivate your account, you may need to:</p>
+          <ul>
+            <li>Contact support@hercycle.com</li>
+            <li>Provide any requested information</li>
+            <li>Wait for admin review</li>
+          </ul>
+
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+          <p style="color: #6b7280; font-size: 14px;">
+            HerCycle Support Team<br>
+            support@hercycle.com
+          </p>
+        </div>
+      `
+    };
+
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.log('⚠️  Email not configured. Would have sent suspension email to:', toEmail);
+      console.log('📧 Reason:', reason);
+      return { success: true, note: 'Email service not configured' };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Suspension email sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('❌ Failed to send suspension email:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 module.exports = {
   sendPasswordResetEmail,
   sendPasswordResetConfirmation,
   sendDoctorApprovalEmail,
   sendDoctorRejectionEmail,
-  sendDoctorInfoRequestEmail
+  sendDoctorInfoRequestEmail,
+  sendUserSuspensionEmail
 };

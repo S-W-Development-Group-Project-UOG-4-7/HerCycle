@@ -11,10 +11,11 @@ import WarningHistory from './sections/WarningHistory';
 import PrivilegeControls from './sections/PrivilegeControls';
 import DoctorVerification from './sections/DoctorVerification';
 import DoctorVerificationHistory from './sections/DoctorVerificationHistory';
+import OverviewDashboard from './sections/OverviewDashboard'; // PHASE 7: System Overview
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('credentials');
+    const [activeTab, setActiveTab] = useState('overview'); // PHASE 7: Default to overview
     const [adminData, setAdminData] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -63,6 +64,7 @@ const AdminDashboard = () => {
     }
 
     const tabs = [
+        { id: 'overview', icon: '🏠', label: 'Overview' }, // PHASE 7: New overview tab
         { id: 'profile', icon: '👤', label: 'Admin Profile' },
         { id: 'credentials', icon: '🔑', label: 'Give Credentials' },
         { id: 'doctor-verification', icon: '🩺', label: 'Verify Doctors' },
@@ -128,6 +130,9 @@ const AdminDashboard = () => {
 
                 {/* Main Content */}
                 <main className="admin-content">
+                    {/* PHASE 7: Overview Dashboard with Widgets */}
+                    {activeTab === 'overview' && <OverviewDashboard />}
+
                     {activeTab === 'credentials' && <GiveCredentials />}
                     {activeTab === 'profile' && <AdminProfile adminData={adminData} onUpdate={fetchAdminData} />}
                     {activeTab === 'doctor-verification' && <DoctorVerification />}
