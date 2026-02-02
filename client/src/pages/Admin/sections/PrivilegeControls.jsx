@@ -12,30 +12,33 @@ const PrivilegeControls = () => {
     const [rolePermissions, setRolePermissions] = useState({
         user: {
             view_posts: true,
-            create_posts: true,
+            create_posts: false,  // Only doctors & web_managers can create posts
             comment: true,
             like: true,
-            track_cycle: false,
             view_campaigns: true,
-            donate: true
+            donate: true,
+            join_community: true
         },
         doctor: {
             view_posts: true,
-            create_posts: true,
+            create_posts: true,   // Doctors CAN create and upload posts
+            upload_media: true,   // Doctors can upload images/videos
             comment: true,
             like: true,
             verify_info: true,
             moderate_posts: true,
-            view_reports: false
+            view_reports: true
         },
         cycle_user: {
+            // Cycle-user is FEMALE-ONLY option
             view_posts: true,
-            create_posts: true,
+            create_posts: false,
             comment: true,
             like: true,
-            track_cycle: true,
-            view_analytics: true,
-            export_data: true
+            track_cycle: true,      // Main cycle tracking feature
+            view_analytics: true,   // Personal health analytics
+            export_data: true,      // Export cycle data
+            female_only: true       // Indicator that this role requires female gender
         }
     });
 
@@ -129,9 +132,9 @@ const PrivilegeControls = () => {
     // Helper function to get permissions for a role
     const getRolePermissions = (role) => {
         const permissionSets = {
-            user: ['view_posts', 'create_posts', 'comment', 'like', 'track_cycle', 'view_campaigns', 'donate'],
-            doctor: ['view_posts', 'create_posts', 'comment', 'like', 'verify_info', 'moderate_posts', 'view_reports'],
-            cycle_user: ['view_posts', 'create_posts', 'comment', 'like', 'track_cycle', 'view_analytics', 'export_data']
+            user: ['view_posts', 'create_posts', 'comment', 'like', 'view_campaigns', 'donate', 'join_community'],
+            doctor: ['view_posts', 'create_posts', 'upload_media', 'comment', 'like', 'verify_info', 'moderate_posts', 'view_reports'],
+            cycle_user: ['view_posts', 'create_posts', 'comment', 'like', 'track_cycle', 'view_analytics', 'export_data', 'female_only']
         };
         return permissionSets[role] || [];
     };
@@ -140,17 +143,20 @@ const PrivilegeControls = () => {
     const getPermissionLabel = (permission) => {
         const labels = {
             view_posts: 'View Posts',
-            create_posts: 'Create Posts',
+            create_posts: 'Create & Upload Posts',
+            upload_media: 'Upload Images/Videos',
             comment: 'Comment on Posts',
             like: 'Like Posts',
-            track_cycle: 'Track Cycle',
+            track_cycle: 'Track Menstrual Cycle',
             view_campaigns: 'View Campaigns',
             donate: 'Make Donations',
+            join_community: 'Join Community',
             verify_info: 'Verify Medical Info',
             moderate_posts: 'Moderate Posts',
             view_reports: 'View Reports',
-            view_analytics: 'View Analytics',
-            export_data: 'Export Data'
+            view_analytics: 'View Health Analytics',
+            export_data: 'Export Cycle Data',
+            female_only: '👩 Female Users Only'
         };
         return labels[permission] || permission;
     };
@@ -316,10 +322,10 @@ const PrivilegeControls = () => {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                                 <div>
                                     <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#111827', marginBottom: '0.25rem' }}>
-                                        {role === 'user' ? '👥 Community Users' : role === 'doctor' ? '👨‍⚕️ Doctors' : '📅 Cycle Tracking Users'}
+                                        {role === 'user' ? '👥 Community Users' : role === 'doctor' ? '👨‍⚕️ Doctors' : '📅 Cycle Tracking Users (Female Only)'}
                                     </h3>
                                     <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                                        {role === 'user' ? 'Regular community members' : role === 'doctor' ? 'Verified medical professionals' : 'Users with cycle tracking access'}
+                                        {role === 'user' ? 'Can view, interact, donate (cannot create posts)' : role === 'doctor' ? 'Can create posts, upload media, verify content' : 'Female users with menstrual cycle tracking'}
                                     </p>
                                 </div>
                                 <span style={{

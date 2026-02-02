@@ -1750,8 +1750,70 @@ app.put('/api/admin/role-privileges/:role', authenticateToken, checkDatabaseRead
   }
 });
 
+// Suspend User endpoint
+app.post('/api/admin/suspend-user', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
 
-// ========== END ADMIN ROUTES ==========
+    const { user_nic, duration } = req.body;
+
+    if (!user_nic || !duration) {
+      return res.status(400).json({ success: false, message: 'User NIC and duration are required' });
+    }
+
+    // Calculate suspension end date based on duration
+    const now = new Date();
+    let suspension_until = new Date(now);
+
+    switch (duration) {
+      case '1week':
+        suspension_until.setDate(now.getDate() + 7);
+        break;
+      case '3weeks':
+        suspension_until.setDate(now.getDate() + 21);
+        break;
+      case '1month':
+        suspension_until.setMonth(now.getMonth() + 1);
+        break;
+      case '3months':
+        suspension_until.setMonth(now.getMonth() + 3);
+        break;
+      default:
+        return res.status(400).json({ success: false, message: 'Invalid duration' });
+    }
+
+    const User = mongoose.model('User');
+
+    // Update user to set is_active to false and set suspension_until date
+    const user = await User.findOneAndUpdate(
+      { NIC: user_nic },
+      {
+        $set: {
+          is_active: false,
+          suspension_until: suspension_until,
+          suspended_at: now
+        }
+      },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    console.log(`✅ User ${user_nic} suspended until ${suspension_until.toISOString()}`);
+    res.json({
+      success: true,
+      message: `User suspended until ${suspension_until.toLocaleDateString()}`,
+      data: { suspension_until }
+    });
+  } catch (error) {
+    console.error('❌ Suspend user error:', error);
+    res.status(500).json({ success: false, message: 'Failed to suspend user', error: error.message });
+  }
+});
 
 // ===== PHASE 7: SYSTEM & UI POLISH =====
 
@@ -1791,14 +1853,14 @@ app.get('/api/admin/stats/warnings-total', authenticateToken, checkDatabaseReady
       return res.status(403).json({ success: false, message: 'Admin access required' });
     }
 
-    const WarningHistory = getModel('WarningHistory');
+    const WarningHistory = mongoose.model('WarningHistory');
     const total = await WarningHistory.countDocuments();
 
     // Last 30 days
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const last_30_days = await WarningHistory.countDocuments({
-      warned_at: { $gte: thirtyDaysAgo }
+      given_at: { $gte: thirtyDaysAgo }
     });
 
     res.json({ success: true, data: { total, last_30_days } });
@@ -1853,18 +1915,17 @@ app.get('/api/admin/recent-activity', authenticateToken, checkDatabaseReady, asy
     const activities = [];
 
     // Get recent warnings
-    const WarningHistory = getModel('WarningHistory');
+    const WarningHistory = mongoose.model('WarningHistory');
     const recentWarnings = await WarningHistory.find()
-      .sort({ warned_at: -1 })
+      .sort({ given_at: -1 })
       .limit(5)
-      .populate('warned_user_nic', 'full_name')
-      .populate('admin_nic', 'full_name');
+      .lean();
 
     recentWarnings.forEach(w => {
       activities.push({
         type: 'warning',
-        message: `Warning issued to ${w.warned_user_nic?.full_name || 'User'}`,
-        timestamp: w.warned_at,
+        message: `Warning issued to user ${w.user_nic || 'Unknown'}`,
+        timestamp: w.given_at,
         severity: w.severity
       });
     });

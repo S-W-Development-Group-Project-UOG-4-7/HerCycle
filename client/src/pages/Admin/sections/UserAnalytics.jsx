@@ -56,33 +56,87 @@ const UserAnalytics = () => {
                 <div className="section-header">
                     <h2 className="section-title"><span className="section-icon"></span>User Analytics</h2>
                 </div>
-                <div className="stats-grid">
-                    <div className="stat-card pink">
-                        <div className="stat-value">{analytics?.total_users || 0}</div>
-                        <div className="stat-label">Total Users</div>
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '1rem'
+                }}>
+                    <div style={{
+                        padding: '1.5rem',
+                        background: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
+                        borderRadius: '12px',
+                        color: 'white'
+                    }}>
+                        <div style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                            {analytics?.total_users || 0}
+                        </div>
+                        <div style={{ opacity: 0.9, marginBottom: '0.25rem' }}>Total Users</div>
+                        <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>👥 Active accounts</div>
                     </div>
-                    <div className="stat-card purple">
-                        <div className="stat-value">{analytics?.active_users || 0}</div>
-                        <div className="stat-label">Active Users</div>
+
+                    <div style={{
+                        padding: '1.5rem',
+                        background: 'linear-gradient(135deg, #a855f7 0%, #9333ea 100%)',
+                        borderRadius: '12px',
+                        color: 'white'
+                    }}>
+                        <div style={{ fontSize: ' 2.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                            {analytics?.active_users || 0}
+                        </div>
+                        <div style={{ opacity: 0.9, marginBottom: '0.25rem' }}>Active Users</div>
+                        <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>✅ Recently active</div>
                     </div>
-                    <div className="stat-card teal">
-                        <div className="stat-value">{analytics?.cycle_users || 0}</div>
-                        <div className="stat-label">Cycle Tracking Users</div>
+
+                    <div style={{
+                        padding: '1.5rem',
+                        background: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)',
+                        borderRadius: '12px',
+                        color: 'white'
+                    }}>
+                        <div style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                            {analytics?.cycle_users || 0}
+                        </div>
+                        <div style={{ opacity: 0.9, marginBottom: '0.25rem' }}>Cycle Tracking</div>
+                        <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>📅 Using cycle features</div>
                     </div>
-                    <div className="stat-card purple" style={{ borderColor: '#3b82f6' }}>
-                        <div className="stat-value">{analytics?.dau || 0}</div>
-                        <div className="stat-label">📊 Daily Active Users</div>
-                        <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.25rem' }}>Last 24 hours</div>
+
+                    <div style={{
+                        padding: '1.5rem',
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                        borderRadius: '12px',
+                        color: 'white'
+                    }}>
+                        <div style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                            {analytics?.verified_doctors || 0}
+                        </div>
+                        <div style={{ opacity: 0.9, marginBottom: '0.25rem' }}>Verified Doctors</div>
+                        <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>👨‍⚕️ Medical professionals</div>
                     </div>
-                    <div className="stat-card pink" style={{ borderColor: '#9333ea' }}>
-                        <div className="stat-value">{analytics?.mau || 0}</div>
-                        <div className="stat-label">📈 Monthly Active Users</div>
-                        <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.25rem' }}>Last 30 days</div>
+
+                    <div style={{
+                        padding: '1.5rem',
+                        background: 'linear-gradient(135deg, #9333ea 0%, #7e22ce 100%)',
+                        borderRadius: '12px',
+                        color: 'white'
+                    }}>
+                        <div style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                            {analytics?.new_users_this_month || 0}
+                        </div>
+                        <div style={{ opacity: 0.9, marginBottom: '0.25rem' }}>New This Month</div>
+                        <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>📈 Monthly growth</div>
                     </div>
-                    <div className="stat-card teal" style={{ borderColor: '#14b8a6' }}>
-                        <div className="stat-value">{analytics?.dau_mau_ratio || 0}%</div>
-                        <div className="stat-label">🎯 DAU/MAU Ratio</div>
-                        <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.25rem' }}>Engagement metric</div>
+
+                    <div style={{
+                        padding: '1.5rem',
+                        background: 'linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)',
+                        borderRadius: '12px',
+                        color: 'white'
+                    }}>
+                        <div style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                            {(analytics?.total_users || 0) > 0 ? Math.round(((analytics?.active_users || 0) / (analytics?.total_users || 1)) * 100) : 0}%
+                        </div>
+                        <div style={{ opacity: 0.9, marginBottom: '0.25rem' }}>Activity Rate</div>
+                        <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>⚡ Engagement metric</div>
                     </div>
                 </div>
             </div>

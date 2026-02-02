@@ -107,14 +107,35 @@ const DonationsAnalytics = () => {
                         </button>
                     </div>
                 </div>
-                <div className="stats-grid">
-                    <div className="stat-card blue">
-                        <div className="stat-value">${analytics?.total_amount?.toLocaleString() || 0}</div>
-                        <div className="stat-label">Total Amount Raised</div>
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '1rem'
+                }}>
+                    <div style={{
+                        padding: '1.5rem',
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                        borderRadius: '12px',
+                        color: 'white'
+                    }}>
+                        <div style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                            {analytics?.total_donations || 0}
+                        </div>
+                        <div style={{ opacity: 0.9, marginBottom: '0.25rem' }}>Total Donations</div>
+                        <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>💰 All-time</div>
                     </div>
-                    <div className="stat-card purple">
-                        <div className="stat-value">{analytics?.total_donations || 0}</div>
-                        <div className="stat-label">Total Donations</div>
+
+                    <div style={{
+                        padding: '1.5rem',
+                        background: 'linear-gradient(135deg, #a855f7 0%, #9333ea 100%)',
+                        borderRadius: '12px',
+                        color: 'white'
+                    }}>
+                        <div style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                            LKR {(analytics?.total_amount || 0).toLocaleString()}
+                        </div>
+                        <div style={{ opacity: 0.9, marginBottom: '0.25rem' }}>Total Amount</div>
+                        <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>  💵 Contributions</div>
                     </div>
                 </div>
             </div>
