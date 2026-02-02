@@ -1,0 +1,134 @@
+
+> hercycle-server@1.0.0 start
+> node server.js
+
+============================================================
+🚀 Express server started on http://localhost:5000
+============================================================
+
+📋 Available Endpoints:
+   POST http://localhost:5000/api/auth/register
+   POST http://localhost:5000/api/auth/login
+   POST http://localhost:5000/api/auth/login-test (for testing)
+   GET  http://localhost:5000/api/auth/me
+   GET  http://localhost:5000/health
+   GET  http://localhost:5000/api/landing-page
+   GET  http://localhost:5000/api/fundraising
+   POST http://localhost:5000/api/upload/license
+
+🔐 Admin Endpoints:
+   GET  http://localhost:5000/api/admin/pending-doctors
+   POST http://localhost:5000/api/admin/approve-doctor/:nic
+   POST http://localhost:5000/api/admin/reject-doctor/:nic
+   GET  http://localhost:5000/api/admin/all-doctor-verifications
+   GET  http://localhost:5000/api/admin/dashboard-stats
+
+🔐 Default Admin Credentials:
+   Email: admin@hercycle.com
+   Password: admin123
+
+👤 Test User Credentials:
+   Email: test@test.com
+   Password: test123
+
+⚠️  Note: Database initialization may take a few seconds
+============================================================
+✅ Connected to MongoDB
+🔧 Running database setup...
+🚀 Starting MongoDB database setup...
+📋 Existing models: [ 'LandingPage', 'Fundraising', 'Donation', 'PasswordReset' ]
+👤 Creating User model...
+✅ User model created
+👥 Creating CommunityMember model...
+✅ CommunityMember model created
+👩‍⚕️ Creating Doctor model...
+✅ Doctor model created
+👨‍💼 Creating WebManager model...
+✅ WebManager model created
+👑 Creating Admin model...
+✅ Admin model created
+📋 Creating DoctorVerification model...
+✅ DoctorVerification model created
+⚠️ Creating Report model...
+✅ Report model created
+🚨 Creating Warning model...
+✅ Warning model created
+📝 Creating Post model...
+✅ Post model created
+💬 Creating Comment model...
+✅ Comment model created
+❤️ Creating Like model...
+✅ Like model created
+💬 Creating ArticleComment model...
+✅ ArticleComment model created
+📅 Creating CycleProfile model...
+✅ CycleProfile model created
+📊 Creating CycleTracker model...
+✅ CycleTracker model created
+📖 Creating DailyLog model...
+✅ DailyLog model created
+🎯 Creating Campaign model...
+✅ Campaign model created
+💰 Creating CampaignDonation model...
+✅ CampaignDonation model created
+🤖 Creating RuleBasedAI model...
+✅ RuleBasedAI model created
+✅ All MongoDB models checked/created successfully!
+📊 Creating indexes for better performance...
+✅ User indexes created
+✅ Post indexes created
+✅ Comment indexes created
+✅ Campaign indexes created
+✅ Cycle tracking indexes created
+✅ Report indexes created
+✅ Doctor verification indexes created
+✅ All indexes checked/created successfully!
+👑 Creating default admin user...
+✅ Existing admin user updated with proper password hash
+ℹ️  Admin record already exists
+✅ Default admin user created/updated:
+   Email: admin@hercycle.com
+   Password: admin123
+   NIC: ADMIN123456789
+👤 Creating test user...
+ℹ️  Test user already exists
+🤖 Creating default Rule-Based AI configuration...
+ℹ️  Rule-Based AI configuration already exists
+============================================================
+🎉 DATABASE SETUP COMPLETE!
+============================================================
+
+📊 Collections Created/Checked:
+   ✅ Users
+   ✅ CommunityMembers
+   ✅ Doctors
+   ✅ WebManagers
+   ✅ Admins
+   ✅ DoctorVerifications
+   ✅ Reports
+   ✅ Warnings
+   ✅ Posts
+   ✅ Comments
+   ✅ Likes
+   ✅ CycleProfiles
+   ✅ CycleTrackers
+   ✅ DailyLogs
+   ✅ Campaigns
+   ✅ CampaignDonations
+   ✅ RuleBasedAI
+
+🔑 Default Admin Credentials:
+   Email: admin@hercycle.com
+   Password: admin123
+   Role: Admin
+
+👤 Test User Credentials:
+   Email: test@test.com
+   Password: test123
+   Role: User
+
+💡 Check MongoDB Compass to see all collections created.
+============================================================
+✅ Database setup completed
+🚀 Server is ready to handle requests
+🔐 TEST Login attempt for: test@test.com
