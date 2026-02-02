@@ -47,10 +47,12 @@ const AdminDoctorVerification = () => {
         }
       });
 
-      if (!response.ok) throw new Error('Network response was not ok');
-
       const data = await response.json();
-      
+
+      if (!response.ok) {
+        throw new Error(data.message || `Server error (${response.status})`);
+      }
+
       if (data.success) {
         setPendingDoctors(data.data || []);
       } else {
@@ -83,7 +85,7 @@ const AdminDoctorVerification = () => {
       }
       
       const response = await fetch(
-        `http://localhost:5000/api/admin/doctor-verifications?${queryParams}`,
+        `http://localhost:5000/api/admin/all-doctor-verifications?${queryParams}`,
         {
           method: 'GET',
           headers: {
@@ -93,10 +95,12 @@ const AdminDoctorVerification = () => {
         }
       );
 
-      if (!response.ok) throw new Error('Network response was not ok');
-
       const data = await response.json();
-      
+
+      if (!response.ok) {
+        throw new Error(data.message || `Server error (${response.status})`);
+      }
+
       if (data.success) {
         setAllVerifications(data.data || []);
         setPagination(prev => ({

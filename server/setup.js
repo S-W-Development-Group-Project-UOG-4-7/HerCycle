@@ -609,6 +609,9 @@ async function setupDatabase() {
           type: String,
           ref: 'Comment'
         },
+        article_id: {
+          type: String
+        },
         nic: {
           type: String,
           required: true,
@@ -616,7 +619,7 @@ async function setupDatabase() {
         },
         like_type: {
           type: String,
-          enum: ['post', 'comment'],
+          enum: ['post', 'comment', 'article', 'article_comment'],
           required: true
         },
         created_at: {
@@ -624,11 +627,61 @@ async function setupDatabase() {
           default: Date.now
         }
       });
-      
+
       mongoose.model('Like', likeSchema);
       console.log('✅ Like model created');
     } else {
       console.log('ℹ️  Like model already exists');
+    }
+
+    // Only create ArticleComment model if it doesn't exist
+    if (!existingModels.includes('ArticleComment')) {
+      console.log('💬 Creating ArticleComment model...');
+      const articleCommentSchema = new mongoose.Schema({
+        article_id: {
+          type: String,
+          required: true
+        },
+        author_nic: {
+          type: String,
+          required: true,
+          ref: 'User'
+        },
+        author_role: {
+          type: String,
+          enum: ['user', 'doctor', 'web_manager', 'admin'],
+          default: 'user'
+        },
+        text: {
+          type: String,
+          required: true
+        },
+        parent_comment_id: {
+          type: String,
+          default: null
+        },
+        like_count: {
+          type: Number,
+          default: 0
+        },
+        is_deleted: {
+          type: Boolean,
+          default: false
+        },
+        created_at: {
+          type: Date,
+          default: Date.now
+        },
+        updated_at: {
+          type: Date,
+          default: Date.now
+        }
+      });
+
+      mongoose.model('ArticleComment', articleCommentSchema);
+      console.log('✅ ArticleComment model created');
+    } else {
+      console.log('ℹ️  ArticleComment model already exists');
     }
 
     // ========== CYCLE TRACKING ==========
@@ -1300,7 +1353,7 @@ async function setupDatabase() {
               action: 'auto_moderate',
               severity: 'medium',
               enabled: true
-            },
+            }, 
             {
               rule_id: 'RULE_003',
               pattern: 'medical advice without verification',
