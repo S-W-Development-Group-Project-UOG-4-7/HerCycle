@@ -1853,20 +1853,28 @@ app.get('/api/admin/stats/warnings-total', authenticateToken, checkDatabaseReady
       return res.status(403).json({ success: false, message: 'Admin access required' });
     }
 
-    const WarningHistory = mongoose.model('WarningHistory');
-    const total = await WarningHistory.countDocuments();
+    // Use correct model name: 'Warning' not 'WarningHistory'
+    const Warning = getModel('Warning');
+    if (!Warning) {
+      return res.status(500).json({
+        success: false,
+        message: 'Warning model not available'
+      });
+    }
+
+    const total = await Warning.countDocuments();
 
     // Last 30 days
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const last_30_days = await WarningHistory.countDocuments({
+    const last_30_days = await Warning.countDocuments({
       given_at: { $gte: thirtyDaysAgo }
     });
 
     res.json({ success: true, data: { total, last_30_days } });
   } catch (error) {
-    console.error('Error fetching warning stats:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch statistics' });
+    console.error('❌ Error fetching warning stats:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch statistics', error: error.message });
   }
 });
 
@@ -1914,21 +1922,23 @@ app.get('/api/admin/recent-activity', authenticateToken, checkDatabaseReady, asy
     const limit = parseInt(req.query.limit) || 10;
     const activities = [];
 
-    // Get recent warnings
-    const WarningHistory = mongoose.model('WarningHistory');
-    const recentWarnings = await WarningHistory.find()
-      .sort({ given_at: -1 })
-      .limit(5)
-      .lean();
+    // Use correct model name: 'Warning' not 'WarningHistory'
+    const Warning = getModel('Warning');
+    if (Warning) {
+      const recentWarnings = await Warning.find()
+        .sort({ given_at: -1 })
+        .limit(5)
+        .lean();
 
-    recentWarnings.forEach(w => {
-      activities.push({
-        type: 'warning',
-        message: `Warning issued to user ${w.user_nic || 'Unknown'}`,
-        timestamp: w.given_at,
-        severity: w.severity
+      recentWarnings.forEach(w => {
+        activities.push({
+          type: 'warning',
+          message: `Warning issued to user ${w.user_nic || 'Unknown'}`,
+          timestamp: w.given_at,
+          severity: w.severity
+        });
       });
-    });
+    }
 
     // Get recent doctor approvals (last 7 days)
     const Doctor = getModel('Doctor');
