@@ -1,4 +1,7 @@
 import { useMemo } from "react";
+import { upsertCycleProfile, addCycleTracker } from "../../services/cycleApi";
+
+
 
 function InsightsPanel({ cycleProfile, dailyLogs = [] }) {
   const logs = Array.isArray(dailyLogs) ? dailyLogs : [];

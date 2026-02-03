@@ -33,7 +33,7 @@ const upload = multer({
     const allowedTypes = /pdf|jpeg|jpg|png/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
-    
+
     if (mimetype && extname) {
       return cb(null, true);
     } else {
@@ -46,7 +46,7 @@ const upload = multer({
 // ========== CORS CONFIGURATION ==========
 const allowedOrigins = [
   'http://localhost:3000',
-  'http://localhost:3001', 
+  'http://localhost:3001',
   'http://localhost:5173',
   'http://localhost:5174'
 ];
@@ -54,7 +54,7 @@ const allowedOrigins = [
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.indexOf(origin) === -1) {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);
@@ -70,6 +70,7 @@ app.options('*', cors());
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use("/api/cycle", require("./routes/cycleRoutes"));
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(uploadsDir));
@@ -123,6 +124,9 @@ app.get('/health', (req, res) => {
   });
 });
 
+
+
+
 app.post('/api/setup-database', async (req, res) => {
   try {
     console.log('🔧 Manual database setup triggered...');
@@ -151,7 +155,7 @@ app.post('/api/upload/license', upload.single('licenseDocument'), async (req, re
     }
 
     const file = req.file;
-    
+
     console.log('📄 File upload received:', {
       originalName: file.originalname,
       mimetype: file.mimetype,
@@ -164,13 +168,13 @@ app.post('/api/upload/license', upload.single('licenseDocument'), async (req, re
     const fileExt = path.extname(file.originalname) || '.pdf';
     const newFileName = `license-${uniqueSuffix}${fileExt}`;
     const filePath = path.join(uploadsDir, newFileName);
-    
+
     // Save file to disk
     fs.writeFileSync(filePath, file.buffer);
     console.log('✅ File saved to:', filePath);
-    
+
     const fileUrl = `/uploads/${newFileName}`;
-    
+
     res.json({
       success: true,
       message: 'File uploaded successfully',
@@ -183,7 +187,7 @@ app.post('/api/upload/license', upload.single('licenseDocument'), async (req, re
 
   } catch (error) {
     console.error('❌ File upload error:', error);
-    
+
     // Handle multer errors
     if (error instanceof multer.MulterError) {
       if (error.code === 'LIMIT_FILE_SIZE') {
@@ -197,7 +201,7 @@ app.post('/api/upload/license', upload.single('licenseDocument'), async (req, re
         message: `Upload error: ${error.message}`
       });
     }
-    
+
     // Handle other errors
     res.status(500).json({
       success: false,
@@ -211,34 +215,34 @@ app.post('/api/upload/license', upload.single('licenseDocument'), async (req, re
 app.post('/api/upload/license-base64', async (req, res) => {
   try {
     const { fileName, fileData } = req.body;
-    
+
     if (!fileName) {
       return res.status(400).json({
         success: false,
         message: 'File name is required'
       });
     }
-    
+
     // Generate a unique filename
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const fileExt = fileName.split('.').pop();
     const newFileName = `license-${uniqueSuffix}.${fileExt}`;
-    
+
     // If fileData is provided (base64), save it
     if (fileData) {
       // Remove data:image/...;base64, prefix if present
       const base64Data = fileData.replace(/^data:image\/\w+;base64,/, '');
       const buffer = Buffer.from(base64Data, 'base64');
-      
+
       fs.writeFileSync(path.join(uploadsDir, newFileName), buffer);
       console.log('📄 File saved:', newFileName);
     } else {
       // For now, just create an empty file or return a dummy URL
       console.log('📄 Dummy file created for:', fileName);
     }
-    
+
     const fileUrl = `/uploads/${newFileName}`;
-    
+
     res.json({
       success: true,
       message: 'File uploaded successfully',
@@ -264,19 +268,19 @@ mongoose.connect('mongodb://localhost:27017/hercycle', {
   useNewUrlParser: true,
   useUnifiedTopology: true
 })
-.then(async () => {
-  console.log('✅ Connected to MongoDB');
-  
-  console.log('🔧 Running database setup...');
-  await setupDatabase();
-  console.log('✅ Database setup completed');
-  
-  isDatabaseReady = true;
-  console.log('🚀 Server is ready to handle requests');
-})
-.catch(err => {
-  console.error('❌ MongoDB connection error:', err.message);
-});
+  .then(async () => {
+    console.log('✅ Connected to MongoDB');
+
+    console.log('🔧 Running database setup...');
+    await setupDatabase();
+    console.log('✅ Database setup completed');
+
+    isDatabaseReady = true;
+    console.log('🚀 Server is ready to handle requests');
+  })
+  .catch(err => {
+    console.error('❌ MongoDB connection error:', err.message);
+  });
 // ========== END DATABASE CONNECTION ==========
 
 // ========== AUTHENTICATION MIDDLEWARE ==========
@@ -285,17 +289,17 @@ const authenticateToken = (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Access token required' 
+    return res.status(401).json({
+      success: false,
+      message: 'Access token required'
     });
   }
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Invalid or expired token' 
+      return res.status(403).json({
+        success: false,
+        message: 'Invalid or expired token'
       });
     }
     req.user = user;
@@ -351,7 +355,7 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
     const Doctor = getModel('Doctor');
     const DoctorVerification = getModel('DoctorVerification');
     const CycleProfile = getModel('CycleProfile');
-    
+
     if (!User) {
       return res.status(500).json({
         success: false,
@@ -360,8 +364,8 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
     }
 
     // Check if user already exists
-    const existingUser = await User.findOne({ 
-      $or: [{ email }, { NIC }] 
+    const existingUser = await User.findOne({
+      $or: [{ email }, { NIC }]
     });
 
     if (existingUser) {
@@ -378,7 +382,7 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
     // Determine role
     let role = 'user';
     let isExistingStatus = 'active';
-    
+
     if (user_type === 'doctor') {
       role = 'doctor';
       isExistingStatus = 'pending'; // Doctors need verification
@@ -479,11 +483,11 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { 
-        userId: user._id, 
-        NIC, 
-        email: user.email, 
-        role: user.role 
+      {
+        userId: user._id,
+        NIC,
+        email: user.email,
+        role: user.role
       },
       JWT_SECRET,
       { expiresIn: '7d' }
@@ -510,7 +514,7 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
     }
 
     console.log('✅ User registered successfully:', user.email);
-    
+
     res.status(201).json({
       success: true,
       message: user_type === 'doctor' ? 'Registration submitted for verification' : 'Registration successful',
@@ -532,7 +536,7 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
 app.post('/api/auth/login', checkDatabaseReady, async (req, res) => {
   try {
     console.log('🔐 Login attempt for:', req.body.email);
-    
+
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -562,7 +566,7 @@ app.post('/api/auth/login', checkDatabaseReady, async (req, res) => {
     // Find user
     console.log('🔍 Searching for user with email:', email.toLowerCase());
     const user = await User.findOne({ email: email.toLowerCase() });
-    
+
     if (!user) {
       console.log('❌ User not found in database');
       return res.status(401).json({
@@ -570,7 +574,7 @@ app.post('/api/auth/login', checkDatabaseReady, async (req, res) => {
         message: 'Invalid credentials'
       });
     }
-    
+
     console.log('✅ User found:', user.email);
     console.log('📝 User role:', user.role);
     console.log('🔑 Stored password hash exists:', user.password_hash ? 'YES' : 'NO');
@@ -578,10 +582,10 @@ app.post('/api/auth/login', checkDatabaseReady, async (req, res) => {
     // Check password
     console.log('🔐 Starting password comparison...');
     console.log('📝 Input password length:', password.length);
-    
+
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     console.log('✅ Password comparison result:', isPasswordValid);
-    
+
     if (!isPasswordValid) {
       console.log('❌ Password does not match');
       return res.status(401).json({
@@ -601,13 +605,13 @@ app.post('/api/auth/login', checkDatabaseReady, async (req, res) => {
     // Get role-specific data
     let roleData = {};
     let user_type = 'community_member';
-    
+
     if (user.role === 'doctor' && Doctor) {
       const doctor = await Doctor.findOne({ NIC: user.NIC });
       if (doctor) {
         roleData = doctor.toObject();
         user_type = 'doctor';
-        
+
         // Get verification status
         const DoctorVerification = getModel('DoctorVerification');
         if (DoctorVerification) {
@@ -645,11 +649,11 @@ app.post('/api/auth/login', checkDatabaseReady, async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { 
-        userId: user._id, 
-        NIC: user.NIC, 
-        email: user.email, 
-        role: user.role 
+      {
+        userId: user._id,
+        NIC: user.NIC,
+        email: user.email,
+        role: user.role
       },
       JWT_SECRET,
       { expiresIn: '7d' }
@@ -673,7 +677,7 @@ app.post('/api/auth/login', checkDatabaseReady, async (req, res) => {
 
     console.log('🎉 Login successful for:', user.email);
     console.log('📊 User type:', user_type);
-    
+
     res.json({
       success: true,
       message: 'Login successful',
@@ -720,13 +724,13 @@ app.get('/api/auth/me', authenticateToken, checkDatabaseReady, async (req, res) 
     // Get role-specific data
     let roleData = {};
     let user_type = 'community_member';
-    
+
     if (user.role === 'doctor' && Doctor) {
       const doctor = await Doctor.findOne({ NIC: user.NIC });
       if (doctor) {
         roleData = doctor.toObject();
         user_type = 'doctor';
-        
+
         // Get verification status
         const DoctorVerification = getModel('DoctorVerification');
         if (DoctorVerification) {
@@ -1076,7 +1080,7 @@ app.get('/api/admin/all-doctor-verifications', authenticateToken, checkDatabaseR
     }
 
     const { status, page = 1, limit = 20 } = req.query;
-    
+
     const DoctorVerification = getModel('DoctorVerification');
     const Doctor = getModel('Doctor');
     const User = getModel('User');
@@ -1239,7 +1243,7 @@ app.get('/api/admin/dashboard-stats', authenticateToken, checkDatabaseReady, asy
 app.get('/api/cycle/profile/:nic', checkDatabaseReady, async (req, res) => {
   try {
     const CycleProfile = getModel('CycleProfile');
-    
+
     if (!CycleProfile) {
       return res.status(500).json({
         success: false,
@@ -1248,7 +1252,7 @@ app.get('/api/cycle/profile/:nic', checkDatabaseReady, async (req, res) => {
     }
 
     const cycleProfile = await CycleProfile.findOne({ NIC: req.params.nic });
-    
+
     if (!cycleProfile) {
       return res.status(404).json({
         success: false,
@@ -1268,12 +1272,171 @@ app.get('/api/cycle/profile/:nic', checkDatabaseReady, async (req, res) => {
   }
 });
 
+// CREATE OR UPDATE CYCLE PROFILE
+app.post('/api/cycle/profile', checkDatabaseReady, async (req, res) => {
+  try {
+    const CycleProfile = getModel('CycleProfile');
+
+    if (!CycleProfile) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    const {
+      NIC,
+      cycle_length,
+      period_length,
+      tracking_preferences,
+      privacy_settings
+    } = req.body;
+
+    if (!NIC) {
+      return res.status(400).json({
+        success: false,
+        message: 'NIC is required'
+      });
+    }
+
+    const updated = await CycleProfile.findOneAndUpdate(
+      { NIC },
+      {
+        $set: {
+          cycle_length: cycle_length ?? 28,
+          period_length: period_length ?? 5,
+          tracking_preferences: tracking_preferences ?? {},
+          privacy_settings: privacy_settings ?? {},
+          updated_at: new Date()
+        },
+        $setOnInsert: {
+          NIC,
+          activated_at: new Date(),
+          is_active: true,
+          is_anonymized: false,
+          created_at: new Date()
+        }
+      },
+      { new: true, upsert: true }
+    );
+
+    res.json({
+      success: true,
+      message: 'Cycle profile saved',
+      data: updated
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+// DELETE DAILY LOG
+app.delete('/api/cycle/daily-log/:id', checkDatabaseReady, async (req, res) => {
+  try {
+    const DailyLog = getModel('DailyLog');
+    if (!DailyLog) {
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
+    const deleted = await DailyLog.findByIdAndDelete(req.params.id);
+
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Daily log not found' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Daily log deleted',
+      data: deleted
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// DELETE CYCLE TRACKER ENTRY
+app.delete('/api/cycle/tracker/:id', checkDatabaseReady, async (req, res) => {
+  try {
+    const CycleTracker = getModel('CycleTracker');
+    if (!CycleTracker) {
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
+    const deleted = await CycleTracker.findByIdAndDelete(req.params.id);
+
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Cycle tracker entry not found' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Cycle tracker deleted',
+      data: deleted
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+//
+
+// ADD CYCLE TRACKER ENTRY
+app.post('/api/cycle/tracker', checkDatabaseReady, async (req, res) => {
+  try {
+    const CycleTracker = getModel('CycleTracker');
+
+    if (!CycleTracker) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    const { NIC, period_start_date, period_end_date, notes } = req.body;
+
+    if (!NIC || !period_start_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'NIC and period_start_date are required'
+      });
+    }
+
+    const tracker = new CycleTracker({
+      tracker_id: `TRK_${Date.now()}_${NIC}`,
+      NIC,
+      period_start_date: new Date(period_start_date),
+      period_end_date: period_end_date ? new Date(period_end_date) : null,
+      notes: notes || '',
+      created_at: new Date(),
+      updated_at: new Date()
+    });
+
+    await tracker.save();
+
+    res.json({
+      success: true,
+      message: 'Cycle tracker saved',
+      data: tracker
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+
+//ISURI
+
 // SAVE DAILY LOG
 app.post('/api/cycle/daily-log', checkDatabaseReady, async (req, res) => {
   try {
     const DailyLog = getModel('DailyLog');
     const CycleProfile = getModel('CycleProfile');
-    
+
     if (!DailyLog || !CycleProfile) {
       return res.status(500).json({
         success: false,
@@ -1283,7 +1446,7 @@ app.post('/api/cycle/daily-log', checkDatabaseReady, async (req, res) => {
 
     const dailyLog = new DailyLog(req.body);
     await dailyLog.save();
-    
+
     // Update cycle profile predictions
     const cycleProfile = await CycleProfile.findOne({ NIC: req.body.NIC });
     if (cycleProfile && req.body.flow) {
@@ -1314,7 +1477,7 @@ app.get('/api/cycle/history/:nic', checkDatabaseReady, async (req, res) => {
   try {
     const DailyLog = getModel('DailyLog');
     const CycleTracker = getModel('CycleTracker');
-    
+
     if (!DailyLog || !CycleTracker) {
       return res.status(500).json({
         success: false,
@@ -1324,7 +1487,7 @@ app.get('/api/cycle/history/:nic', checkDatabaseReady, async (req, res) => {
 
     const logs = await DailyLog.find({ NIC: req.params.nic }).sort({ date: -1 });
     const trackers = await CycleTracker.find({ NIC: req.params.nic }).sort({ period_start_date: -1 });
-    
+
     res.json({
       success: true,
       data: {
@@ -1346,7 +1509,7 @@ app.get('/api/cycle/history/:nic', checkDatabaseReady, async (req, res) => {
 app.get('/api/doctor/verification/:nic', checkDatabaseReady, async (req, res) => {
   try {
     const DoctorVerification = getModel('DoctorVerification');
-    
+
     if (!DoctorVerification) {
       return res.status(500).json({
         success: false,
@@ -1355,7 +1518,7 @@ app.get('/api/doctor/verification/:nic', checkDatabaseReady, async (req, res) =>
     }
 
     const verification = await DoctorVerification.findOne({ doctor_NIC: req.params.nic });
-    
+
     if (!verification) {
       return res.json({
         success: true,
@@ -1381,7 +1544,7 @@ app.get('/api/doctor/profile/:nic', checkDatabaseReady, async (req, res) => {
   try {
     const Doctor = getModel('Doctor');
     const User = getModel('User');
-    
+
     if (!Doctor || !User) {
       return res.status(500).json({
         success: false,
@@ -1391,7 +1554,7 @@ app.get('/api/doctor/profile/:nic', checkDatabaseReady, async (req, res) => {
 
     const doctor = await Doctor.findOne({ NIC: req.params.nic });
     const user = await User.findOne({ NIC: req.params.nic });
-    
+
     if (!doctor || !user) {
       return res.status(404).json({
         success: false,
@@ -1575,7 +1738,7 @@ app.get('/api/landing-page', async (req, res) => {
 app.post('/api/seed', async (req, res) => {
   try {
     await LandingPage.deleteMany({});
-    
+
     const landingPage = new LandingPage({
       hero: {
         badgeText: "Empowering Women Worldwide",
@@ -1619,18 +1782,18 @@ app.post('/api/seed', async (req, res) => {
         { number: 'Rs.2M+', label: 'Funds Raised' }
       ]
     });
-    
+
     await landingPage.save();
-    
-    res.json({ 
+
+    res.json({
       success: true,
       message: 'Database seeded successfully!'
     });
-    
+
   } catch (error) {
-    res.json({ 
+    res.json({
       success: false,
-      error: error.message 
+      error: error.message
     });
   }
 });
@@ -1695,7 +1858,7 @@ const Fundraising = mongoose.model('Fundraising', fundraisingSchema);
 app.get('/api/fundraising', async (req, res) => {
   try {
     const fundraising = await Fundraising.findOne();
-    
+
     const defaultData = {
       hero: {
         badgeText: "Making a Real Difference",
@@ -1754,7 +1917,7 @@ app.get('/api/fundraising', async (req, res) => {
 app.post('/api/fundraising/seed', async (req, res) => {
   try {
     await Fundraising.deleteMany({});
-    
+
     const fundraising = new Fundraising({
       hero: {
         badgeText: "Making a Real Difference",
@@ -1792,18 +1955,18 @@ app.post('/api/fundraising/seed', async (req, res) => {
         copyright: "© 2026 HerFund by HerCycle. All donations are tax-deductible. 100% transparency guaranteed."
       }
     });
-    
+
     await fundraising.save();
-    
-    res.json({ 
+
+    res.json({
       success: true,
       message: 'Fundraising database seeded successfully!'
     });
-    
+
   } catch (error) {
-    res.json({ 
+    res.json({
       success: false,
-      error: error.message 
+      error: error.message
     });
   }
 });
@@ -1961,7 +2124,7 @@ app.post('/api/payment/save-donation', async (req, res) => {
 app.get('/api/payment/donations', async (req, res) => {
   try {
     const donations = await Donation.find().sort({ createdAt: -1 });
-    
+
     res.json({
       success: true,
       count: donations.length,
@@ -1981,19 +2144,19 @@ app.get('/api/payment/donations', async (req, res) => {
 app.post('/api/auth/login-test', checkDatabaseReady, async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     console.log('🔐 TEST Login attempt for:', email);
-    
+
     // Quick test: create test user if doesn't exist
     if (email === 'test@test.com' && password === 'test123') {
       const User = getModel('User');
       let user = await User.findOne({ email: 'test@test.com' });
-      
+
       if (!user) {
         // Create test user
         const salt = await bcrypt.genSalt(10);
         const password_hash = await bcrypt.hash('test123', salt);
-        
+
         user = new User({
           NIC: 'TEST123456789',
           full_name: 'Test User',
@@ -2006,22 +2169,22 @@ app.post('/api/auth/login-test', checkDatabaseReady, async (req, res) => {
           created_at: new Date(),
           updated_at: new Date()
         });
-        
+
         await user.save();
         console.log('✅ Test user created automatically');
       }
-      
+
       const token = jwt.sign(
-        { 
-          userId: user._id, 
-          NIC: user.NIC, 
-          email: user.email, 
-          role: user.role 
+        {
+          userId: user._id,
+          NIC: user.NIC,
+          email: user.email,
+          role: user.role
         },
         JWT_SECRET,
         { expiresIn: '7d' }
       );
-      
+
       return res.json({
         success: true,
         message: 'Login successful (test user)',
@@ -2039,17 +2202,17 @@ app.post('/api/auth/login-test', checkDatabaseReady, async (req, res) => {
         token: token
       });
     }
-    
+
     // Fallback to normal login logic
     const normalLoginResponse = await fetch('http://localhost:5000/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    
+
     const data = await normalLoginResponse.json();
     res.json(data);
-    
+
   } catch (error) {
     console.error('❌ Test login error:', error);
     res.status(500).json({
@@ -2143,7 +2306,7 @@ app.post('/api/auth/forgot-password', checkDatabaseReady, async (req, res) => {
 
     // Generate 6-digit reset code
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
+
     // Set expiration (15 minutes from now)
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
@@ -2221,7 +2384,7 @@ app.post('/api/auth/verify-reset-code', checkDatabaseReady, async (req, res) => 
 
     // Increment attempts
     resetRecord.attempts += 1;
-    
+
     // If too many attempts, mark as used
     if (resetRecord.attempts >= 5) {
       resetRecord.used = true;
@@ -2424,7 +2587,7 @@ app.post('/api/auth/resend-reset-code', checkDatabaseReady, async (req, res) => 
 
     // Generate new 6-digit reset code
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
+
     // Set expiration (15 minutes from now)
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
@@ -2491,3 +2654,117 @@ app.listen(PORT, () => {
   console.log('='.repeat(60));
 });
 // ========== END SERVER STARTUP ==========
+
+//ISURI
+
+//route
+// CREATE OR UPDATE CYCLE PROFILE
+app.post('/api/cycle/profile', checkDatabaseReady, async (req, res) => {
+  try {
+    const CycleProfile = getModel('CycleProfile');
+
+    if (!CycleProfile) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    const {
+      NIC,
+      cycle_length,
+      period_length,
+      tracking_preferences,
+      privacy_settings
+    } = req.body;
+
+    if (!NIC) {
+      return res.status(400).json({
+        success: false,
+        message: 'NIC is required'
+      });
+    }
+
+    const updated = await CycleProfile.findOneAndUpdate(
+      { NIC },
+      {
+        $set: {
+          cycle_length: cycle_length ?? 28,
+          period_length: period_length ?? 5,
+          tracking_preferences: tracking_preferences ?? {},
+          privacy_settings: privacy_settings ?? {},
+          updated_at: new Date()
+        },
+        $setOnInsert: {
+          NIC,
+          activated_at: new Date(),
+          is_active: true,
+          is_anonymized: false,
+          created_at: new Date()
+        }
+      },
+      { new: true, upsert: true }
+    );
+
+    res.json({
+      success: true,
+      message: 'Cycle profile saved',
+      data: updated
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+//
+
+// ADD CYCLE TRACKER ENTRY
+app.post('/api/cycle/tracker', checkDatabaseReady, async (req, res) => {
+  try {
+    const CycleTracker = getModel('CycleTracker');
+
+    if (!CycleTracker) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    const { NIC, period_start_date, period_end_date, notes } = req.body;
+
+    if (!NIC || !period_start_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'NIC and period_start_date are required'
+      });
+    }
+
+    const tracker = new CycleTracker({
+      tracker_id: `TRK_${Date.now()}_${NIC}`,
+      NIC,
+      period_start_date: new Date(period_start_date),
+      period_end_date: period_end_date ? new Date(period_end_date) : null,
+      notes: notes || '',
+      created_at: new Date(),
+      updated_at: new Date()
+    });
+
+    await tracker.save();
+
+    res.json({
+      success: true,
+      message: 'Cycle tracker saved',
+      data: tracker
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+
+//ISURI

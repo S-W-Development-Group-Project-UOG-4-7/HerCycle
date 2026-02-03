@@ -12,6 +12,8 @@ import ForgotPassword from './pages/Auth/ForgotPassword';
 import Dashboard from './pages/Dashboard/Dashboard';
 import DoctorDashboard from './pages/Doctor/Dashboard';
 import AdminDoctorVerification from './pages/Admin/AdminDoctorVerification';
+import Profile from "./pages/Profile/Profile";
+
 
 function App() {
   return (
@@ -24,6 +26,8 @@ function App() {
           <Route path="/adminF" element={<FundraisingAdminPanel />} />
           <Route path="/payment" element={<PaymentGateway />} />
           <Route path="/donation-success" element={<DonationSuccess />} />
+          <Route path="/profile" element={<Profile />} />
+
           
           {/* Auth Routes */}
           <Route path="/login" element={<Login />} />

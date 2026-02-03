@@ -1,25 +1,35 @@
-import React, { useState, useEffect } from 'react';
-//import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import './Dashboard.css';
+import "./Dashboard.css";
+
 import DailyLogForm from "../../components/cycle/DailyLogForm";
 import HistoryPanel from "../../components/cycle/HistoryPanel";
 import InsightsPanel from "../../components/cycle/InsightsPanel";
-import { getCycleProfile, getCycleHistory, saveDailyLog } from "../../services/cycleApi";
+
+// Isuri
+import ProfilePanel from "../../components/cycle/ProfilePanel";
+import CycleTrackingForm from "../../components/cycle/CycleTrackingForm";
+import {
+  getCycleProfile,
+  getCycleHistory,
+  saveDailyLog,
+  deleteDailyLog,
+  deleteCycleTracker
+} from "../../services/cycleApi";
 
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [cycleProfile, setCycleProfile] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Fetch user data from localStorage or API
-    const userData = JSON.parse(localStorage.getItem('user'));
+    const userData = JSON.parse(localStorage.getItem("user"));
     if (!userData) {
-      navigate('/login');
+      navigate("/login");
       return;
     }
 
@@ -42,11 +52,10 @@ const Dashboard = () => {
     }
   };
 
-
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-    navigate('/login');
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("user");
+    navigate("/login");
   };
 
   if (loading) {
@@ -73,16 +82,16 @@ const Dashboard = () => {
 
         <nav className="sidebar-nav">
           <button
-            className={`nav-item ${activeTab === 'overview' ? 'active' : ''}`}
-            onClick={() => setActiveTab('overview')}
+            className={`nav-item ${activeTab === "overview" ? "active" : ""}`}
+            onClick={() => setActiveTab("overview")}
           >
             <span className="nav-icon">📊</span>
             <span className="nav-text">Overview</span>
           </button>
 
           <button
-            className={`nav-item ${activeTab === 'community' ? 'active' : ''}`}
-            onClick={() => setActiveTab('community')}
+            className={`nav-item ${activeTab === "community" ? "active" : ""}`}
+            onClick={() => setActiveTab("community")}
           >
             <span className="nav-icon">👥</span>
             <span className="nav-text">Community</span>
@@ -91,16 +100,16 @@ const Dashboard = () => {
           {user?.is_cycle_user && (
             <>
               <button
-                className={`nav-item ${activeTab === 'cycle-tracking' ? 'active' : ''}`}
-                onClick={() => setActiveTab('cycle-tracking')}
+                className={`nav-item ${activeTab === "cycle-tracking" ? "active" : ""}`}
+                onClick={() => setActiveTab("cycle-tracking")}
               >
                 <span className="nav-icon">📅</span>
                 <span className="nav-text">Cycle Tracking</span>
               </button>
 
               <button
-                className={`nav-item ${activeTab === 'health-insights' ? 'active' : ''}`}
-                onClick={() => setActiveTab('health-insights')}
+                className={`nav-item ${activeTab === "health-insights" ? "active" : ""}`}
+                onClick={() => setActiveTab("health-insights")}
               >
                 <span className="nav-icon">💡</span>
                 <span className="nav-text">Health Insights</span>
@@ -109,24 +118,24 @@ const Dashboard = () => {
           )}
 
           <button
-            className={`nav-item ${activeTab === 'fundraising' ? 'active' : ''}`}
-            onClick={() => setActiveTab('fundraising')}
+            className={`nav-item ${activeTab === "fundraising" ? "active" : ""}`}
+            onClick={() => setActiveTab("fundraising")}
           >
             <span className="nav-icon">💰</span>
             <span className="nav-text">Fundraising</span>
           </button>
 
           <button
-            className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => setActiveTab('profile')}
+            className={`nav-item ${activeTab === "profile" ? "active" : ""}`}
+            onClick={() => setActiveTab("profile")}
           >
             <span className="nav-icon">👤</span>
             <span className="nav-text">My Profile</span>
           </button>
 
           <button
-            className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => setActiveTab('settings')}
+            className={`nav-item ${activeTab === "settings" ? "active" : ""}`}
+            onClick={() => setActiveTab("settings")}
           >
             <span className="nav-icon">⚙️</span>
             <span className="nav-text">Settings</span>
@@ -145,13 +154,13 @@ const Dashboard = () => {
       <div className="dashboard-main">
         <div className="dashboard-header">
           <h1 className="dashboard-title">
-            {activeTab === 'overview' && 'Dashboard Overview'}
-            {activeTab === 'community' && 'Community'}
-            {activeTab === 'cycle-tracking' && 'Cycle Tracking'}
-            {activeTab === 'health-insights' && 'Health Insights'}
-            {activeTab === 'fundraising' && 'Fundraising'}
-            {activeTab === 'profile' && 'My Profile'}
-            {activeTab === 'settings' && 'Settings'}
+            {activeTab === "overview" && "Dashboard Overview"}
+            {activeTab === "community" && "Community"}
+            {activeTab === "cycle-tracking" && "Cycle Tracking"}
+            {activeTab === "health-insights" && "Health Insights"}
+            {activeTab === "fundraising" && "Fundraising"}
+            {activeTab === "profile" && "My Profile"}
+            {activeTab === "settings" && "Settings"}
           </h1>
 
           <div className="header-actions">
@@ -163,9 +172,7 @@ const Dashboard = () => {
               {user?.profile_picture ? (
                 <img src={user.profile_picture} alt={user.full_name} />
               ) : (
-                <div className="avatar-placeholder">
-                  {user?.full_name?.charAt(0) || 'U'}
-                </div>
+                <div className="avatar-placeholder">{user?.full_name?.charAt(0) || "U"}</div>
               )}
             </div>
           </div>
@@ -173,7 +180,7 @@ const Dashboard = () => {
 
         <div className="dashboard-content">
           {/* Overview Tab */}
-          {activeTab === 'overview' && (
+          {activeTab === "overview" && (
             <div className="overview-container">
               <div className="stats-grid">
                 <div className="stat-card">
@@ -227,7 +234,7 @@ const Dashboard = () => {
                       <span className="next-value">In 14 days</span>
                     </div>
                   </div>
-                  <button className="log-day-btn" onClick={() => setActiveTab('cycle-tracking')}>
+                  <button className="log-day-btn" onClick={() => setActiveTab("cycle-tracking")}>
                     Log Today's Entry
                   </button>
                 </div>
@@ -257,34 +264,24 @@ const Dashboard = () => {
           )}
 
           {/* Cycle Tracking Tab (only visible if enabled) */}
-          {activeTab === 'cycle-tracking' && user?.is_cycle_user && (
+          {activeTab === "cycle-tracking" && user?.is_cycle_user && (
             <CycleTrackingTab user={user} cycleProfile={cycleProfile} />
           )}
 
           {/* Community Tab */}
-          {activeTab === 'community' && (
-            <CommunityTab />
-          )}
+          {activeTab === "community" && <CommunityTab />}
 
           {/* Health Insights Tab (only visible if cycle tracking enabled) */}
-          {activeTab === 'health-insights' && user?.is_cycle_user && (
-            <HealthInsightsTab />
-          )}
+          {activeTab === "health-insights" && user?.is_cycle_user && <HealthInsightsTab />}
 
           {/* Fundraising Tab */}
-          {activeTab === 'fundraising' && (
-            <FundraisingTab />
-          )}
+          {activeTab === "fundraising" && <FundraisingTab />}
 
           {/* Profile Tab */}
-          {activeTab === 'profile' && (
-            <ProfileTab user={user} />
-          )}
+          {activeTab === "profile" && <ProfileTab user={user} />}
 
           {/* Settings Tab */}
-          {activeTab === 'settings' && (
-            <SettingsTab user={user} />
-          )}
+          {activeTab === "settings" && <SettingsTab user={user} />}
         </div>
       </div>
     </div>
@@ -293,7 +290,6 @@ const Dashboard = () => {
 
 // Sub-components for different tabs
 const CycleTrackingTab = ({ user, cycleProfile }) => {
-
   const [dailyLogs, setDailyLogs] = useState([]);
   const [cycleTrackers, setCycleTrackers] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -311,14 +307,17 @@ const CycleTrackingTab = ({ user, cycleProfile }) => {
     })();
   }, [user?.NIC]);
 
+  const refreshHistory = async () => {
+    const history = await getCycleHistory(user.NIC);
+    setDailyLogs(history?.daily_logs || []);
+    setCycleTrackers(history?.cycle_trackers || []);
+  };
+
   const handleSaveDailyLog = async (formData) => {
     try {
       setSaving(true);
       await saveDailyLog({ NIC: user.NIC, ...formData });
-
-      const history = await getCycleHistory(user.NIC);
-      setDailyLogs(history?.daily_logs || []);
-      setCycleTrackers(history?.cycle_trackers || []);
+      await refreshHistory();
     } catch (e) {
       console.error("Error saving log:", e);
       alert(e.message || "Failed to save daily log");
@@ -327,6 +326,15 @@ const CycleTrackingTab = ({ user, cycleProfile }) => {
     }
   };
 
+  const handleDeleteDailyLog = async (logId) => {
+    await deleteDailyLog(logId);
+    await refreshHistory();
+  };
+
+  const handleDeleteCycleTracker = async (trackerId) => {
+    await deleteCycleTracker(trackerId);
+    await refreshHistory();
+  };
 
   return (
     <div className="cycle-tracking-tab">
@@ -347,11 +355,22 @@ const CycleTrackingTab = ({ user, cycleProfile }) => {
             <span className="stat-value">
               {cycleProfile?.last_period_start
                 ? new Date(cycleProfile.last_period_start).toLocaleDateString()
-                : 'Not recorded'}
+                : "Not recorded"}
             </span>
           </div>
         </div>
       </div>
+
+      <CycleTrackingForm
+        nic={user?.NIC}
+        onSaved={async () => {
+          try {
+            await refreshHistory();
+          } catch (e) {
+            console.error("Error refreshing history:", e);
+          }
+        }}
+      />
 
       <DailyLogForm
         initialDate={new Date().toISOString().split("T")[0]}
@@ -359,17 +378,22 @@ const CycleTrackingTab = ({ user, cycleProfile }) => {
         saving={saving}
       />
 
-      <HistoryPanel dailyLogs={dailyLogs} cycleTrackers={cycleTrackers} />
+      <HistoryPanel
+        dailyLogs={dailyLogs}
+        cycleTrackers={cycleTrackers}
+        usePopupMessages={true}
+        onDeleteDailyLog={handleDeleteDailyLog}
+        onDeleteCycleTracker={handleDeleteCycleTracker}
+      />
 
       <InsightsPanel cycleProfile={cycleProfile} dailyLogs={dailyLogs} />
-
     </div>
   );
 };
 
 const CommunityTab = () => {
   const [posts, setPosts] = useState([]);
-  const [newPost, setNewPost] = useState('');
+  const [newPost, setNewPost] = useState("");
 
   return (
     <div className="community-tab">
@@ -403,7 +427,10 @@ const CommunityTab = () => {
             </div>
           </div>
           <div className="post-content">
-            <p>Just wanted to share that switching to a plant-based diet has significantly reduced my period pain! Has anyone else tried dietary changes?</p>
+            <p>
+              Just wanted to share that switching to a plant-based diet has significantly reduced my
+              period pain! Has anyone else tried dietary changes?
+            </p>
           </div>
           <div className="post-actions">
             <button className="like-btn">❤️ 24</button>
@@ -474,7 +501,7 @@ const FundraisingTab = () => {
             <p>Providing sanitary products to 1000 girls in rural communities</p>
             <div className="campaign-progress">
               <div className="progress-bar">
-                <div className="progress-fill" style={{ width: '65%' }}></div>
+                <div className="progress-fill" style={{ width: "65%" }}></div>
               </div>
               <div className="progress-stats">
                 <span>$6,500 raised</span>
@@ -489,7 +516,10 @@ const FundraisingTab = () => {
   );
 };
 
+
 const ProfileTab = ({ user }) => {
+  const [subTab, setSubTab] = useState("account"); // "account" | "cycle"
+
   return (
     <div className="profile-tab">
       <div className="profile-header">
@@ -497,66 +527,90 @@ const ProfileTab = ({ user }) => {
           {user?.profile_picture ? (
             <img src={user.profile_picture} alt={user.full_name} />
           ) : (
-            <div className="avatar-large-placeholder">
-              {user?.full_name?.charAt(0) || 'U'}
-            </div>
+            <div className="avatar-large-placeholder">{user?.full_name?.charAt(0) || "U"}</div>
           )}
         </div>
+
         <div className="profile-info">
           <h2>{user?.full_name}</h2>
           <p className="profile-email">{user?.email}</p>
           <p className="profile-role">Community Member</p>
-          {user?.is_cycle_user && (
-            <span className="cycle-badge">🔴 Cycle Tracking Active</span>
-          )}
+          {user?.is_cycle_user && <span className="cycle-badge">🔴 Cycle Tracking Active</span>}
         </div>
       </div>
 
-      <div className="profile-details">
-        <h3>Personal Information</h3>
-        <div className="details-grid">
-          <div className="detail-item">
-            <span className="detail-label">NIC</span>
-            <span className="detail-value">{user?.NIC}</span>
-          </div>
-          <div className="detail-item">
-            <span className="detail-label">Gender</span>
-            <span className="detail-value">{user?.gender}</span>
-          </div>
-          <div className="detail-item">
-            <span className="detail-label">Date of Birth</span>
-            <span className="detail-value">
-              {user?.date_of_birth ? new Date(user.date_of_birth).toLocaleDateString() : 'N/A'}
-            </span>
-          </div>
-          <div className="detail-item">
-            <span className="detail-label">Contact</span>
-            <span className="detail-value">{user?.contact_number || 'Not provided'}</span>
-          </div>
-        </div>
+      {/* Sub tabs (simple, no router needed) */}
+      <div style={{ display: "flex", gap: 10, marginTop: 20, marginBottom: 20 }}>
+        <button
+          className={`nav-item ${subTab === "account" ? "active" : ""}`}
+          onClick={() => setSubTab("account")}
+        >
+          Account
+        </button>
+
+        {user?.is_cycle_user && (
+          <button
+            className={`nav-item ${subTab === "cycle" ? "active" : ""}`}
+            onClick={() => setSubTab("cycle")}
+          >
+            Cycle Profile
+          </button>
+        )}
       </div>
 
-      <div className="profile-stats">
-        <h3>Community Activity</h3>
-        <div className="stats-grid">
-          <div className="stat-item">
-            <span className="stat-number">12</span>
-            <span className="stat-label">Posts</span>
+      {/* Account Info (your original UI) */}
+      {subTab === "account" && (
+        <>
+          <div className="profile-details">
+            <h3>Personal Information</h3>
+            <div className="details-grid">
+              <div className="detail-item">
+                <span className="detail-label">NIC</span>
+                <span className="detail-value">{user?.NIC}</span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Gender</span>
+                <span className="detail-value">{user?.gender}</span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Date of Birth</span>
+                <span className="detail-value">
+                  {user?.date_of_birth ? new Date(user.date_of_birth).toLocaleDateString() : "N/A"}
+                </span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Contact</span>
+                <span className="detail-value">{user?.contact_number || "Not provided"}</span>
+              </div>
+            </div>
           </div>
-          <div className="stat-item">
-            <span className="stat-number">45</span>
-            <span className="stat-label">Comments</span>
+
+          <div className="profile-stats">
+            <h3>Community Activity</h3>
+            <div className="stats-grid">
+              <div className="stat-item">
+                <span className="stat-number">12</span>
+                <span className="stat-label">Posts</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-number">45</span>
+                <span className="stat-label">Comments</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-number">128</span>
+                <span className="stat-label">Likes Received</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-number">3</span>
+                <span className="stat-label">Campaigns Supported</span>
+              </div>
+            </div>
           </div>
-          <div className="stat-item">
-            <span className="stat-number">128</span>
-            <span className="stat-label">Likes Received</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-number">3</span>
-            <span className="stat-label">Campaigns Supported</span>
-          </div>
-        </div>
-      </div>
+        </>
+      )}
+
+      {/* Cycle Profile (your module) */}
+      {subTab === "cycle" && user?.is_cycle_user && <ProfilePanel user={user} />}
     </div>
   );
 };
@@ -566,7 +620,7 @@ const SettingsTab = ({ user }) => {
     emailNotifications: true,
     pushNotifications: true,
     newsletter: true,
-    privacy: 'friends'
+    privacy: "friends",
   });
 
   return (
@@ -641,7 +695,7 @@ const SettingsTab = ({ user }) => {
               type="radio"
               name="privacy"
               value="public"
-              checked={settings.privacy === 'public'}
+              checked={settings.privacy === "public"}
               onChange={(e) => setSettings({ ...settings, privacy: e.target.value })}
             />
             <span>Public</span>
@@ -651,7 +705,7 @@ const SettingsTab = ({ user }) => {
               type="radio"
               name="privacy"
               value="friends"
-              checked={settings.privacy === 'friends'}
+              checked={settings.privacy === "friends"}
               onChange={(e) => setSettings({ ...settings, privacy: e.target.value })}
             />
             <span>Friends Only</span>
@@ -661,7 +715,7 @@ const SettingsTab = ({ user }) => {
               type="radio"
               name="privacy"
               value="private"
-              checked={settings.privacy === 'private'}
+              checked={settings.privacy === "private"}
               onChange={(e) => setSettings({ ...settings, privacy: e.target.value })}
             />
             <span>Private</span>
@@ -671,9 +725,7 @@ const SettingsTab = ({ user }) => {
 
       <div className="danger-zone">
         <h3>Danger Zone</h3>
-        <button className="danger-btn">
-          Deactivate Account
-        </button>
+        <button className="danger-btn">Deactivate Account</button>
       </div>
     </div>
   );
