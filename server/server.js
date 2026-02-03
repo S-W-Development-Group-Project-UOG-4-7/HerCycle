@@ -49,18 +49,25 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:5173',
-  'http://localhost:5174'
+  'http://localhost:5174',
+  'http://localhost:5175'
 ];
+
+const isLocalhostOrigin = (origin) => {
+  if (!origin) return true;
+  return /^http:\/\/localhost:\d+$/.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin);
+};
 
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+    if (allowedOrigins.indexOf(origin) !== -1 || isLocalhostOrigin(origin)) {
+      return callback(null, true);
     }
-    return callback(null, true);
+
+    const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+    return callback(new Error(msg), false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -517,6 +524,201 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
     });
 
     if (existingUser) {
+      if (user_type === 'doctor') {
+        // If user exists as a doctor but has no DoctorVerification, allow re-submission
+        if (existingUser.role === 'doctor') {
+          const DoctorVerification = getModel('DoctorVerification');
+          const Doctor = getModel('Doctor');
+          const existingVerification = DoctorVerification ? await DoctorVerification.findOne({ doctor_NIC: existingUser.NIC }) : null;
+
+          if (!existingVerification) {
+            console.log('🔄 Existing doctor without verification — creating missing records for:', existingUser.NIC);
+
+            // Ensure Doctor record exists
+            if (Doctor) {
+              let doctor = await Doctor.findOne({ NIC: existingUser.NIC });
+                if (!doctor) {
+                  doctor = new Doctor({
+                    user: existingUser._id,
+                    NIC: existingUser.NIC,
+                    specialty: specialty || 'General',
+                    qualifications: qualifications ? qualifications.split(',').map(q => q.trim()) : [],
+                    clinic_or_hospital: clinic_or_hospital || '',
+                    is_approved: false,
+                    activated_at: null,
+                    experience_years: 0,
+                    verified: false
+                  });
+                  await doctor.save();
+                } else {
+                  // Update doctor info
+                  if (specialty) doctor.specialty = specialty;
+                  if (qualifications) doctor.qualifications = qualifications.split(',').map(q => q.trim());
+                  if (clinic_or_hospital) doctor.clinic_or_hospital = clinic_or_hospital;
+                  if (!doctor.user) doctor.user = existingUser._id;
+                  await doctor.save();
+                }
+              }
+
+            // Create verification record
+            if (DoctorVerification && license_document_url) {
+              const verification = new DoctorVerification({
+                verification_id: `VER_${Date.now()}_${existingUser.NIC}`,
+                doctor_NIC: existingUser.NIC,
+                license_document_url: license_document_url,
+                registration_details: `Re-submitted on ${new Date().toISOString()}. Qualifications: ${qualifications || 'Not provided'}`,
+                terms_accepted: true,
+                status: 'pending',
+                submitted_at: new Date()
+              });
+              await verification.save();
+              console.log('✅ DoctorVerification created for existing doctor:', existingUser.NIC);
+            }
+
+            // Update user info if needed
+            existingUser.isExisting = 'pending';
+            existingUser.updated_at = new Date();
+            if (password) {
+              const salt = await bcrypt.genSalt(10);
+              existingUser.password_hash = await bcrypt.hash(password, salt);
+            }
+            if (full_name) existingUser.full_name = full_name;
+            if (contact_number) existingUser.contact_number = contact_number;
+            await existingUser.save();
+
+            // Generate token and respond
+            const token = jwt.sign(
+              { userId: existingUser._id, NIC: existingUser.NIC, email: existingUser.email, role: existingUser.role },
+              JWT_SECRET,
+              { expiresIn: '7d' }
+            );
+
+            return res.status(200).json({
+              success: true,
+              message: 'Doctor verification re-submitted successfully',
+              data: {
+                user_id: existingUser._id,
+                NIC: existingUser.NIC,
+                full_name: existingUser.full_name,
+                email: existingUser.email,
+                role: existingUser.role,
+                user_type: 'doctor',
+                verification_status: 'pending',
+                specialty: specialty,
+                token: token
+              },
+              token: token
+            });
+          }
+        }
+
+        // Allow existing standard users to upgrade to doctor and submit verification
+        if (existingUser.role === 'user') {
+          const Doctor = getModel('Doctor');
+          const DoctorVerification = getModel('DoctorVerification');
+
+          if (!Doctor || !DoctorVerification) {
+            return res.status(500).json({
+              success: false,
+              message: 'Server configuration error'
+            });
+          }
+
+          if (!license_document_url) {
+            return res.status(400).json({
+              success: false,
+              message: 'License document URL is required for doctor registration'
+            });
+          }
+
+          // Update user role and info
+          existingUser.role = 'doctor';
+          existingUser.isExisting = 'pending';
+          existingUser.updated_at = new Date();
+          if (full_name) existingUser.full_name = full_name;
+          if (contact_number) existingUser.contact_number = contact_number;
+          if (gender) existingUser.gender = gender;
+          if (date_of_birth) existingUser.date_of_birth = new Date(date_of_birth);
+          if (password) {
+            const salt = await bcrypt.genSalt(10);
+            existingUser.password_hash = await bcrypt.hash(password, salt);
+          }
+          await existingUser.save();
+
+          // Create or update doctor profile
+          let doctor = await Doctor.findOne({ NIC: existingUser.NIC });
+            if (!doctor) {
+              doctor = new Doctor({
+                user: existingUser._id,
+                NIC: existingUser.NIC,
+                specialty: specialty || 'general_practice',
+                qualifications: qualifications ? qualifications.split(',').map(q => q.trim()) : [],
+                clinic_or_hospital: clinic_or_hospital || '',
+                is_approved: false,
+                activated_at: null,
+                experience_years: 0,
+                verified: false
+              });
+            } else {
+              if (specialty) doctor.specialty = specialty;
+              if (qualifications) doctor.qualifications = qualifications.split(',').map(q => q.trim());
+              if (clinic_or_hospital) doctor.clinic_or_hospital = clinic_or_hospital;
+              doctor.is_approved = false;
+              doctor.verified = false;
+              doctor.activated_at = null;
+              if (!doctor.user) doctor.user = existingUser._id;
+            }
+            await doctor.save();
+
+          // Create or refresh verification record
+          const existingVerification = await DoctorVerification.findOne({ doctor_NIC: existingUser.NIC });
+          if (!existingVerification) {
+            const verification = new DoctorVerification({
+              verification_id: `VER_${Date.now()}_${existingUser.NIC}`,
+              doctor_NIC: existingUser.NIC,
+              license_document_url: license_document_url,
+              registration_details: `Upgraded on ${new Date().toISOString()}. Qualifications: ${qualifications || 'Not provided'}`,
+              terms_accepted: true,
+              status: 'pending',
+              submitted_at: new Date()
+            });
+            await verification.save();
+          } else {
+            existingVerification.license_document_url = license_document_url;
+            existingVerification.registration_details = `Re-submitted on ${new Date().toISOString()}. Qualifications: ${qualifications || 'Not provided'}`;
+            existingVerification.status = 'pending';
+            existingVerification.submitted_at = new Date();
+            existingVerification.reviewed_at = null;
+            existingVerification.reviewed_by = null;
+            existingVerification.rejection_reason = null;
+            await existingVerification.save();
+          }
+
+          const token = jwt.sign(
+            { userId: existingUser._id, NIC: existingUser.NIC, email: existingUser.email, role: existingUser.role },
+            JWT_SECRET,
+            { expiresIn: '7d' }
+          );
+
+          return res.status(200).json({
+            success: true,
+            message: 'Doctor verification submitted successfully',
+            data: {
+              user_id: existingUser._id,
+              NIC: existingUser.NIC,
+              full_name: existingUser.full_name,
+              email: existingUser.email,
+              role: existingUser.role,
+              user_type: 'doctor',
+              verification_status: 'pending',
+              specialty: specialty,
+              token: token
+            },
+            token: token
+          });
+        }
+      }
+
       return res.status(400).json({
         success: false,
         message: 'User already exists with this email or NIC'
@@ -561,20 +763,21 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
     // Create role-specific records
     if (user_type === 'doctor') {
       // Doctor registration
-      if (Doctor) {
-        const doctorData = {
-          NIC,
-          specialty: specialty || 'general_practice',
-          qualifications: qualifications ? qualifications.split(',').map(q => q.trim()) : [],
-          clinic_or_hospital: clinic_or_hospital || '',
-          is_approved: false,
-          activated_at: null,
-          experience_years: 0,
-          verified: false
-        };
-        const doctor = new Doctor(doctorData);
-        await doctor.save();
-      }
+        if (Doctor) {
+          const doctorData = {
+            user: user._id,
+            NIC,
+            specialty: specialty || 'general_practice',
+            qualifications: qualifications ? qualifications.split(',').map(q => q.trim()) : [],
+            clinic_or_hospital: clinic_or_hospital || '',
+            is_approved: false,
+            activated_at: null,
+            experience_years: 0,
+            verified: false
+          };
+          const doctor = new Doctor(doctorData);
+          await doctor.save();
+        }
 
       if (DoctorVerification) {
         if (!license_document_url) {
@@ -596,6 +799,7 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
           submitted_at: new Date()
         });
         await verification.save();
+        console.log('✅ DoctorVerification created for NIC:', NIC);
       }
     } else {
       // Community member registration
@@ -759,18 +963,65 @@ app.post('/api/auth/login', checkDatabaseReady, async (req, res) => {
     let user_type = 'community_member';
 
     if (user.role === 'doctor' && Doctor) {
-      const doctor = await Doctor.findOne({ NIC: user.NIC });
-      if (doctor) {
-        roleData = doctor.toObject();
-        user_type = 'doctor';
+        const doctor = await Doctor.findOne({ NIC: user.NIC });
+        if (doctor) {
+          if (!doctor.user) {
+            doctor.user = user._id;
+            await doctor.save();
+          }
+          roleData = doctor.toObject();
+          user_type = 'doctor';
 
-        // Get verification status
+        // Get verification status, auto-create if missing
         const DoctorVerification = getModel('DoctorVerification');
         if (DoctorVerification) {
-          const verification = await DoctorVerification.findOne({ doctor_NIC: user.NIC });
-          if (verification) {
-            roleData.verification_status = verification.status;
+          let verification = await DoctorVerification.findOne({ doctor_NIC: user.NIC });
+          if (!verification) {
+            // Auto-create missing verification record for existing doctors
+            console.log('⚠️ Auto-creating missing DoctorVerification for:', user.NIC);
+            verification = new DoctorVerification({
+              verification_id: `VER_${Date.now()}_${user.NIC}`,
+              doctor_NIC: user.NIC,
+              license_document_url: '/uploads/pending-upload',
+              registration_details: `Auto-created for existing doctor. Specialty: ${doctor.specialty || 'N/A'}. Qualifications: ${(doctor.qualifications || []).join(', ') || 'N/A'}`,
+              terms_accepted: true,
+              status: 'pending',
+              submitted_at: user.created_at || new Date()
+            });
+            await verification.save();
           }
+          roleData.verification_status = verification.status;
+        }
+      } else {
+        // Doctor record missing — auto-create
+        console.log('⚠️ Auto-creating missing Doctor record for:', user.NIC);
+          const newDoctor = new Doctor({
+            user: user._id,
+            NIC: user.NIC,
+            specialty: 'General',
+            qualifications: [],
+            is_approved: false,
+            verified: false,
+            activated_at: null,
+            experience_years: 0
+          });
+        await newDoctor.save();
+        roleData = newDoctor.toObject();
+        user_type = 'doctor';
+
+        const DoctorVerification = getModel('DoctorVerification');
+        if (DoctorVerification) {
+          const verification = new DoctorVerification({
+            verification_id: `VER_${Date.now()}_${user.NIC}`,
+            doctor_NIC: user.NIC,
+            license_document_url: '/uploads/pending-upload',
+            registration_details: `Auto-created for existing doctor user.`,
+            terms_accepted: true,
+            status: 'pending',
+            submitted_at: user.created_at || new Date()
+          });
+          await verification.save();
+          roleData.verification_status = 'pending';
         }
       }
     } else if (user.role === 'admin' && Admin) {
@@ -5037,6 +5288,1479 @@ app.post('/api/auth/resend-reset-code', checkDatabaseReady, async (req, res) => 
 });
 // ========== END PASSWORD RESET ROUTES ==========
 
+// ========== COMMUNITY ARTICLES ROUTES ==========
+// Optional auth middleware - sets req.user if token present, but doesn't block
+const optionalAuth = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (token) {
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+      if (!err) req.user = user;
+    });
+  }
+  next();
+};
+
+// ========== DOCTOR DASHBOARD HELPERS ==========
+const slugify = (value) => {
+  if (!value) return '';
+  return value
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+};
+
+const getDoctorCategoryModel = () => {
+  try {
+    return mongoose.model('Category');
+  } catch {
+    const categorySchema = new mongoose.Schema({
+      name: { type: String, required: true, trim: true, unique: true },
+      slug: { type: String, lowercase: true, unique: true },
+      description: { type: String },
+      icon: { type: String },
+      color: { type: String, default: '#6366f1' },
+      isActive: { type: Boolean, default: true },
+      createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor' },
+      createdAt: { type: Date, default: Date.now },
+      updatedAt: { type: Date, default: Date.now }
+    }, { collection: 'categories' });
+
+    categorySchema.pre('save', function(next) {
+      if (this.isModified('name')) {
+        this.slug = slugify(this.name);
+      }
+      this.updatedAt = new Date();
+      next();
+    });
+
+    return mongoose.model('Category', categorySchema);
+  }
+};
+
+const getDoctorArticleModel = () => {
+  try {
+    return mongoose.model('DoctorArticle');
+  } catch {
+    const doctorArticleSchema = new mongoose.Schema({
+      title: { type: String, required: true, trim: true, maxlength: 200 },
+      slug: { type: String, lowercase: true },
+      content: { type: String, required: true },
+      excerpt: { type: String, maxlength: 300 },
+      featuredImage: { type: String, default: '' },
+      author: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
+      categories: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }],
+      tags: [{ type: String, trim: true }],
+      status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft' },
+      views: { type: Number, default: 0 },
+      likes: { type: Number, default: 0 },
+      comments: [{
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        text: { type: String, required: true },
+        createdAt: { type: Date, default: Date.now }
+      }],
+      publishedAt: { type: Date },
+      createdAt: { type: Date, default: Date.now },
+      updatedAt: { type: Date, default: Date.now }
+    }, { collection: 'articles' });
+
+    doctorArticleSchema.pre('save', function(next) {
+      if (this.isModified('title')) {
+        this.slug = slugify(this.title);
+      }
+      if (this.isModified('status') && this.status === 'published' && !this.publishedAt) {
+        this.publishedAt = new Date();
+      }
+      this.updatedAt = new Date();
+      next();
+    });
+
+    return mongoose.model('DoctorArticle', doctorArticleSchema);
+  }
+};
+
+const getDoctorNotificationModel = () => {
+  try {
+    return mongoose.model('DoctorNotification');
+  } catch {
+    const notificationSchema = new mongoose.Schema({
+      doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
+      article: { type: mongoose.Schema.Types.ObjectId, ref: 'DoctorArticle' },
+      actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      type: { type: String, enum: ['comment', 'like', 'system'], default: 'system' },
+      title: { type: String, default: '' },
+      message: { type: String, default: '' },
+      isRead: { type: Boolean, default: false },
+      createdAt: { type: Date, default: Date.now }
+    }, { collection: 'doctor_notifications' });
+
+    return mongoose.model('DoctorNotification', notificationSchema);
+  }
+};
+
+const ensureDoctor = async (req, res, next) => {
+  if (!req.user || req.user.role !== 'doctor') {
+    return res.status(403).json({ success: false, message: 'Doctor access required' });
+  }
+
+  const Doctor = getModel('Doctor');
+  if (!Doctor) {
+    return res.status(500).json({ success: false, message: 'Server configuration error' });
+  }
+
+    let doctor = await Doctor.findOne({ NIC: req.user.NIC });
+    if (!doctor) {
+      doctor = new Doctor({
+        user: req.user.userId,
+        NIC: req.user.NIC,
+        specialty: 'General',
+        qualifications: [],
+        clinic_or_hospital: '',
+        bio: '',
+        is_approved: false,
+        verified: false,
+        activated_at: null,
+        experience_years: 0
+      });
+      await doctor.save();
+    } else if (!doctor.user && req.user.userId) {
+      doctor.user = req.user.userId;
+      await doctor.save();
+    }
+
+  req.doctor = doctor;
+  next();
+};
+// ========== END DOCTOR DASHBOARD HELPERS ==========
+
+// ========== DOCTOR DASHBOARD ROUTES ==========
+// Categories
+app.get('/api/categories', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Category = getDoctorCategoryModel();
+    const categories = await Category.find({ isActive: true }).sort({ name: 1 });
+    res.json({ success: true, categories });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.get('/api/categories/:id', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Category = getDoctorCategoryModel();
+    const category = await Category.findById(req.params.id);
+    if (!category) {
+      return res.status(404).json({ message: 'Category not found' });
+    }
+    res.json({ success: true, category });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.post('/api/categories', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Category = getDoctorCategoryModel();
+    const { name, description, icon, color } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: 'Category name is required' });
+    }
+
+    const existing = await Category.findOne({ name: name.trim() });
+    if (existing) {
+      return res.status(400).json({ message: 'Category already exists' });
+    }
+
+    const category = await Category.create({
+      name: name.trim(),
+      description,
+      icon,
+      color,
+      createdBy: req.doctor._id
+    });
+
+    res.status(201).json({ success: true, category });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.put('/api/categories/:id', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Category = getDoctorCategoryModel();
+    const { name, description, icon, color, isActive } = req.body;
+
+    const updateData = {};
+    if (name) {
+      updateData.name = name;
+      updateData.slug = slugify(name);
+    }
+    if (description !== undefined) updateData.description = description;
+    if (icon !== undefined) updateData.icon = icon;
+    if (color !== undefined) updateData.color = color;
+    if (isActive !== undefined) updateData.isActive = isActive;
+    updateData.updatedAt = new Date();
+
+    const category = await Category.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!category) {
+      return res.status(404).json({ message: 'Category not found' });
+    }
+
+    res.json({ success: true, category });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.delete('/api/categories/:id', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Category = getDoctorCategoryModel();
+    const category = await Category.findById(req.params.id);
+    if (!category) {
+      return res.status(404).json({ message: 'Category not found' });
+    }
+    await Category.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Category deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Articles
+app.get('/api/articles', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Article = getDoctorArticleModel();
+    const { status, page = 1, limit = 10 } = req.query;
+
+    const query = { author: req.doctor._id };
+    if (status) {
+      query.status = status;
+    }
+
+    const articles = await Article.find(query)
+      .populate('categories', 'name slug color')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit, 10))
+      .skip((parseInt(page, 10) - 1) * parseInt(limit, 10));
+
+    const total = await Article.countDocuments(query);
+
+    res.json({
+      success: true,
+      articles,
+      totalPages: Math.ceil(total / parseInt(limit, 10)),
+      currentPage: parseInt(page, 10),
+      total
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.get('/api/articles/:id', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Article = getDoctorArticleModel();
+    const article = await Article.findOne({
+      _id: req.params.id,
+      author: req.doctor._id
+    }).populate('categories', 'name slug color');
+
+    if (!article) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
+
+    res.json({ success: true, article });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.post('/api/articles', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Article = getDoctorArticleModel();
+    const { title, content, excerpt, featuredImage, categories, tags, status } = req.body;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({ message: 'Title is required' });
+    }
+    if (!content || !content.trim()) {
+      return res.status(400).json({ message: 'Content is required' });
+    }
+
+    const tagList = Array.isArray(tags)
+      ? tags.map(tag => tag.toString().trim()).filter(Boolean)
+      : (tags || '').toString().split(',').map(tag => tag.trim()).filter(Boolean);
+
+    const finalExcerpt = excerpt && excerpt.trim()
+      ? excerpt.trim()
+      : content.trim().substring(0, 280);
+
+    const article = await Article.create({
+      title: title.trim(),
+      content: content.trim(),
+      excerpt: finalExcerpt,
+      featuredImage: featuredImage || '',
+      categories: Array.isArray(categories) ? categories : [],
+      tags: tagList,
+      status: status || 'draft',
+      author: req.doctor._id
+    });
+
+    const populatedArticle = await Article.findById(article._id).populate('categories', 'name slug color');
+    res.status(201).json({ success: true, article: populatedArticle });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.put('/api/articles/:id', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Article = getDoctorArticleModel();
+    const { title, content, excerpt, featuredImage, categories, tags, status } = req.body;
+
+    const article = await Article.findOne({
+      _id: req.params.id,
+      author: req.doctor._id
+    });
+
+    if (!article) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
+
+    const updateData = {};
+    if (title) {
+      updateData.title = title;
+      updateData.slug = slugify(title);
+    }
+    if (content) updateData.content = content;
+    if (excerpt !== undefined) updateData.excerpt = excerpt;
+    if (featuredImage !== undefined) updateData.featuredImage = featuredImage;
+    if (categories) updateData.categories = categories;
+    if (tags !== undefined) {
+      updateData.tags = Array.isArray(tags)
+        ? tags.map(tag => tag.toString().trim()).filter(Boolean)
+        : tags.toString().split(',').map(tag => tag.trim()).filter(Boolean);
+    }
+    if (status) {
+      updateData.status = status;
+      if (status === 'published' && !article.publishedAt) {
+        updateData.publishedAt = new Date();
+      }
+    }
+    updateData.updatedAt = new Date();
+
+    const updated = await Article.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    ).populate('categories', 'name slug color');
+
+    res.json({ success: true, article: updated });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.delete('/api/articles/:id', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Article = getDoctorArticleModel();
+    const article = await Article.findOne({
+      _id: req.params.id,
+      author: req.doctor._id
+    });
+
+    if (!article) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
+
+    await Article.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Article deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.post('/api/articles/:id/comments', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    const Article = getDoctorArticleModel();
+    const Notification = getDoctorNotificationModel();
+    const User = getModel('User');
+    const { text } = req.body;
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ message: 'Comment text is required' });
+    }
+
+    const article = await Article.findById(req.params.id);
+    if (!article) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
+
+    const comment = {
+      user: req.user.userId,
+      text: text.trim()
+    };
+
+    article.comments.push(comment);
+    await article.save();
+
+    if (Notification && User) {
+      const actor = await User.findById(req.user.userId).lean();
+      const actorName = actor?.full_name || 'Someone';
+      if (article.author && article.author.toString() !== req.doctor?._id?.toString()) {
+        await Notification.create({
+          doctor: article.author,
+          article: article._id,
+          actor: req.user.userId,
+          type: 'comment',
+          title: 'New comment',
+          message: `${actorName} commented on "${article.title}".`
+        });
+      }
+    }
+
+    res.status(201).json({ success: true, comment });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.post('/api/articles/:id/likes', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    const Article = getDoctorArticleModel();
+    const Notification = getDoctorNotificationModel();
+    const User = getModel('User');
+
+    const article = await Article.findById(req.params.id);
+    if (!article) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
+
+    article.likes += 1;
+    await article.save();
+
+    if (Notification && User) {
+      const actor = await User.findById(req.user.userId).lean();
+      const actorName = actor?.full_name || 'Someone';
+      if (article.author && article.author.toString() !== req.doctor?._id?.toString()) {
+        await Notification.create({
+          doctor: article.author,
+          article: article._id,
+          actor: req.user.userId,
+          type: 'like',
+          title: 'New like',
+          message: `${actorName} liked "${article.title}".`
+        });
+      }
+    }
+
+    res.json({ success: true, likes: article.likes });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Doctor profile + stats
+app.get('/api/doctors/profile', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const User = getModel('User');
+    const user = await User.findById(req.user.userId).lean();
+
+    const doctor = req.doctor.toObject();
+    const qualifications = Array.isArray(doctor.qualifications)
+      ? doctor.qualifications.join(', ')
+      : doctor.qualifications || '';
+
+    res.json({
+      success: true,
+      doctor: {
+        ...doctor,
+        specialization: doctor.specialty || doctor.specialization || 'General',
+        qualifications,
+        experience: doctor.experience_years || doctor.experience || 0,
+        bio: doctor.bio || '',
+        contactNumber: user?.contact_number || '',
+        clinicAddress: doctor.clinic_or_hospital || '',
+        profileImage: user?.profile_picture || '',
+        user: user ? { full_name: user.full_name, email: user.email, name: user.full_name } : null
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.put('/api/doctors/profile', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const User = getModel('User');
+    const { name, email, specialization, qualifications, experience, bio, contactNumber, clinicAddress, profileImage } = req.body;
+
+    if (name || email || contactNumber || profileImage) {
+      const updateUser = {};
+      if (name) updateUser.full_name = name;
+      if (email) updateUser.email = email;
+      if (contactNumber !== undefined) updateUser.contact_number = contactNumber;
+      if (profileImage !== undefined) updateUser.profile_picture = profileImage;
+      await User.findByIdAndUpdate(req.user.userId, updateUser);
+    }
+
+    const doctorUpdate = {};
+    if (specialization) doctorUpdate.specialty = specialization;
+    if (qualifications !== undefined) {
+      doctorUpdate.qualifications = Array.isArray(qualifications)
+        ? qualifications
+        : qualifications.toString().split(',').map(q => q.trim()).filter(Boolean);
+    }
+    if (experience !== undefined) doctorUpdate.experience_years = Number(experience) || 0;
+    if (bio !== undefined) doctorUpdate.bio = bio;
+    if (clinicAddress !== undefined) doctorUpdate.clinic_or_hospital = clinicAddress;
+
+    const Doctor = getModel('Doctor');
+    const updatedDoctor = await Doctor.findOneAndUpdate(
+      { NIC: req.user.NIC },
+      doctorUpdate,
+      { new: true, runValidators: true }
+    );
+
+    const updatedUser = await User.findById(req.user.userId).lean();
+    const qualificationsText = Array.isArray(updatedDoctor.qualifications)
+      ? updatedDoctor.qualifications.join(', ')
+      : updatedDoctor.qualifications || '';
+
+    res.json({
+      success: true,
+      doctor: {
+        ...updatedDoctor.toObject(),
+        specialization: updatedDoctor.specialty || updatedDoctor.specialization || 'General',
+        qualifications: qualificationsText,
+        experience: updatedDoctor.experience_years || updatedDoctor.experience || 0,
+        bio: updatedDoctor.bio || '',
+        contactNumber: updatedUser?.contact_number || '',
+        clinicAddress: updatedDoctor.clinic_or_hospital || '',
+        profileImage: updatedUser?.profile_picture || '',
+        user: updatedUser ? { full_name: updatedUser.full_name, email: updatedUser.email, name: updatedUser.full_name } : null
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.get('/api/doctors/stats', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Article = getDoctorArticleModel();
+    const totalArticles = await Article.countDocuments({ author: req.doctor._id });
+    const publishedArticles = await Article.countDocuments({ author: req.doctor._id, status: 'published' });
+    const draftArticles = await Article.countDocuments({ author: req.doctor._id, status: 'draft' });
+
+    const articles = await Article.find({ author: req.doctor._id }).lean();
+    const totalViews = articles.reduce((sum, article) => sum + (article.views || 0), 0);
+    const totalComments = articles.reduce((sum, article) => sum + (article.comments ? article.comments.length : 0), 0);
+    const totalLikes = articles.reduce((sum, article) => sum + (article.likes || 0), 0);
+
+    res.json({
+      success: true,
+      stats: {
+        totalArticles,
+        publishedArticles,
+        draftArticles,
+        totalViews,
+        totalComments,
+        totalLikes
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Notifications
+app.get('/api/notifications', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Notification = getDoctorNotificationModel();
+    const limit = Math.max(1, parseInt(req.query.limit || '20', 10));
+    const notifications = await Notification.find({ doctor: req.doctor._id })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate('actor', 'full_name');
+
+    res.json({ success: true, notifications });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.put('/api/notifications/:id/read', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Notification = getDoctorNotificationModel();
+    const notification = await Notification.findOneAndUpdate(
+      { _id: req.params.id, doctor: req.doctor._id },
+      { isRead: true },
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+
+    res.json({ success: true, notification });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.put('/api/notifications/read-all', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Notification = getDoctorNotificationModel();
+    await Notification.updateMany(
+      { doctor: req.doctor._id, isRead: false },
+      { $set: { isRead: true } }
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.delete('/api/notifications/clear', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Notification = getDoctorNotificationModel();
+    await Notification.deleteMany({ doctor: req.doctor._id });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+// ========== END DOCTOR DASHBOARD ROUTES ==========
+
+// ========== COMMUNITY POSTS ROUTES ==========
+const resolvePostByParam = async (Post, idParam) => {
+  if (mongoose.Types.ObjectId.isValid(idParam)) {
+    const byId = await Post.findById(idParam);
+    if (byId) return byId;
+  }
+  return Post.findOne({ post_id: idParam });
+};
+
+const buildPostResponse = async (post, userMap, likedSet) => {
+  const isAnonymous = !!post.is_anonymous;
+  const authorNic = post.author_nic;
+  const authorUser = !isAnonymous && authorNic ? userMap.get(authorNic) : null;
+  const authorName = isAnonymous
+    ? 'Anonymous'
+    : (authorUser?.full_name || 'Community Member');
+
+  return {
+    _id: post._id,
+    post_id: post.post_id,
+    title: post.title,
+    content: post.content,
+    excerpt: post.content ? post.content.substring(0, 200) + '...' : '',
+    media_url: post.media_url || '',
+    media_type: post.media_type || 'none',
+    category: post.category || 'general',
+    tags: Array.isArray(post.tags) ? post.tags : [],
+    approval_status: post.approval_status,
+    allow_comments: post.allow_comments !== false,
+    is_anonymous: isAnonymous,
+    author: {
+      nic: isAnonymous ? null : authorNic,
+      name: authorName,
+      profile_picture: isAnonymous ? '' : (authorUser?.profile_picture || '')
+    },
+    author_type: post.author_type || 'user',
+    view_count: post.view_count || 0,
+    like_count: post.like_count || 0,
+    comment_count: post.comment_count || 0,
+    isLiked: likedSet ? likedSet.has(post._id.toString()) : false,
+    created_at: post.created_at,
+    updated_at: post.updated_at
+  };
+};
+
+// GET /api/posts - Community posts feed
+app.get('/api/posts', optionalAuth, checkDatabaseReady, async (req, res) => {
+  try {
+    const Post = getModel('Post');
+    const User = getModel('User');
+    const Like = getModel('Like');
+
+    if (!Post || !User) {
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
+    const { page = 1, limit = 10, search, category, sort = 'newest' } = req.query;
+    const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+
+    const query = { approval_status: 'approved' };
+    if (category && category !== 'all') {
+      query.category = category;
+    }
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { content: { $regex: search, $options: 'i' } },
+        { tags: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    let sortObj = { created_at: -1 };
+    if (sort === 'popular') sortObj = { like_count: -1, comment_count: -1, view_count: -1 };
+    if (sort === 'most_commented') sortObj = { comment_count: -1, created_at: -1 };
+
+    const [posts, total] = await Promise.all([
+      Post.find(query).sort(sortObj).skip(skip).limit(parseInt(limit, 10)).lean(),
+      Post.countDocuments(query)
+    ]);
+
+    const authorNics = Array.from(new Set(posts.map(post => post.author_nic).filter(Boolean)));
+    const users = authorNics.length
+      ? await User.find({ NIC: { $in: authorNics } }).lean()
+      : [];
+    const userMap = new Map(users.map(user => [user.NIC, user]));
+
+    let likedSet = null;
+    if (req.user && Like && posts.length) {
+      const postIds = posts.map(post => post._id.toString());
+      const likes = await Like.find({
+        nic: req.user.NIC,
+        like_type: 'post',
+        post_id: { $in: postIds }
+      }).lean();
+      likedSet = new Set(likes.map(like => like.post_id));
+    }
+
+    const enriched = [];
+    for (const post of posts) {
+      enriched.push(await buildPostResponse(post, userMap, likedSet));
+    }
+
+    res.json({
+      success: true,
+      data: enriched,
+      pagination: {
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
+        total,
+        pages: Math.ceil(total / parseInt(limit, 10))
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch posts', error: error.message });
+  }
+});
+
+// GET /api/posts/:id - Single post detail
+app.get('/api/posts/:id', optionalAuth, checkDatabaseReady, async (req, res) => {
+  try {
+    const Post = getModel('Post');
+    const User = getModel('User');
+    const Like = getModel('Like');
+
+    if (!Post || !User) {
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
+    const post = await resolvePostByParam(Post, req.params.id);
+    if (!post || post.approval_status !== 'approved') {
+      return res.status(404).json({ success: false, message: 'Post not found' });
+    }
+
+    await Post.updateOne({ _id: post._id }, { $inc: { view_count: 1 } });
+    const authorUser = post.is_anonymous ? null : await User.findOne({ NIC: post.author_nic }).lean();
+    const userMap = new Map(authorUser ? [[post.author_nic, authorUser]] : []);
+    const likedSet = req.user && Like
+      ? new Set((await Like.find({
+        nic: req.user.NIC,
+        like_type: 'post',
+        post_id: post._id.toString()
+      }).lean()).map(like => like.post_id))
+      : null;
+
+    const payload = await buildPostResponse({ ...post.toObject(), view_count: (post.view_count || 0) + 1 }, userMap, likedSet);
+    res.json({ success: true, data: payload });
+  } catch (error) {
+    console.error('Error fetching post:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch post', error: error.message });
+  }
+});
+
+// POST /api/posts - Create post
+app.post('/api/posts', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    const Post = getModel('Post');
+    const CommunityMember = getModel('CommunityMember');
+    const User = getModel('User');
+
+    if (!Post || !User) {
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
+    const {
+      title,
+      content,
+      category = 'general',
+      tags = [],
+      media_url = '',
+      media_type = 'none',
+      is_anonymous = false,
+      allow_comments = true
+    } = req.body;
+
+    if (!title || !title.trim() || !content || !content.trim()) {
+      return res.status(400).json({ success: false, message: 'Title and content are required' });
+    }
+
+    const normalizedTags = Array.isArray(tags)
+      ? tags.map(tag => tag.toString().trim()).filter(Boolean)
+      : tags.toString().split(',').map(tag => tag.trim()).filter(Boolean);
+
+    const rawRole = (req.user.role || '').toLowerCase();
+    const authorType = rawRole === 'doctor'
+      ? 'doctor'
+      : rawRole === 'web_manager'
+      ? 'web_manager'
+      : rawRole === 'admin'
+      ? 'web_manager'
+      : 'user';
+
+    const post = new Post({
+      post_id: `POST_${Date.now()}_${req.user.NIC}`,
+      author_nic: req.user.NIC,
+      author_type: authorType,
+      title: title.trim(),
+      content: content.trim(),
+      media_url: media_url || '',
+      media_type: media_type || 'none',
+      category,
+      tags: normalizedTags,
+      approval_status: 'approved',
+      approved_at: new Date(),
+      is_anonymous: !!is_anonymous,
+      allow_comments: allow_comments !== false,
+      view_count: 0,
+      like_count: 0,
+      comment_count: 0,
+      report_count: 0,
+      created_at: new Date(),
+      updated_at: new Date()
+    });
+
+    await post.save();
+
+    if (CommunityMember) {
+      try {
+        await CommunityMember.updateOne({ NIC: req.user.NIC }, { $inc: { post_count: 1 } });
+      } catch {}
+    }
+
+    const authorUser = await User.findOne({ NIC: req.user.NIC }).lean();
+    const userMap = new Map(authorUser ? [[req.user.NIC, authorUser]] : []);
+    const payload = await buildPostResponse(post.toObject(), userMap, null);
+
+    res.status(201).json({ success: true, data: payload });
+  } catch (error) {
+    console.error('Error creating post:', error);
+    res.status(500).json({ success: false, message: 'Failed to create post', error: error.message });
+  }
+});
+
+const handlePostLike = async (req, res) => {
+  try {
+    const Post = getModel('Post');
+    const Like = getModel('Like');
+
+    if (!Post || !Like) {
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
+    const post = await resolvePostByParam(Post, req.params.id);
+    if (!post || post.approval_status !== 'approved') {
+      return res.status(404).json({ success: false, message: 'Post not found' });
+    }
+
+    const postKey = post._id.toString();
+    const existingLike = await Like.findOne({
+      post_id: postKey,
+      nic: req.user.NIC,
+      like_type: 'post'
+    });
+
+    if (existingLike) {
+      await Like.deleteOne({ _id: existingLike._id });
+      await Post.updateOne({ _id: post._id }, { $inc: { like_count: -1 } });
+      return res.json({
+        success: true,
+        liked: false,
+        likes: Math.max(0, (post.like_count || 0) - 1)
+      });
+    }
+
+    const newLike = new Like({
+      like_id: `LIKE_POST_${Date.now()}_${req.user.NIC}`,
+      post_id: postKey,
+      nic: req.user.NIC,
+      like_type: 'post'
+    });
+    await newLike.save();
+    await Post.updateOne({ _id: post._id }, { $inc: { like_count: 1 } });
+    return res.json({
+      success: true,
+      liked: true,
+      likes: (post.like_count || 0) + 1
+    });
+  } catch (error) {
+    console.error('Error toggling post like:', error);
+    res.status(500).json({ success: false, message: 'Failed to toggle like', error: error.message });
+  }
+};
+
+// PUT or POST /api/posts/:id/like - Toggle like
+app.put('/api/posts/:id/like', authenticateToken, checkDatabaseReady, handlePostLike);
+app.post('/api/posts/:id/like', authenticateToken, checkDatabaseReady, handlePostLike);
+
+// GET /api/posts/:id/comments - List comments
+app.get('/api/posts/:id/comments', checkDatabaseReady, async (req, res) => {
+  try {
+    const Comment = getModel('Comment');
+    const User = getModel('User');
+    const Post = getModel('Post');
+
+    if (!Comment || !User || !Post) {
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
+    const post = await resolvePostByParam(Post, req.params.id);
+    if (!post || post.approval_status !== 'approved') {
+      return res.status(404).json({ success: false, message: 'Post not found' });
+    }
+
+    const comments = await Comment.find({ post_id: post._id.toString() }).sort({ created_at: 1 }).lean();
+    const authorNics = Array.from(new Set(comments.map(comment => comment.nic).filter(Boolean)));
+    const users = authorNics.length
+      ? await User.find({ NIC: { $in: authorNics } }).lean()
+      : [];
+    const userMap = new Map(users.map(user => [user.NIC, user]));
+
+    const enriched = comments.map(comment => {
+      const isAnonymous = !!comment.is_anonymous;
+      const authorUser = !isAnonymous && comment.nic ? userMap.get(comment.nic) : null;
+      return {
+        ...comment,
+        authorName: isAnonymous ? 'Anonymous' : (authorUser?.full_name || 'Community Member'),
+        authorRole: isAnonymous ? 'user' : (authorUser?.role || 'user'),
+        authorProfile: isAnonymous ? '' : (authorUser?.profile_picture || '')
+      };
+    });
+
+    res.json({ success: true, data: enriched });
+  } catch (error) {
+    console.error('Error fetching post comments:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch comments', error: error.message });
+  }
+});
+
+// POST /api/posts/:id/comments - Add comment or reply
+app.post('/api/posts/:id/comments', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    const Comment = getModel('Comment');
+    const Post = getModel('Post');
+    const User = getModel('User');
+    const CommunityMember = getModel('CommunityMember');
+
+    if (!Comment || !Post || !User) {
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
+    const post = await resolvePostByParam(Post, req.params.id);
+    if (!post || post.approval_status !== 'approved') {
+      return res.status(404).json({ success: false, message: 'Post not found' });
+    }
+    if (post.allow_comments === false) {
+      return res.status(403).json({ success: false, message: 'Comments are disabled for this post' });
+    }
+
+    const { text, parentCommentId, is_anonymous = false } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ success: false, message: 'Comment text is required' });
+    }
+
+    const comment = new Comment({
+      comment_id: `COMMENT_${Date.now()}_${req.user.NIC}`,
+      post_id: post._id.toString(),
+      nic: req.user.NIC,
+      comment_text: text.trim(),
+      parent_comment_id: parentCommentId || null,
+      is_anonymous: !!is_anonymous,
+      like_count: 0,
+      report_count: 0,
+      is_edited: false,
+      created_at: new Date(),
+      updated_at: new Date()
+    });
+
+    await comment.save();
+    await Post.updateOne({ _id: post._id }, { $inc: { comment_count: 1 } });
+
+    if (CommunityMember) {
+      try {
+        await CommunityMember.updateOne({ NIC: req.user.NIC }, { $inc: { comment_count: 1 } });
+      } catch {}
+    }
+
+    const authorUser = await User.findOne({ NIC: req.user.NIC }).lean();
+    res.status(201).json({
+      success: true,
+      data: {
+        ...comment.toObject(),
+        authorName: is_anonymous ? 'Anonymous' : (authorUser?.full_name || 'Community Member'),
+        authorRole: is_anonymous ? 'user' : (authorUser?.role || 'user'),
+        authorProfile: is_anonymous ? '' : (authorUser?.profile_picture || '')
+      }
+    });
+  } catch (error) {
+    console.error('Error creating post comment:', error);
+    res.status(500).json({ success: false, message: 'Failed to create comment', error: error.message });
+  }
+});
+// ========== END COMMUNITY POSTS ROUTES ==========
+
+// Register read-only models for Doctor backend collections
+const getArticleModel = () => {
+  try {
+    return mongoose.model('Article');
+  } catch {
+    const articleSchema = new mongoose.Schema({}, { strict: false, collection: 'articles' });
+
+
+    return mongoose.model('Article', articleSchema);
+  }
+};
+
+const getDoctorProfileModel = () => {
+  try {
+    return mongoose.model('DoctorProfile');
+  } catch {
+    const doctorProfileSchema = new mongoose.Schema({}, { strict: false, collection: 'doctors' });
+    return mongoose.model('DoctorProfile', doctorProfileSchema);
+  }
+};
+
+// GET /api/community/articles - Paginated feed of published articles
+app.get('/api/community/articles', optionalAuth, checkDatabaseReady, async (req, res) => {
+  try {
+    const Article = getArticleModel();
+    const DoctorProfile = getDoctorProfileModel();
+    const User = getModel('User');
+    const Like = getModel('Like');
+
+    const { page = 1, limit = 10, search, sort = 'newest' } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const query = { status: 'published' };
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { excerpt: { $regex: search, $options: 'i' } },
+        { tags: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    let sortObj = { publishedAt: -1 };
+    if (sort === 'popular') sortObj = { likes: -1, views: -1 };
+    if (sort === 'most_viewed') sortObj = { views: -1 };
+
+    const [articles, total] = await Promise.all([
+      Article.find(query).sort(sortObj).skip(skip).limit(parseInt(limit)).lean(),
+      Article.countDocuments(query)
+    ]);
+
+    // Enrich with author info
+    const enriched = await Promise.all(articles.map(async (article) => {
+      let authorName = 'Unknown Doctor';
+      let authorSpecialization = '';
+      try {
+        const doctor = await DoctorProfile.findById(article.author).lean();
+        if (doctor && doctor.user) {
+          const user = await User.findById(doctor.user).lean();
+          if (user) authorName = user.full_name;
+          authorSpecialization = doctor.specialization || '';
+        }
+      } catch {}
+
+      // Check if current user liked this article
+      let isLiked = false;
+      if (req.user) {
+        const like = await Like.findOne({
+          article_id: article._id.toString(),
+          nic: req.user.NIC,
+          like_type: 'article'
+        });
+        isLiked = !!like;
+      }
+
+      // Get comment count from ArticleComment model
+      const ArticleComment = getModel('ArticleComment');
+      let commentCount = 0;
+      if (ArticleComment) {
+        commentCount = await ArticleComment.countDocuments({
+          article_id: article._id.toString(),
+          is_deleted: false
+        });
+      }
+
+      return {
+        _id: article._id,
+        title: article.title,
+        slug: article.slug,
+        excerpt: article.excerpt || (article.content ? article.content.substring(0, 200) + '...' : ''),
+        featuredImage: article.featuredImage,
+        author: { name: authorName, specialization: authorSpecialization },
+        tags: article.tags || [],
+        status: article.status,
+        views: article.views || 0,
+        likes: article.likes || 0,
+        commentCount,
+        isLiked,
+        publishedAt: article.publishedAt,
+        createdAt: article.createdAt
+      };
+    }));
+
+    res.json({
+      success: true,
+      data: enriched,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching community articles:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch articles', error: error.message });
+  }
+});
+
+// GET /api/community/doctor-suggestions - Basic doctor follow suggestions
+app.get('/api/community/doctor-suggestions', checkDatabaseReady, async (req, res) => {
+  try {
+    const DoctorProfile = getDoctorProfileModel();
+    const User = getModel('User');
+    if (!DoctorProfile || !User) {
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
+    const limit = Math.max(1, parseInt(req.query.limit || '6', 10));
+
+    const doctorDocs = await DoctorProfile.find({}).lean();
+    const verifiedDocs = doctorDocs.filter(doc => doc.verified || doc.is_approved || doc.isVerified);
+    const pool = verifiedDocs.length ? verifiedDocs : doctorDocs;
+
+    const suggestions = [];
+    const seen = new Set();
+
+    for (const doc of pool) {
+      if (suggestions.length >= limit) break;
+      let name = '';
+      try {
+        if (doc.user) {
+          const user = await User.findById(doc.user).lean();
+          if (user) name = user.full_name || '';
+        } else if (doc.NIC) {
+          const user = await User.findOne({ NIC: doc.NIC }).lean();
+          if (user) name = user.full_name || '';
+        }
+      } catch {}
+
+      const specialization = doc.specialization || doc.specialty || 'Doctor';
+      if (!name) name = 'Verified Doctor';
+      if (seen.has(name)) continue;
+      seen.add(name);
+      suggestions.push({ name, specialization });
+    }
+
+    res.json({ success: true, data: suggestions });
+  } catch (error) {
+    console.error('Error fetching doctor suggestions:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch suggestions', error: error.message });
+  }
+});
+
+// GET /api/community/articles/:id - Single article detail
+app.get('/api/community/articles/:id', optionalAuth, checkDatabaseReady, async (req, res) => {
+  try {
+    const Article = getArticleModel();
+    const DoctorProfile = getDoctorProfileModel();
+    const User = getModel('User');
+    const Like = getModel('Like');
+
+    const article = await Article.findById(req.params.id).lean();
+    if (!article || article.status !== 'published') {
+      return res.status(404).json({ success: false, message: 'Article not found' });
+    }
+
+    // Increment views
+    await Article.updateOne({ _id: article._id }, { $inc: { views: 1 } });
+
+    let authorName = 'Unknown Doctor';
+    let authorSpecialization = '';
+    try {
+      const doctor = await DoctorProfile.findById(article.author).lean();
+      if (doctor && doctor.user) {
+        const user = await User.findById(doctor.user).lean();
+        if (user) authorName = user.full_name;
+        authorSpecialization = doctor.specialization || '';
+      }
+    } catch {}
+
+    let isLiked = false;
+    if (req.user) {
+      const like = await Like.findOne({
+        article_id: article._id.toString(),
+        nic: req.user.NIC,
+        like_type: 'article'
+      });
+      isLiked = !!like;
+    }
+
+    const ArticleComment = getModel('ArticleComment');
+    let commentCount = 0;
+    if (ArticleComment) {
+      commentCount = await ArticleComment.countDocuments({
+        article_id: article._id.toString(),
+        is_deleted: false
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...article,
+        views: (article.views || 0) + 1,
+        author: { name: authorName, specialization: authorSpecialization },
+        isLiked,
+        commentCount
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching article:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch article', error: error.message });
+  }
+});
+
+// POST /api/community/articles/:id/like - Toggle like
+app.post('/api/community/articles/:id/like', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    const Article = getArticleModel();
+    const Like = getModel('Like');
+
+    const article = await Article.findById(req.params.id);
+    if (!article || article.status !== 'published') {
+      return res.status(404).json({ success: false, message: 'Article not found' });
+    }
+
+    const existingLike = await Like.findOne({
+      article_id: article._id.toString(),
+      nic: req.user.NIC,
+      like_type: 'article'
+    });
+
+    if (existingLike) {
+      await Like.deleteOne({ _id: existingLike._id });
+      await Article.updateOne({ _id: article._id }, { $inc: { likes: -1 } });
+      return res.json({ success: true, liked: false, likes: Math.max(0, (article.likes || 0) - 1) });
+    } else {
+      const newLike = new Like({
+        like_id: `LIKE_ART_${Date.now()}_${req.user.NIC}`,
+        article_id: article._id.toString(),
+        nic: req.user.NIC,
+        like_type: 'article'
+      });
+      await newLike.save();
+      await Article.updateOne({ _id: article._id }, { $inc: { likes: 1 } });
+      return res.json({ success: true, liked: true, likes: (article.likes || 0) + 1 });
+    }
+  } catch (error) {
+    console.error('Error toggling like:', error);
+    res.status(500).json({ success: false, message: 'Failed to toggle like', error: error.message });
+  }
+});
+
+// GET /api/community/articles/:id/comments - Get all comments
+app.get('/api/community/articles/:id/comments', checkDatabaseReady, async (req, res) => {
+  try {
+    const ArticleComment = getModel('ArticleComment');
+    const User = getModel('User');
+
+    if (!ArticleComment) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const comments = await ArticleComment.find({
+      article_id: req.params.id,
+      is_deleted: false
+    }).sort({ created_at: 1 }).lean();
+
+    // Enrich with author names
+    const enriched = await Promise.all(comments.map(async (comment) => {
+      let authorName = 'Unknown';
+      try {
+        const user = await User.findOne({ NIC: comment.author_nic }).lean();
+        if (user) authorName = user.full_name;
+      } catch {}
+      return {
+        ...comment,
+        authorName
+      };
+    }));
+
+    res.json({ success: true, data: enriched });
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch comments', error: error.message });
+  }
+});
+
+// POST /api/community/articles/:id/comments - Add comment or reply
+app.post('/api/community/articles/:id/comments', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    const ArticleComment = getModel('ArticleComment');
+    const User = getModel('User');
+    const Article = getArticleModel();
+
+    if (!ArticleComment) {
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
+    const { text, parentCommentId } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ success: false, message: 'Comment text is required' });
+    }
+
+    // Verify article exists
+    const article = await Article.findById(req.params.id);
+    if (!article || article.status !== 'published') {
+      return res.status(404).json({ success: false, message: 'Article not found' });
+    }
+
+    const comment = new ArticleComment({
+      article_id: req.params.id,
+      author_nic: req.user.NIC,
+      author_role: req.user.role || 'user',
+      text: text.trim(),
+      parent_comment_id: parentCommentId || null
+    });
+
+    await comment.save();
+
+    // Get author name for response
+    let authorName = 'Unknown';
+    try {
+      const user = await User.findOne({ NIC: req.user.NIC }).lean();
+      if (user) authorName = user.full_name;
+    } catch {}
+
+    res.status(201).json({
+      success: true,
+      data: {
+        ...comment.toObject(),
+        authorName
+      }
+    });
+  } catch (error) {
+    console.error('Error creating comment:', error);
+    res.status(500).json({ success: false, message: 'Failed to create comment', error: error.message });
+  }
+});
+
+// PUT /api/community/articles/:id/comments/:commentId - Edit comment
+app.put('/api/community/articles/:id/comments/:commentId', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    const ArticleComment = getModel('ArticleComment');
+    if (!ArticleComment) {
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
+    const { text } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ success: false, message: 'Comment text is required' });
+    }
+
+    const comment = await ArticleComment.findOne({
+      _id: req.params.commentId,
+      article_id: req.params.id,
+      is_deleted: false
+    });
+
+    if (!comment) {
+      return res.status(404).json({ success: false, message: 'Comment not found' });
+    }
+
+    const isOwner = comment.author_nic === req.user.NIC;
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'web_manager';
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Not authorized to edit this comment' });
+    }
+
+    comment.text = text.trim();
+    comment.updated_at = new Date();
+    await comment.save();
+
+    res.json({ success: true, data: comment });
+  } catch (error) {
+    console.error('Error editing comment:', error);
+    res.status(500).json({ success: false, message: 'Failed to edit comment', error: error.message });
+  }
+});
+
+// DELETE /api/community/articles/:id/comments/:commentId - Delete comment (soft delete)
+app.delete('/api/community/articles/:id/comments/:commentId', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    const ArticleComment = getModel('ArticleComment');
+    if (!ArticleComment) {
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
+    const comment = await ArticleComment.findOne({
+      _id: req.params.commentId,
+      article_id: req.params.id,
+      is_deleted: false
+    });
+
+    if (!comment) {
+      return res.status(404).json({ success: false, message: 'Comment not found' });
+    }
+
+    const isOwner = comment.author_nic === req.user.NIC;
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'web_manager';
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this comment' });
+    }
+
+    comment.is_deleted = true;
+    comment.updated_at = new Date();
+    await comment.save();
+
+    res.json({ success: true, message: 'Comment deleted' });
+  } catch (error) {
+    console.error('Error deleting comment:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete comment', error: error.message });
+  }
+});
+// ========== END COMMUNITY ARTICLES ROUTES ==========
+
 // ========== SERVER STARTUP ==========
 const PORT = 5000;
 app.listen(PORT, () => {
@@ -5068,117 +6792,3 @@ app.listen(PORT, () => {
   console.log('='.repeat(60));
 });
 // ========== END SERVER STARTUP ==========
-
-//ISURI
-
-//route
-// CREATE OR UPDATE CYCLE PROFILE
-app.post('/api/cycle/profile', checkDatabaseReady, async (req, res) => {
-  try {
-    const CycleProfile = getModel('CycleProfile');
-
-    if (!CycleProfile) {
-      return res.status(500).json({
-        success: false,
-        message: 'Server configuration error'
-      });
-    }
-
-    const {
-      NIC,
-      cycle_length,
-      period_length,
-      tracking_preferences,
-      privacy_settings
-    } = req.body;
-
-    if (!NIC) {
-      return res.status(400).json({
-        success: false,
-        message: 'NIC is required'
-      });
-    }
-
-    const updated = await CycleProfile.findOneAndUpdate(
-      { NIC },
-      {
-        $set: {
-          cycle_length: cycle_length ?? 28,
-          period_length: period_length ?? 5,
-          tracking_preferences: tracking_preferences ?? {},
-          privacy_settings: privacy_settings ?? {},
-          updated_at: new Date()
-        },
-        $setOnInsert: {
-          NIC,
-          activated_at: new Date(),
-          is_active: true,
-          is_anonymized: false,
-          created_at: new Date()
-        }
-      },
-      { new: true, upsert: true }
-    );
-
-    res.json({
-      success: true,
-      message: 'Cycle profile saved',
-      data: updated
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-//
-
-// ADD CYCLE TRACKER ENTRY
-app.post('/api/cycle/tracker', checkDatabaseReady, async (req, res) => {
-  try {
-    const CycleTracker = getModel('CycleTracker');
-
-    if (!CycleTracker) {
-      return res.status(500).json({
-        success: false,
-        message: 'Server configuration error'
-      });
-    }
-
-    const { NIC, period_start_date, period_end_date, notes } = req.body;
-
-    if (!NIC || !period_start_date) {
-      return res.status(400).json({
-        success: false,
-        message: 'NIC and period_start_date are required'
-      });
-    }
-
-    const tracker = new CycleTracker({
-      tracker_id: `TRK_${Date.now()}_${NIC}`,
-      NIC,
-      period_start_date: new Date(period_start_date),
-      period_end_date: period_end_date ? new Date(period_end_date) : null,
-      notes: notes || '',
-      created_at: new Date(),
-      updated_at: new Date()
-    });
-
-    await tracker.save();
-
-    res.json({
-      success: true,
-      message: 'Cycle tracker saved',
-      data: tracker
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-
-//ISURI

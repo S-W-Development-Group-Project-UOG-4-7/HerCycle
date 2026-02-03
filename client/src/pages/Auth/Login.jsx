@@ -11,6 +11,9 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showRolePopup, setShowRolePopup] = useState(false);
+  const [pendingUserData, setPendingUserData] = useState(null);
+  const [pendingToken, setPendingToken] = useState(null);
 
   const handleChange = (e) => {
     setFormData({
@@ -44,23 +47,27 @@ const Login = () => {
         // ✅ FIX: Backend returns data.data, not data.user
         const userData = data.data;
         
-        // Store auth data
-        localStorage.setItem('authToken', data.token);
-        localStorage.setItem('user', JSON.stringify(userData));
-        
         console.log('✅ Login successful! User data:', userData);
         console.log('🎯 User role:', userData.role);
         console.log('🎯 User type:', userData.user_type);
-        
+
         // Redirect based on user role
         const userRole = userData.role || userData.user_type;
-        
+
+        if (userRole === 'doctor') {
+          localStorage.setItem('authToken', data.token);
+          localStorage.setItem('user', JSON.stringify(userData));
+          navigate('/doctor-dashboard');
+          return;
+        }
+
+        // Store auth data for non-doctor roles
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('user', JSON.stringify(userData));
+
         if (userRole === 'admin') {
           console.log('🔄 Redirecting to admin dashboard');
           navigate('/admin-dashboard');
-        } else if (userRole === 'doctor') {
-          console.log('🔄 Redirecting to doctor dashboard');
-          navigate('/doctor-dashboard');
         } else if (userRole === 'web_manager') {
           console.log('🔄 Redirecting to web manager dashboard');
           navigate('/web-manager-dashboard');
@@ -102,6 +109,17 @@ const Login = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRoleSelect = (dashboard) => {
+    localStorage.setItem('authToken', pendingToken);
+    localStorage.setItem('user', JSON.stringify(pendingUserData));
+    setShowRolePopup(false);
+    if (dashboard === 'doctor') {
+      navigate('/doctor-dashboard');
+    } else {
+      navigate('/dashboard');
     }
   };
 
@@ -237,6 +255,101 @@ const Login = () => {
           </div>
         </form>
       </div>
+
+      {/* Doctor Role Selection Popup */}
+      {showRolePopup && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '20px',
+            padding: '40px 35px',
+            maxWidth: '420px',
+            width: '90%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+            animation: 'fadeInUp 0.3s ease'
+          }}>
+            <h2 style={{ margin: '0 0 8px 0', color: '#1a1a1b', fontSize: '22px', textAlign: 'center' }}>
+              How would you like to join?
+            </h2>
+            <p style={{ color: '#666', textAlign: 'center', marginBottom: '30px', fontSize: '14px' }}>
+              Your account has doctor privileges. Choose how you'd like to continue.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <button
+                onClick={() => handleRoleSelect('doctor')}
+                style={{
+                  padding: '18px 20px',
+                  background: 'linear-gradient(135deg, #db2777 0%, #9333ea 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '14px',
+                  cursor: 'pointer',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  boxShadow: '0 4px 15px rgba(219,39,119,0.3)',
+                  textAlign: 'left'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+              >
+                <span style={{ fontSize: '28px' }}>🩺</span>
+                <div>
+                  <div>Doctor Dashboard</div>
+                  <div style={{ fontSize: '12px', opacity: 0.85, fontWeight: 400 }}>
+                    Manage articles, consultations & patients
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => handleRoleSelect('community')}
+                style={{
+                  padding: '18px 20px',
+                  background: 'white',
+                  color: '#333',
+                  border: '2px solid #e0e0e0',
+                  borderRadius: '14px',
+                  cursor: 'pointer',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px',
+                  transition: 'transform 0.2s, border-color 0.2s',
+                  textAlign: 'left'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = '#db2777'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#e0e0e0'; }}
+              >
+                <span style={{ fontSize: '28px' }}>👥</span>
+                <div>
+                  <div>Community Dashboard</div>
+                  <div style={{ fontSize: '12px', color: '#888', fontWeight: 400 }}>
+                    Browse articles, comment & interact
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

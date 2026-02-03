@@ -13,9 +13,8 @@ import ForgotPassword from './pages/Auth/ForgotPassword';
 import Dashboard from './pages/Dashboard/Dashboard';
 import DoctorDashboard from './pages/Doctor/Dashboard';
 import AdminDoctorVerification from './pages/Admin/AdminDoctorVerification';
+import SelectDashboard from './pages/Auth/SelectDashboard';
 import Profile from "./pages/Profile/Profile";
-
-
 
 function App() {
   return (
@@ -35,6 +34,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/select-dashboard" element={<SelectDashboard />} />
           <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
           <Route path="/doctor-pending" element={<DoctorDashboard pending={true} />} />
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
