@@ -71,6 +71,7 @@ app.options('*', cors());
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use("/api/cycle", require("./routes/cycleRoutes"));
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(uploadsDir));
@@ -199,6 +200,9 @@ app.get('/health', (req, res) => {
     mongodb: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
   });
 });
+
+
+
 
 app.post('/api/setup-database', async (req, res) => {
   try {
@@ -3682,6 +3686,165 @@ app.get('/api/cycle/profile/:nic', checkDatabaseReady, async (req, res) => {
   }
 });
 
+// CREATE OR UPDATE CYCLE PROFILE
+app.post('/api/cycle/profile', checkDatabaseReady, async (req, res) => {
+  try {
+    const CycleProfile = getModel('CycleProfile');
+
+    if (!CycleProfile) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    const {
+      NIC,
+      cycle_length,
+      period_length,
+      tracking_preferences,
+      privacy_settings
+    } = req.body;
+
+    if (!NIC) {
+      return res.status(400).json({
+        success: false,
+        message: 'NIC is required'
+      });
+    }
+
+    const updated = await CycleProfile.findOneAndUpdate(
+      { NIC },
+      {
+        $set: {
+          cycle_length: cycle_length ?? 28,
+          period_length: period_length ?? 5,
+          tracking_preferences: tracking_preferences ?? {},
+          privacy_settings: privacy_settings ?? {},
+          updated_at: new Date()
+        },
+        $setOnInsert: {
+          NIC,
+          activated_at: new Date(),
+          is_active: true,
+          is_anonymized: false,
+          created_at: new Date()
+        }
+      },
+      { new: true, upsert: true }
+    );
+
+    res.json({
+      success: true,
+      message: 'Cycle profile saved',
+      data: updated
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+// DELETE DAILY LOG
+app.delete('/api/cycle/daily-log/:id', checkDatabaseReady, async (req, res) => {
+  try {
+    const DailyLog = getModel('DailyLog');
+    if (!DailyLog) {
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
+    const deleted = await DailyLog.findByIdAndDelete(req.params.id);
+
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Daily log not found' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Daily log deleted',
+      data: deleted
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// DELETE CYCLE TRACKER ENTRY
+app.delete('/api/cycle/tracker/:id', checkDatabaseReady, async (req, res) => {
+  try {
+    const CycleTracker = getModel('CycleTracker');
+    if (!CycleTracker) {
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
+    const deleted = await CycleTracker.findByIdAndDelete(req.params.id);
+
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Cycle tracker entry not found' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Cycle tracker deleted',
+      data: deleted
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+//
+
+// ADD CYCLE TRACKER ENTRY
+app.post('/api/cycle/tracker', checkDatabaseReady, async (req, res) => {
+  try {
+    const CycleTracker = getModel('CycleTracker');
+
+    if (!CycleTracker) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    const { NIC, period_start_date, period_end_date, notes } = req.body;
+
+    if (!NIC || !period_start_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'NIC and period_start_date are required'
+      });
+    }
+
+    const tracker = new CycleTracker({
+      tracker_id: `TRK_${Date.now()}_${NIC}`,
+      NIC,
+      period_start_date: new Date(period_start_date),
+      period_end_date: period_end_date ? new Date(period_end_date) : null,
+      notes: notes || '',
+      created_at: new Date(),
+      updated_at: new Date()
+    });
+
+    await tracker.save();
+
+    res.json({
+      success: true,
+      message: 'Cycle tracker saved',
+      data: tracker
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+
+//ISURI
+
 // SAVE DAILY LOG
 app.post('/api/cycle/daily-log', checkDatabaseReady, async (req, res) => {
   try {
@@ -4905,3 +5068,120 @@ app.listen(PORT, () => {
   console.log('='.repeat(60));
 });
 // ========== END SERVER STARTUP ==========
+<<<<<<< HEAD
+=======
+
+//ISURI
+
+//route
+// CREATE OR UPDATE CYCLE PROFILE
+app.post('/api/cycle/profile', checkDatabaseReady, async (req, res) => {
+  try {
+    const CycleProfile = getModel('CycleProfile');
+
+    if (!CycleProfile) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    const {
+      NIC,
+      cycle_length,
+      period_length,
+      tracking_preferences,
+      privacy_settings
+    } = req.body;
+
+    if (!NIC) {
+      return res.status(400).json({
+        success: false,
+        message: 'NIC is required'
+      });
+    }
+
+    const updated = await CycleProfile.findOneAndUpdate(
+      { NIC },
+      {
+        $set: {
+          cycle_length: cycle_length ?? 28,
+          period_length: period_length ?? 5,
+          tracking_preferences: tracking_preferences ?? {},
+          privacy_settings: privacy_settings ?? {},
+          updated_at: new Date()
+        },
+        $setOnInsert: {
+          NIC,
+          activated_at: new Date(),
+          is_active: true,
+          is_anonymized: false,
+          created_at: new Date()
+        }
+      },
+      { new: true, upsert: true }
+    );
+
+    res.json({
+      success: true,
+      message: 'Cycle profile saved',
+      data: updated
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+//
+
+// ADD CYCLE TRACKER ENTRY
+app.post('/api/cycle/tracker', checkDatabaseReady, async (req, res) => {
+  try {
+    const CycleTracker = getModel('CycleTracker');
+
+    if (!CycleTracker) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+
+    const { NIC, period_start_date, period_end_date, notes } = req.body;
+
+    if (!NIC || !period_start_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'NIC and period_start_date are required'
+      });
+    }
+
+    const tracker = new CycleTracker({
+      tracker_id: `TRK_${Date.now()}_${NIC}`,
+      NIC,
+      period_start_date: new Date(period_start_date),
+      period_end_date: period_end_date ? new Date(period_end_date) : null,
+      notes: notes || '',
+      created_at: new Date(),
+      updated_at: new Date()
+    });
+
+    await tracker.save();
+
+    res.json({
+      success: true,
+      message: 'Cycle tracker saved',
+      data: tracker
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+
+//ISURI
+>>>>>>> origin/main
