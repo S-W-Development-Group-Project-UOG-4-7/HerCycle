@@ -46,20 +46,27 @@ const upload = multer({
 // ========== CORS CONFIGURATION ==========
 const allowedOrigins = [
   'http://localhost:3000',
-  'http://localhost:3001', 
+  'http://localhost:3001',
   'http://localhost:5173',
-  'http://localhost:5174'
+  'http://localhost:5174',
+  'http://localhost:5175'
 ];
+
+const isLocalhostOrigin = (origin) => {
+  if (!origin) return true;
+  return /^http:\/\/localhost:\d+$/.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin);
+};
 
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+
+    if (allowedOrigins.indexOf(origin) !== -1 || isLocalhostOrigin(origin)) {
+      return callback(null, true);
     }
-    return callback(null, true);
+
+    const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+    return callback(new Error(msg), false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -378,26 +385,28 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
             // Ensure Doctor record exists
             if (Doctor) {
               let doctor = await Doctor.findOne({ NIC: existingUser.NIC });
-              if (!doctor) {
-                doctor = new Doctor({
-                  NIC: existingUser.NIC,
-                  specialty: specialty || 'General',
-                  qualifications: qualifications ? qualifications.split(',').map(q => q.trim()) : [],
-                  clinic_or_hospital: clinic_or_hospital || '',
-                  is_approved: false,
-                  activated_at: null,
-                  experience_years: 0,
-                  verified: false
-                });
-                await doctor.save();
-              } else {
-                // Update doctor info
-                if (specialty) doctor.specialty = specialty;
-                if (qualifications) doctor.qualifications = qualifications.split(',').map(q => q.trim());
-                if (clinic_or_hospital) doctor.clinic_or_hospital = clinic_or_hospital;
-                await doctor.save();
+                if (!doctor) {
+                  doctor = new Doctor({
+                    user: existingUser._id,
+                    NIC: existingUser.NIC,
+                    specialty: specialty || 'General',
+                    qualifications: qualifications ? qualifications.split(',').map(q => q.trim()) : [],
+                    clinic_or_hospital: clinic_or_hospital || '',
+                    is_approved: false,
+                    activated_at: null,
+                    experience_years: 0,
+                    verified: false
+                  });
+                  await doctor.save();
+                } else {
+                  // Update doctor info
+                  if (specialty) doctor.specialty = specialty;
+                  if (qualifications) doctor.qualifications = qualifications.split(',').map(q => q.trim());
+                  if (clinic_or_hospital) doctor.clinic_or_hospital = clinic_or_hospital;
+                  if (!doctor.user) doctor.user = existingUser._id;
+                  await doctor.save();
+                }
               }
-            }
 
             // Create verification record
             if (DoctorVerification && license_document_url) {
@@ -486,26 +495,28 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
 
           // Create or update doctor profile
           let doctor = await Doctor.findOne({ NIC: existingUser.NIC });
-          if (!doctor) {
-            doctor = new Doctor({
-              NIC: existingUser.NIC,
-              specialty: specialty || 'general_practice',
-              qualifications: qualifications ? qualifications.split(',').map(q => q.trim()) : [],
-              clinic_or_hospital: clinic_or_hospital || '',
-              is_approved: false,
-              activated_at: null,
-              experience_years: 0,
-              verified: false
-            });
-          } else {
-            if (specialty) doctor.specialty = specialty;
-            if (qualifications) doctor.qualifications = qualifications.split(',').map(q => q.trim());
-            if (clinic_or_hospital) doctor.clinic_or_hospital = clinic_or_hospital;
-            doctor.is_approved = false;
-            doctor.verified = false;
-            doctor.activated_at = null;
-          }
-          await doctor.save();
+            if (!doctor) {
+              doctor = new Doctor({
+                user: existingUser._id,
+                NIC: existingUser.NIC,
+                specialty: specialty || 'general_practice',
+                qualifications: qualifications ? qualifications.split(',').map(q => q.trim()) : [],
+                clinic_or_hospital: clinic_or_hospital || '',
+                is_approved: false,
+                activated_at: null,
+                experience_years: 0,
+                verified: false
+              });
+            } else {
+              if (specialty) doctor.specialty = specialty;
+              if (qualifications) doctor.qualifications = qualifications.split(',').map(q => q.trim());
+              if (clinic_or_hospital) doctor.clinic_or_hospital = clinic_or_hospital;
+              doctor.is_approved = false;
+              doctor.verified = false;
+              doctor.activated_at = null;
+              if (!doctor.user) doctor.user = existingUser._id;
+            }
+            await doctor.save();
 
           // Create or refresh verification record
           const existingVerification = await DoctorVerification.findOne({ doctor_NIC: existingUser.NIC });
@@ -600,20 +611,21 @@ app.post('/api/auth/register', checkDatabaseReady, async (req, res) => {
     // Create role-specific records
     if (user_type === 'doctor') {
       // Doctor registration
-      if (Doctor) {
-        const doctorData = {
-          NIC,
-          specialty: specialty || 'general_practice',
-          qualifications: qualifications ? qualifications.split(',').map(q => q.trim()) : [],
-          clinic_or_hospital: clinic_or_hospital || '',
-          is_approved: false,
-          activated_at: null,
-          experience_years: 0,
-          verified: false
-        };
-        const doctor = new Doctor(doctorData);
-        await doctor.save();
-      }
+        if (Doctor) {
+          const doctorData = {
+            user: user._id,
+            NIC,
+            specialty: specialty || 'general_practice',
+            qualifications: qualifications ? qualifications.split(',').map(q => q.trim()) : [],
+            clinic_or_hospital: clinic_or_hospital || '',
+            is_approved: false,
+            activated_at: null,
+            experience_years: 0,
+            verified: false
+          };
+          const doctor = new Doctor(doctorData);
+          await doctor.save();
+        }
 
       if (DoctorVerification) {
         if (!license_document_url) {
@@ -795,10 +807,14 @@ app.post('/api/auth/login', checkDatabaseReady, async (req, res) => {
     let user_type = 'community_member';
     
     if (user.role === 'doctor' && Doctor) {
-      const doctor = await Doctor.findOne({ NIC: user.NIC });
-      if (doctor) {
-        roleData = doctor.toObject();
-        user_type = 'doctor';
+        const doctor = await Doctor.findOne({ NIC: user.NIC });
+        if (doctor) {
+          if (!doctor.user) {
+            doctor.user = user._id;
+            await doctor.save();
+          }
+          roleData = doctor.toObject();
+          user_type = 'doctor';
 
         // Get verification status, auto-create if missing
         const DoctorVerification = getModel('DoctorVerification');
@@ -823,15 +839,16 @@ app.post('/api/auth/login', checkDatabaseReady, async (req, res) => {
       } else {
         // Doctor record missing — auto-create
         console.log('⚠️ Auto-creating missing Doctor record for:', user.NIC);
-        const newDoctor = new Doctor({
-          NIC: user.NIC,
-          specialty: 'General',
-          qualifications: [],
-          is_approved: false,
-          verified: false,
-          activated_at: null,
-          experience_years: 0
-        });
+          const newDoctor = new Doctor({
+            user: user._id,
+            NIC: user.NIC,
+            specialty: 'General',
+            qualifications: [],
+            is_approved: false,
+            verified: false,
+            activated_at: null,
+            experience_years: 0
+          });
         await newDoctor.save();
         roleData = newDoctor.toObject();
         user_type = 'doctor';
@@ -2817,21 +2834,25 @@ const ensureDoctor = async (req, res, next) => {
     return res.status(500).json({ success: false, message: 'Server configuration error' });
   }
 
-  let doctor = await Doctor.findOne({ NIC: req.user.NIC });
-  if (!doctor) {
-    doctor = new Doctor({
-      NIC: req.user.NIC,
-      specialty: 'General',
-      qualifications: [],
-      clinic_or_hospital: '',
-      bio: '',
-      is_approved: false,
-      verified: false,
-      activated_at: null,
-      experience_years: 0
-    });
-    await doctor.save();
-  }
+    let doctor = await Doctor.findOne({ NIC: req.user.NIC });
+    if (!doctor) {
+      doctor = new Doctor({
+        user: req.user.userId,
+        NIC: req.user.NIC,
+        specialty: 'General',
+        qualifications: [],
+        clinic_or_hospital: '',
+        bio: '',
+        is_approved: false,
+        verified: false,
+        activated_at: null,
+        experience_years: 0
+      });
+      await doctor.save();
+    } else if (!doctor.user && req.user.userId) {
+      doctor.user = req.user.userId;
+      await doctor.save();
+    }
 
   req.doctor = doctor;
   next();

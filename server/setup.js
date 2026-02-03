@@ -128,6 +128,10 @@ async function setupDatabase() {
     if (!existingModels.includes('Doctor')) {
       console.log('👩‍⚕️ Creating Doctor model...');
       const doctorSchema = new mongoose.Schema({
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User'
+        },
         NIC: {
           type: String,
           required: true,

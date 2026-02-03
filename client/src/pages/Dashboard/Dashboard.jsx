@@ -1265,7 +1265,7 @@ const CommunityTab = ({ user }) => {
                       <span className="social-trend-tag">#{tag}</span>
                       <span className="social-trend-meta">{count ? `${count} posts` : 'New conversations'}</span>
                     </div>
-                    <span className="social-trend-arrow">></span>
+                    <span className="social-trend-arrow">&gt;</span>
                   </button>
                 ))}
               </div>
@@ -1514,7 +1514,7 @@ const CommunityTab = ({ user }) => {
                     <span className="social-trend-tag">#{tag}</span>
                     <span className="social-trend-meta">{count ? `${count} posts` : 'New conversations'}</span>
                   </div>
-                  <span className="social-trend-arrow">></span>
+                  <span className="social-trend-arrow">{'>'}</span>
                 </button>
               ))}
             </div>
@@ -2354,7 +2354,7 @@ const ProfileTab = ({ user }) => {
                       <div className="profile-list-info">
                         <span className="profile-list-title">{item.title}</span>
                         <span className="profile-list-meta">
-                          by {item.author || 'Doctor'} • {formatSavedTime(item.time)}
+                          by {item.author || 'Doctor'} ï¿½ {formatSavedTime(item.time)}
                         </span>
                         {item.tags && item.tags.length > 0 && (
                           <div className="profile-list-tags">
