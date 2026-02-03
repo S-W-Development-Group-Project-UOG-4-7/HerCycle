@@ -5068,8 +5068,6 @@ app.listen(PORT, () => {
   console.log('='.repeat(60));
 });
 // ========== END SERVER STARTUP ==========
-<<<<<<< HEAD
-=======
 
 //ISURI
 
@@ -5184,4 +5182,3 @@ app.post('/api/cycle/tracker', checkDatabaseReady, async (req, res) => {
 
 
 //ISURI
->>>>>>> origin/main
