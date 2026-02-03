@@ -8,7 +8,7 @@ const LandingPage = () => {
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
+
   // API data states
   const [landingPageData, setLandingPageData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -20,16 +20,16 @@ const LandingPage = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
+
         // Use the public API endpoint
         const response = await fetch('http://localhost:5000/api/landing-page');
-        
+
         if (!response.ok) {
           throw new Error(`Failed to fetch data: ${response.status}`);
         }
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
           setLandingPageData(result.data);
           setError(null);
@@ -43,7 +43,7 @@ const LandingPage = () => {
         setError(errorMessage);
         setShowError(true);
         console.error('API Error:', errorMessage);
-        
+
         // Fallback to hardcoded data
         setLandingPageData({
           hero: {
@@ -107,7 +107,7 @@ const LandingPage = () => {
       const timer = setTimeout(() => {
         setShowError(false);
       }, 60000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [showError]);
@@ -148,7 +148,7 @@ const LandingPage = () => {
   }
 
   // Destructure data for easier access
-  const { hero, about, mission, contact, footer, features = [], stats = [] } = landingPageData;
+  const { hero = {}, about = {}, mission = {}, contact = {}, footer = {}, features = [], stats = [] } = landingPageData;
 
   return (
     <div className="min-h-screen w-full relative overflow-x-hidden">
@@ -403,7 +403,7 @@ const LandingPage = () => {
 
       {/* Error message if API fails */}
       {showError && (
-        <div 
+        <div
           className={`fixed top-20 right-4 z-50 bg-gradient-to-r from-red-500 to-orange-500 text-white px-6 py-4 rounded-lg shadow-xl flex items-center gap-4 error-message-enter ${!showError ? 'error-message-exit' : ''}`}
           style={{
             maxWidth: '400px',
@@ -429,9 +429,9 @@ const LandingPage = () => {
           >
             ×
           </button>
-          
+
           {/* Progress bar for 1 minute countdown */}
-          <div 
+          <div
             className="absolute bottom-0 left-0 h-1 bg-white/30 rounded-b-lg"
             style={{
               width: '100%',
@@ -538,35 +538,35 @@ const LandingPage = () => {
         {/* Desktop Nav Links */}
         <nav className="hidden md:flex items-center gap-6 lg:gap-8">
 
-        {[
-          { id: 'home', label: 'Home' },
-          { id: 'community', label: 'Community' },
-          { id: 'fundraising', label: 'Fundraising', link: '/fundraising' },
-        ].map((item) => (
-          item.link ? (
-            <Link
-              key={item.id}
-              to={item.link}
-              className={`nav-link text-white text-sm font-medium uppercase tracking-wider py-2 transition-all hover:text-pink-300 ${activeSection === item.id ? 'active text-pink-300' : ''}`}
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              {item.label}
-            </Link>
-          ) : (
-            <a
-              key={item.id}
-              href={`#${item.id}`}
-              className={`nav-link text-white text-sm font-medium uppercase tracking-wider py-2 transition-all hover:text-pink-300 ${activeSection === item.id ? 'active text-pink-300' : ''}`}
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              {item.label}
-            </a>
-          )
-        ))}
+          {[
+            { id: 'home', label: 'Home' },
+            { id: 'community', label: 'Community' },
+            { id: 'fundraising', label: 'Fundraising', link: '/fundraising' },
+          ].map((item) => (
+            item.link ? (
+              <Link
+                key={item.id}
+                to={item.link}
+                className={`nav-link text-white text-sm font-medium uppercase tracking-wider py-2 transition-all hover:text-pink-300 ${activeSection === item.id ? 'active text-pink-300' : ''}`}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {item.label}
+              </Link>
+            ) : (
+              <a
+                key={item.id}
+                href={`#${item.id}`}
+                className={`nav-link text-white text-sm font-medium uppercase tracking-wider py-2 transition-all hover:text-pink-300 ${activeSection === item.id ? 'active text-pink-300' : ''}`}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {item.label}
+              </a>
+            )
+          ))}
         </nav>
 
         {/* Desktop CTA Button */}
-        <button className="hidden md:block btn-primary text-white text-lg font-semibold rounded-full px-10 py-5 uppercase tracking-wide button" onClick={()=>navigate('/login')}>
+        <button className="hidden md:block btn-primary text-white text-lg font-semibold rounded-full px-10 py-5 uppercase tracking-wide button" onClick={() => navigate('/login')}>
           Join Circle
         </button>
 
@@ -642,8 +642,8 @@ const LandingPage = () => {
               {hero.subheading || "Join a compassionate community where menstrual health is understood, tracked, and supported."}
             </p>
           </div>
-          <br/>
-          <br/>
+          <br />
+          <br />
           {/* Stats - from API */}
           <div className="flex flex-wrap justify-center gap-6 sm:gap-8 md:gap-12 mt-12 sm:mt-16 w-full">
             {(stats.length > 0 ? stats : [
@@ -747,7 +747,7 @@ const LandingPage = () => {
       {/* Features Section */}
       <section id="features" className="relative z-10 py-16 sm:py-20 md:py-24 px-4 sm:px-6 md:px-12 lg:px-24">
         <div className="w-full flex flex-col items-center justify-center">
-          
+
           {/* Section Header */}
           <div className="text-center mb-12 sm:mb-16 section-fade w-full max-w-2xl">
             <span className="text-pink-400 font-semibold uppercase tracking-widest text-xs sm:text-sm mb-3 sm:mb-4 block">
@@ -760,8 +760,8 @@ const LandingPage = () => {
               Comprehensive tools and resources designed to support your menstrual health journey
             </p>
           </div>
-          <br/>
-          <br/>
+          <br />
+          <br />
 
           {/* Features Grid - from API */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 w-full max-w-6xl">
@@ -779,9 +779,9 @@ const LandingPage = () => {
                 style={{ animationDelay: `${index * 0.15}s` }}
               >
                 <div className="flex flex-col items-center justify-center h-full w-full">
-                  <span 
+                  <span
                     className="text-5xl sm:text-6xl md:text-7xl block mb-4 sm:mb-6 transform group-hover:scale-110 transition-transform duration-300"
-                    style={{ 
+                    style={{
                       filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.3))',
                       lineHeight: '1'
                     }}
@@ -798,12 +798,12 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
-      <br/>
-      <br/>
-      <br/>
-      <br/>
-      <br/>
-      
+      <br />
+      <br />
+      <br />
+      <br />
+      <br />
+
       {/* Mission Section */}
       <section id="mission" className="relative z-10 py-16 sm:py-20 md:py-24 px-4 sm:px-6 md:px-12 lg:px-24">
         <div className="w-full flex justify-center items-center">
@@ -824,10 +824,10 @@ const LandingPage = () => {
                 {mission.description || "To create an inclusive, educated, and supportive ecosystem where every woman feels empowered and informed about her menstrual health."}
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-md mx-auto">
-                <button className="btn-primary text-white font-semibold rounded-full px-8 sm:px-10 py-3 sm:py-4 text-base sm:text-lg w-full sm:w-auto text-center button" onClick={()=>navigate('/login')}>
+                <button className="btn-primary text-white font-semibold rounded-full px-8 sm:px-10 py-3 sm:py-4 text-base sm:text-lg w-full sm:w-auto text-center button" onClick={() => navigate('/login')}>
                   Join Our Mission
                 </button>
-                <button className="glass-card text-white font-semibold rounded-full px-8 sm:px-10 py-3 sm:py-4 text-base sm:text-lg w-full sm:w-auto text-center button" onClick={()=>navigate('/fundraising')}>
+                <button className="glass-card text-white font-semibold rounded-full px-8 sm:px-10 py-3 sm:py-4 text-base sm:text-lg w-full sm:w-auto text-center button" onClick={() => navigate('/fundraising')}>
                   Donate Now
                 </button>
               </div>
@@ -835,13 +835,13 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
-      <br/>
-      <br/>
-      
+      <br />
+      <br />
+
       {/* Contact / CTA Section */}
       <section id="contact" className="relative z-10 py-16 sm:py-20 md:py-24 px-4 sm:px-6 md:px-12 lg:px-24">
         <div className="w-full flex flex-col items-center justify-center">
-          
+
           {/* Contact Content */}
           <div className="text-center w-full max-w-2xl mb-10">
             <span className="text-pink-400 font-semibold uppercase tracking-widest text-xs sm:text-sm mb-3 sm:mb-4 block">
@@ -854,9 +854,9 @@ const LandingPage = () => {
               {contact.description || "Start your journey with HerCycle today and be part of a movement that's changing how we talk about menstrual health."}
             </p>
           </div>
-          <br/>
-          <br/>
-          
+          <br />
+          <br />
+
           {/* Email Signup */}
           <div className="w-full flex justify-center">
             <div
@@ -876,151 +876,151 @@ const LandingPage = () => {
               </button>
             </div>
           </div>
-          
+
         </div>
       </section>
-      <br/>
-      <br/>
-      
-      {/* Footer - Made Bigger */}
-<footer className="relative z-10 py-20 sm:py-24 md:py-28 px-4 sm:px-6 md:px-12 lg:px-24 mt-20 sm:mt-24 md:mt-28 w-full justify-items-center" 
-  style={{ 
-    background: 'linear-gradient(180deg, transparent 0%, rgba(15, 10, 25, 0.8) 100%)', 
-    boxShadow: '0 -20px 60px rgba(0, 0, 0, 0.2)'
-  }}>
-  <div className="max-w-7xl mx-auto w-full">
-    {/* Main Footer Content - Expanded */}
-    <br/>
-    <div className="grid md:grid-cols-3 gap-12 mb-16">
-      {/* Logo and Description Section - Made Bigger */}
-      <div className="text-center md:text-left">
-        <div className="flex flex-col items-center md:items-start gap-6 mb-8">
-          <div className="flex items-center gap-4">
-            <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center animate-pulse-glow"
-              style={{ 
-                background: 'linear-gradient(135deg, #db2777 0%, #9333ea 100%)',
-                boxShadow: '0 0 30px rgba(219, 39, 119, 0.4)'
-              }}
-            >
-              <span className="text-white text-2xl">♡</span>
-            </div>
-            <span className="text-white font-bold text-3xl">
-              Her<span className="gradient-text">Cycle</span>
-            </span>
-          </div>
-          <p className="text-white/70 text-lg leading-relaxed max-w-md">
-            {footer.tagline || "Empowering women worldwide through education, community, and support."}
-          </p>
-        </div>
-      </div>
-      
-      {/* Quick Links Section */}
-      <div className="text-center">
-        <h4 className="text-white font-bold text-2xl mb-8">Quick Links</h4>
-        <ul className="space-y-4">
-          <li>
-            <a href="#home" className="text-white/70 hover:text-pink-300 text-lg transition-all">
-              Home
-            </a>
-          </li>
-          <li>
-            <a href="#community" className="text-white/70 hover:text-pink-300 text-lg transition-all">
-              Community
-            </a>
-          </li>
-          <li>
-            <a href="#features" className="text-white/70 hover:text-pink-300 text-lg transition-all">
-              Features
-            </a>
-          </li>
-          <li>
-            <a href="#mission" className="text-white/70 hover:text-pink-300 text-lg transition-all">
-              Our Mission
-            </a>
-          </li>
-          <li>
-            <Link to="/fundraising" className="text-white/70 hover:text-pink-300 text-lg transition-all">
-              Fundraising
-            </Link>
-          </li>
-        </ul>
-      </div>
-      
-      {/* Get Involved Section - Made Bigger */}
-      <div className="text-center md:text-right">
-        
-        {/* Contact Info */}
-        <div className="mt-8 text-white/60 space-y-3">
-          <p className="text-lg">📧 {footer.supportEmail || 'support@hercycle.com'}</p>
-          <p className="text-lg">📞 +91 98765 43210</p>
-          <p className="text-lg">📍 Colombo, Sri Lanka</p>
-        </div>
-        
-        {/* Social Links */}
-        <div className="flex gap-4 mt-8 justify-center md:justify-end">
-          {(footer.socialLinks && footer.socialLinks.length > 0 ? footer.socialLinks : [
-            { name: 'Instagram', icon: 'IG', color: 'pink-purple', url: '#' },
-            { name: 'Twitter', icon: 'X', color: 'blue-4', url: '#' },
-            { name: 'Facebook', icon: 'FB', color: 'blue-6', url: '#' }
-          ]).map((social, i) => (
-            <a
-              key={i}
-              href={social.url || '#'}
-              className="glass-card w-12 h-12 rounded-full flex items-center justify-center text-white hover:bg-pink-500/20 transition-all transform hover:-translate-y-1"
-              aria-label={social.name}
-              style={{
-                background: `linear-gradient(135deg, ${social.color.includes('purple') ? '#a855f7, #ec4899' : social.color.includes('blue-4') ? '#60a5fa, #2563eb' : '#3b82f6, #1d4ed8'})`,
-              }}
-            >
-              <span className="font-bold text-sm">{social.icon}</span>
-            </a>
-          ))}
-        </div>
+      <br />
+      <br />
 
-        {/* Newsletter Signup */}
-        <div className="mt-10">
-          <p className="text-white/70 text-lg mb-4">Stay updated with our newsletter</p>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="flex-1 glass-card rounded-full px-6 py-3 text-white placeholder-white/50 outline-none text-base"
-            />
-            <button className="btn-primary text-white font-semibold rounded-full px-6 py-3 text-base"
-              style={{ background: 'linear-gradient(135deg, #db2777 0%, #9333ea 100%)' }}
-            >
-              Subscribe
-            </button>
+      {/* Footer - Made Bigger */}
+      <footer className="relative z-10 py-20 sm:py-24 md:py-28 px-4 sm:px-6 md:px-12 lg:px-24 mt-20 sm:mt-24 md:mt-28 w-full justify-items-center"
+        style={{
+          background: 'linear-gradient(180deg, transparent 0%, rgba(15, 10, 25, 0.8) 100%)',
+          boxShadow: '0 -20px 60px rgba(0, 0, 0, 0.2)'
+        }}>
+        <div className="max-w-7xl mx-auto w-full">
+          {/* Main Footer Content - Expanded */}
+          <br />
+          <div className="grid md:grid-cols-3 gap-12 mb-16">
+            {/* Logo and Description Section - Made Bigger */}
+            <div className="text-center md:text-left">
+              <div className="flex flex-col items-center md:items-start gap-6 mb-8">
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-16 h-16 rounded-2xl flex items-center justify-center animate-pulse-glow"
+                    style={{
+                      background: 'linear-gradient(135deg, #db2777 0%, #9333ea 100%)',
+                      boxShadow: '0 0 30px rgba(219, 39, 119, 0.4)'
+                    }}
+                  >
+                    <span className="text-white text-2xl">♡</span>
+                  </div>
+                  <span className="text-white font-bold text-3xl">
+                    Her<span className="gradient-text">Cycle</span>
+                  </span>
+                </div>
+                <p className="text-white/70 text-lg leading-relaxed max-w-md">
+                  {footer.tagline || "Empowering women worldwide through education, community, and support."}
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Links Section */}
+            <div className="text-center">
+              <h4 className="text-white font-bold text-2xl mb-8">Quick Links</h4>
+              <ul className="space-y-4">
+                <li>
+                  <a href="#home" className="text-white/70 hover:text-pink-300 text-lg transition-all">
+                    Home
+                  </a>
+                </li>
+                <li>
+                  <a href="#community" className="text-white/70 hover:text-pink-300 text-lg transition-all">
+                    Community
+                  </a>
+                </li>
+                <li>
+                  <a href="#features" className="text-white/70 hover:text-pink-300 text-lg transition-all">
+                    Features
+                  </a>
+                </li>
+                <li>
+                  <a href="#mission" className="text-white/70 hover:text-pink-300 text-lg transition-all">
+                    Our Mission
+                  </a>
+                </li>
+                <li>
+                  <Link to="/fundraising" className="text-white/70 hover:text-pink-300 text-lg transition-all">
+                    Fundraising
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Get Involved Section - Made Bigger */}
+            <div className="text-center md:text-right">
+
+              {/* Contact Info */}
+              <div className="mt-8 text-white/60 space-y-3">
+                <p className="text-lg">📧 {footer.supportEmail || 'support@hercycle.com'}</p>
+                <p className="text-lg">📞 +91 98765 43210</p>
+                <p className="text-lg">📍 Colombo, Sri Lanka</p>
+              </div>
+
+              {/* Social Links */}
+              <div className="flex gap-4 mt-8 justify-center md:justify-end">
+                {(footer.socialLinks && footer.socialLinks.length > 0 ? footer.socialLinks : [
+                  { name: 'Instagram', icon: 'IG', color: 'pink-purple', url: '#' },
+                  { name: 'Twitter', icon: 'X', color: 'blue-4', url: '#' },
+                  { name: 'Facebook', icon: 'FB', color: 'blue-6', url: '#' }
+                ]).map((social, i) => (
+                  <a
+                    key={i}
+                    href={social.url || '#'}
+                    className="glass-card w-12 h-12 rounded-full flex items-center justify-center text-white hover:bg-pink-500/20 transition-all transform hover:-translate-y-1"
+                    aria-label={social.name}
+                    style={{
+                      background: `linear-gradient(135deg, ${social.color.includes('purple') ? '#a855f7, #ec4899' : social.color.includes('blue-4') ? '#60a5fa, #2563eb' : '#3b82f6, #1d4ed8'})`,
+                    }}
+                  >
+                    <span className="font-bold text-sm">{social.icon}</span>
+                  </a>
+                ))}
+              </div>
+
+              {/* Newsletter Signup */}
+              <div className="mt-10">
+                <p className="text-white/70 text-lg mb-4">Stay updated with our newsletter</p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="email"
+                    placeholder="Enter your email"
+                    className="flex-1 glass-card rounded-full px-6 py-3 text-white placeholder-white/50 outline-none text-base"
+                  />
+                  <button className="btn-primary text-white font-semibold rounded-full px-6 py-3 text-base"
+                    style={{ background: 'linear-gradient(135deg, #db2777 0%, #9333ea 100%)' }}
+                  >
+                    Subscribe
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <br />
+
+          {/* Copyright Section - Made Bigger */}
+          <div className="pt-12 border-t border-white/20 text-center">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-6">
+              <div className="flex items-center gap-6">
+                <span className="text-white/50 text-lg">🔒 Secure Platform</span>
+                <span className="text-white/50 text-lg">👩‍⚕️ Expert Verified</span>
+                <span className="text-white/50 text-lg">🌍 Global Community</span>
+              </div>
+              <div className="flex gap-6">
+                <a href="#" className="text-white/50 hover:text-white text-lg">Privacy Policy</a>
+                <a href="#" className="text-white/50 hover:text-white text-lg">Terms of Service</a>
+                <a href="#" className="text-white/50 hover:text-white text-lg">FAQ</a>
+              </div>
+            </div>
+            <p className="text-white/40 text-lg">
+              © 2026 HerCycle. All rights reserved. Made with ♡ for a healthier world.
+            </p>
+            <p className="text-white/30 text-sm mt-2">
+              HerCycle is a registered trademark. All content is for informational purposes only.
+            </p>
           </div>
         </div>
-      </div>
-    </div>
-    <br/>
-    
-    {/* Copyright Section - Made Bigger */}
-    <div className="pt-12 border-t border-white/20 text-center">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-6">
-        <div className="flex items-center gap-6">
-          <span className="text-white/50 text-lg">🔒 Secure Platform</span>
-          <span className="text-white/50 text-lg">👩‍⚕️ Expert Verified</span>
-          <span className="text-white/50 text-lg">🌍 Global Community</span>
-        </div>
-        <div className="flex gap-6">
-          <a href="#" className="text-white/50 hover:text-white text-lg">Privacy Policy</a>
-          <a href="#" className="text-white/50 hover:text-white text-lg">Terms of Service</a>
-          <a href="#" className="text-white/50 hover:text-white text-lg">FAQ</a>
-        </div>
-      </div>
-      <p className="text-white/40 text-lg">
-        © 2026 HerCycle. All rights reserved. Made with ♡ for a healthier world.
-      </p>
-      <p className="text-white/30 text-sm mt-2">
-        HerCycle is a registered trademark. All content is for informational purposes only.
-      </p>
-    </div>
-  </div>
-</footer>
+      </footer>
     </div>
   );
 };

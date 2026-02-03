@@ -5,13 +5,13 @@ const bcrypt = require('bcryptjs'); // Added for password hashing
 async function setupDatabase() {
   try {
     console.log('🚀 Starting MongoDB database setup...');
-    
+
     // Check which models already exist
     const existingModels = mongoose.modelNames();
     console.log('📋 Existing models:', existingModels);
-    
+
     // ========== CORE USER SCHEMAS ==========
-    
+
     // Only create User model if it doesn't exist
     if (!existingModels.includes('User')) {
       console.log('👤 Creating User model...');
@@ -79,7 +79,7 @@ async function setupDatabase() {
           default: Date.now
         }
       });
-      
+
       mongoose.model('User', userSchema);
       console.log('✅ User model created');
     } else {
@@ -117,7 +117,7 @@ async function setupDatabase() {
           default: 0
         }
       });
-      
+
       mongoose.model('CommunityMember', communityMemberSchema);
       console.log('✅ CommunityMember model created');
     } else {
@@ -156,6 +156,10 @@ async function setupDatabase() {
           type: Boolean,
           default: false
         },
+        is_active: {
+          type: Boolean,
+          default: true
+        },
         activated_at: {
           type: Date
         },
@@ -171,7 +175,7 @@ async function setupDatabase() {
           default: false
         }
       });
-      
+
       mongoose.model('Doctor', doctorSchema);
       console.log('✅ Doctor model created');
     } else {
@@ -214,7 +218,7 @@ async function setupDatabase() {
           type: Date
         }
       });
-      
+
       mongoose.model('WebManager', webManagerSchema);
       console.log('✅ WebManager model created');
     } else {
@@ -251,7 +255,7 @@ async function setupDatabase() {
           financial_reports: { type: Boolean, default: true }
         }
       });
-      
+
       mongoose.model('Admin', adminSchema);
       console.log('✅ Admin model created');
     } else {
@@ -259,7 +263,7 @@ async function setupDatabase() {
     }
 
     // ========== VERIFICATION & MODERATION ==========
-    
+
     // Only create DoctorVerification model if it doesn't exist
     if (!existingModels.includes('DoctorVerification')) {
       console.log('📋 Creating DoctorVerification model...');
@@ -305,7 +309,7 @@ async function setupDatabase() {
           type: String
         }
       });
-      
+
       mongoose.model('DoctorVerification', doctorVerificationSchema);
       console.log('✅ DoctorVerification model created');
     } else {
@@ -367,7 +371,7 @@ async function setupDatabase() {
           default: Date.now
         }
       });
-      
+
       mongoose.model('Report', reportSchema);
       console.log('✅ Report model created');
     } else {
@@ -425,7 +429,7 @@ async function setupDatabase() {
           type: String
         }
       });
-      
+
       mongoose.model('Warning', warningSchema);
       console.log('✅ Warning model created');
     } else {
@@ -433,7 +437,7 @@ async function setupDatabase() {
     }
 
     // ========== CONTENT & COMMUNITY ==========
-    
+
     // Only create Post model if it doesn't exist
     if (!existingModels.includes('Post')) {
       console.log('📝 Creating Post model...');
@@ -527,7 +531,7 @@ async function setupDatabase() {
           type: String
         }
       });
-      
+
       mongoose.model('Post', postSchema);
       console.log('✅ Post model created');
     } else {
@@ -589,7 +593,7 @@ async function setupDatabase() {
           default: Date.now
         }
       });
-      
+
       mongoose.model('Comment', commentSchema);
       console.log('✅ Comment model created');
     } else {
@@ -689,7 +693,7 @@ async function setupDatabase() {
     }
 
     // ========== CYCLE TRACKING ==========
-    
+
     // Only create CycleProfile model if it doesn't exist
     if (!existingModels.includes('CycleProfile')) {
       console.log('📅 Creating CycleProfile model...');
@@ -741,7 +745,7 @@ async function setupDatabase() {
           anonymize_data: { type: Boolean, default: true }
         }
       });
-      
+
       mongoose.model('CycleProfile', cycleProfileSchema);
       console.log('✅ CycleProfile model created');
     } else {
@@ -805,7 +809,7 @@ async function setupDatabase() {
           default: Date.now
         }
       });
-      
+
       mongoose.model('CycleTracker', cycleTrackerSchema);
       console.log('✅ CycleTracker model created');
     } else {
@@ -883,7 +887,7 @@ async function setupDatabase() {
           default: 0
         }
       });
-      
+
       mongoose.model('DailyLog', dailyLogSchema);
       console.log('✅ DailyLog model created');
     } else {
@@ -891,7 +895,7 @@ async function setupDatabase() {
     }
 
     // ========== FUNDRAISING & DONATIONS ==========
-    
+
     // Only create Campaign model if it doesn't exist
     if (!existingModels.includes('Campaign')) {
       console.log('🎯 Creating Campaign model...');
@@ -977,7 +981,7 @@ async function setupDatabase() {
           default: Date.now
         }
       });
-      
+
       mongoose.model('Campaign', campaignSchema);
       console.log('✅ Campaign model created');
     } else {
@@ -1041,7 +1045,7 @@ async function setupDatabase() {
           default: Date.now
         }
       });
-      
+
       mongoose.model('CampaignDonation', campaignDonationSchema);
       console.log('✅ CampaignDonation model created');
     } else {
@@ -1049,7 +1053,7 @@ async function setupDatabase() {
     }
 
     // ========== RULE BASED AI ==========
-    
+
     // Only create RuleBasedAI model if it doesn't exist
     if (!existingModels.includes('RuleBasedAI')) {
       console.log('🤖 Creating RuleBasedAI model...');
@@ -1090,7 +1094,7 @@ async function setupDatabase() {
           default: Date.now
         }
       });
-      
+
       mongoose.model('RuleBasedAI', ruleBasedAiSchema);
       console.log('✅ RuleBasedAI model created');
     } else {
@@ -1098,11 +1102,11 @@ async function setupDatabase() {
     }
 
     console.log('✅ All MongoDB models checked/created successfully!');
-    
+
     // ========== CREATE INDEXES ==========
-    
+
     console.log('📊 Creating indexes for better performance...');
-    
+
     // Get references to the models
     const User = mongoose.model('User');
     const Post = mongoose.model('Post');
@@ -1113,7 +1117,7 @@ async function setupDatabase() {
     const DailyLog = mongoose.model('DailyLog');
     const Report = mongoose.model('Report');
     const DoctorVerification = mongoose.model('DoctorVerification');
-    
+
     try {
       // User indexes
       await User.collection.createIndex({ NIC: 1 }, { unique: true });
@@ -1125,7 +1129,7 @@ async function setupDatabase() {
     } catch (indexError) {
       console.log('⚠️  User indexes already exist or error:', indexError.message);
     }
-    
+
     try {
       // Post indexes
       await Post.collection.createIndex({ post_id: 1 }, { unique: true });
@@ -1138,7 +1142,7 @@ async function setupDatabase() {
     } catch (indexError) {
       console.log('⚠️  Post indexes already exist or error:', indexError.message);
     }
-    
+
     try {
       // Comment indexes
       await Comment.collection.createIndex({ comment_id: 1 }, { unique: true });
@@ -1149,7 +1153,7 @@ async function setupDatabase() {
     } catch (indexError) {
       console.log('⚠️  Comment indexes already exist or error:', indexError.message);
     }
-    
+
     try {
       // Campaign indexes
       await Campaign.collection.createIndex({ campaign_id: 1 }, { unique: true });
@@ -1161,7 +1165,7 @@ async function setupDatabase() {
     } catch (indexError) {
       console.log('⚠️  Campaign indexes already exist or error:', indexError.message);
     }
-    
+
     try {
       // Cycle tracking indexes
       await CycleProfile.collection.createIndex({ NIC: 1 }, { unique: true });
@@ -1173,7 +1177,7 @@ async function setupDatabase() {
     } catch (indexError) {
       console.log('⚠️  Cycle tracking indexes already exist or error:', indexError.message);
     }
-    
+
     try {
       // Report indexes
       await Report.collection.createIndex({ report_id: 1 }, { unique: true });
@@ -1185,7 +1189,7 @@ async function setupDatabase() {
     } catch (indexError) {
       console.log('⚠️  Report indexes already exist or error:', indexError.message);
     }
-    
+
     try {
       // Doctor verification indexes
       await DoctorVerification.collection.createIndex({ verification_id: 1 }, { unique: true });
@@ -1195,29 +1199,29 @@ async function setupDatabase() {
     } catch (indexError) {
       console.log('⚠️  Doctor verification indexes already exist or error:', indexError.message);
     }
-    
+
     console.log('✅ All indexes checked/created successfully!');
-    
+
     // ========== CREATE DEFAULT ADMIN USER ==========
-    
+
     console.log('👑 Creating default admin user...');
-    
+
     try {
       const User = mongoose.model('User');
       const Admin = mongoose.model('Admin');
-      
+
       // Hash password properly
       const salt = await bcrypt.genSalt(10);
       const password_hash = await bcrypt.hash('admin123', salt);
-      
+
       // Check if admin user exists - fixed query
-      let adminUser = await User.findOne({ 
+      let adminUser = await User.findOne({
         $or: [
           { email: 'admin@hercycle.com' },
           { NIC: 'ADMIN123456789' }
-        ] 
+        ]
       });
-      
+
       if (!adminUser) {
         // Create admin user
         adminUser = new User({
@@ -1233,7 +1237,7 @@ async function setupDatabase() {
           created_at: new Date(),
           updated_at: new Date()
         });
-        
+
         await adminUser.save();
         console.log('✅ Admin user created successfully');
       } else {
@@ -1246,7 +1250,7 @@ async function setupDatabase() {
         await adminUser.save();
         console.log('✅ Existing admin user updated with proper password hash');
       }
-      
+
       // Check if admin record exists
       const adminExists = await Admin.findOne({ A_ID: 'ADMIN001' });
       if (!adminExists) {
@@ -1263,41 +1267,41 @@ async function setupDatabase() {
           },
           created_at: new Date()
         });
-        
+
         await adminRecord.save();
         console.log('✅ Admin record created successfully');
       } else {
         console.log('ℹ️  Admin record already exists');
       }
-      
+
       console.log('✅ Default admin user created/updated:');
       console.log('   Email: admin@hercycle.com');
       console.log('   Password: admin123');
       console.log('   NIC: ADMIN123456789');
-      
+
     } catch (adminError) {
       console.log('⚠️  Could not create/update admin user:', adminError.message);
       console.error('Admin creation error details:', adminError);
     }
-    
+
     // ========== CREATE TEST USER ==========
-    
+
     console.log('👤 Creating test user...');
-    
+
     try {
       const User = mongoose.model('User');
       const CommunityMember = mongoose.model('CommunityMember');
-      
+
       const salt = await bcrypt.genSalt(10);
       const password_hash = await bcrypt.hash('test123', salt);
-      
-      let testUser = await User.findOne({ 
+
+      let testUser = await User.findOne({
         $or: [
           { email: 'test@test.com' },
           { NIC: 'TEST123456789' }
-        ] 
+        ]
       });
-      
+
       if (!testUser) {
         testUser = new User({
           NIC: 'TEST123456789',
@@ -1311,31 +1315,31 @@ async function setupDatabase() {
           created_at: new Date(),
           updated_at: new Date()
         });
-        
+
         await testUser.save();
-        
+
         // Create community member record
         const communityMember = new CommunityMember({
           NIC: 'TEST123456789',
           joined_at: new Date(),
           is_active: true
         });
-        
+
         await communityMember.save();
-        
+
         console.log('✅ Test user created successfully: test@test.com / test123');
       } else {
         console.log('ℹ️  Test user already exists');
       }
-      
+
     } catch (testError) {
       console.log('⚠️  Could not create test user:', testError.message);
     }
-    
+
     // ========== CREATE DEFAULT RULE BASED AI ==========
-    
+
     console.log('🤖 Creating default Rule-Based AI configuration...');
-    
+
     try {
       const RuleBasedAI = mongoose.model('RuleBasedAI');
       const aiExists = await RuleBasedAI.findOne();
@@ -1374,7 +1378,7 @@ async function setupDatabase() {
             }
           ]
         });
-        
+
         await defaultAI.save();
         console.log('✅ Default Rule-Based AI configuration created');
       } else {
@@ -1383,7 +1387,7 @@ async function setupDatabase() {
     } catch (aiError) {
       console.log('⚠️  Could not create AI configuration:', aiError.message);
     }
-    
+
     console.log('='.repeat(60));
     console.log('🎉 DATABASE SETUP COMPLETE!');
     console.log('='.repeat(60));
@@ -1415,7 +1419,7 @@ async function setupDatabase() {
     console.log('   Role: User');
     console.log('\n💡 Check MongoDB Compass to see all collections created.');
     console.log('='.repeat(60));
-    
+
     return {
       success: true,
       message: 'Database setup completed successfully!',
@@ -1426,7 +1430,7 @@ async function setupDatabase() {
         'RuleBasedAI'
       ]
     };
-    
+
   } catch (error) {
     console.error('❌ Database setup failed:', error);
     return {

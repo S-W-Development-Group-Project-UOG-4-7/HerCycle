@@ -4,6 +4,7 @@ import Landing from "./pages/LandingPage/LandingPage";
 import Fundraising from "./pages/Fundraising/Fundraising";
 import Adminpanel from "./pages/Admin/AdminPanel";
 import FundraisingAdminPanel from './pages/Admin/FundraisingAdminPanel';
+import AdminDashboard from './pages/Admin/AdminDashboard';
 import PaymentGateway from './components/PaymentGateway/PaymentGateway';
 import DonationSuccess from './pages/DonationSuccess/DonationSuccess';
 import Login from './pages/Auth/Login';
@@ -13,6 +14,7 @@ import Dashboard from './pages/Dashboard/Dashboard';
 import DoctorDashboard from './pages/Doctor/Dashboard';
 import AdminDoctorVerification from './pages/Admin/AdminDoctorVerification';
 import SelectDashboard from './pages/Auth/SelectDashboard';
+import Profile from "./pages/Profile/Profile";
 
 function App() {
   return (
@@ -25,7 +27,8 @@ function App() {
           <Route path="/adminF" element={<FundraisingAdminPanel />} />
           <Route path="/payment" element={<PaymentGateway />} />
           <Route path="/donation-success" element={<DonationSuccess />} />
-          
+          <Route path="/profile" element={<Profile />} />
+
           {/* Auth Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -34,7 +37,9 @@ function App() {
           <Route path="/select-dashboard" element={<SelectDashboard />} />
           <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
           <Route path="/doctor-pending" element={<DoctorDashboard pending={true} />} />
-          <Route path="/admin-dashboard" element={<AdminDoctorVerification />} />
+          <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          <Route path="/admin-doctor-verification" element={<AdminDoctorVerification />} />
+
         </Routes>
       </GradientBackground>
     </Router>

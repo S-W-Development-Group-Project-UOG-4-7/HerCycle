@@ -1,0 +1,147 @@
+/* ==================== PHASE 7: WIDGET STYLES ==================== */
+
+/* Activity Feed */
+.activity-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.activity-item {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    border-left: 3px solid rgb(139, 92, 246);
+    transition: all 0.3s ease;
+}
+
+.activity-item:hover {
+    background: rgba(255, 255, 255, 0.7);
+    transform: translateX(4px);
+}
+
+.activity-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-content p {
+    margin: 0 0 0.25rem 0;
+    color: rgb(97, 28, 175);
+    font-weight: 500;
+}
+
+.activity-time {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+/* Health Status Enhancements */
+.stat-card.green {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.stat-card.red {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.stat-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.stat-content {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Top Topics Chart */
+.topics-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.topic-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.topic-item:hover {
+    background: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.15);
+}
+
+.topic-name {
+    font-weight: 600;
+    color: rgb(97, 28, 175);
+}
+
+.topic-stats {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+/* Bulk Action Controls */
+.bulk-actions-bar {
+    display: flex;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: rgba(139, 92, 246, 0.1);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    align-items: center;
+}
+
+.bulk-actions-bar .selected-count {
+    font-weight: 600;
+    color: rgb(97, 28, 175);
+}
+
+.checkbox-cell {
+    width: 40px;
+    text-align: center;
+}
+
+.checkbox-cell input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: rgb(139, 92, 246);
+}
+
+@media (max-width: 768px) {
+    .activity-feed {
+        max-height: 300px;
+    }
+
+    .activity-item {
+        padding: 0.5rem;
+    }
+
+    .bulk-actions-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .topic-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}
