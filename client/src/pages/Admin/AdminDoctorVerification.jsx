@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './AdminDoctorVerification.css';
+import './AdminDashboard.css'; // Using shared admin dashboard styles
 
 const AdminDoctorVerification = () => {
   const navigate = useNavigate();
@@ -24,7 +24,7 @@ const AdminDoctorVerification = () => {
   const checkAdminAccess = useCallback(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('authToken');
-    
+
     if (!user || !token || user.role !== 'admin') {
       navigate('/login');
       return false;
@@ -38,7 +38,7 @@ const AdminDoctorVerification = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
-      
+
       const response = await fetch('http://localhost:5000/api/admin/pending-doctors', {
         method: 'GET',
         headers: {
@@ -50,7 +50,7 @@ const AdminDoctorVerification = () => {
       if (!response.ok) throw new Error('Network response was not ok');
 
       const data = await response.json();
-      
+
       if (data.success) {
         setPendingDoctors(data.data || []);
       } else {
@@ -70,18 +70,18 @@ const AdminDoctorVerification = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
-      
+
       // Build query parameters
       const queryParams = new URLSearchParams({
         page: pagination.page.toString(),
         limit: pagination.limit.toString()
       });
-      
+
       // Add status filter only if not 'all'
       if (activeTab !== 'all' && activeTab !== 'pending') {
         queryParams.append('status', activeTab);
       }
-      
+
       const response = await fetch(
         `http://localhost:5000/api/admin/doctor-verifications?${queryParams}`,
         {
@@ -96,7 +96,7 @@ const AdminDoctorVerification = () => {
       if (!response.ok) throw new Error('Network response was not ok');
 
       const data = await response.json();
-      
+
       if (data.success) {
         setAllVerifications(data.data || []);
         setPagination(prev => ({
@@ -134,7 +134,7 @@ const AdminDoctorVerification = () => {
   const handleApprove = async (doctorId) => {
     try {
       const token = localStorage.getItem('authToken');
-      
+
       const response = await fetch(`http://localhost:5000/api/admin/approve-doctor/${doctorId}`, {
         method: 'POST',
         headers: {
@@ -147,20 +147,20 @@ const AdminDoctorVerification = () => {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         setSuccess(`Doctor approved successfully!`);
         setApprovalNotes('');
         setSelectedDoctor(null);
         setIsRejectMode(false);
-        
+
         // Refresh the list
         if (activeTab === 'pending') {
           fetchPendingDoctors();
         } else {
           fetchAllVerifications();
         }
-        
+
         // Clear success message after 3 seconds
         setTimeout(() => setSuccess(''), 3000);
       } else {
@@ -175,7 +175,7 @@ const AdminDoctorVerification = () => {
   const handleReject = async (doctorId) => {
     try {
       const token = localStorage.getItem('authToken');
-      
+
       const response = await fetch(`http://localhost:5000/api/admin/reject-doctor/${doctorId}`, {
         method: 'POST',
         headers: {
@@ -189,20 +189,20 @@ const AdminDoctorVerification = () => {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         setSuccess(`Doctor rejected successfully!`);
         setRejectionReason('');
         setSelectedDoctor(null);
         setIsRejectMode(false);
-        
+
         // Refresh the list
         if (activeTab === 'pending') {
           fetchPendingDoctors();
         } else {
           fetchAllVerifications();
         }
-        
+
         // Clear success message after 3 seconds
         setTimeout(() => setSuccess(''), 3000);
       } else {
@@ -249,7 +249,7 @@ const AdminDoctorVerification = () => {
         hour: '2-digit',
         minute: '2-digit'
       });
-    } catch (err) {
+    } catch {
       return 'Invalid Date';
     }
   };
@@ -280,7 +280,7 @@ const AdminDoctorVerification = () => {
 
     // Use NIC as the identifier (as per your original code)
     const doctorNIC = selectedDoctor.doctor_NIC;
-    
+
     if (isRejectMode) {
       if (!rejectionReason.trim()) {
         alert('Please provide a rejection reason');
@@ -323,12 +323,12 @@ const AdminDoctorVerification = () => {
             <button onClick={() => navigate('/')} className="btn-secondary">
               🏠 Home
             </button>
-            <button 
+            <button
               onClick={() => {
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('user');
                 navigate('/login');
-              }} 
+              }}
               className="btn-logout"
             >
               🚪 Logout
@@ -345,7 +345,7 @@ const AdminDoctorVerification = () => {
           <button onClick={() => setError('')} className="alert-close">×</button>
         </div>
       )}
-      
+
       {success && (
         <div className="alert alert-success">
           <span className="alert-icon">✅</span>
@@ -390,25 +390,25 @@ const AdminDoctorVerification = () => {
 
         {/* Tabs */}
         <div className="tabs">
-          <button 
+          <button
             className={`tab ${activeTab === 'pending' ? 'active' : ''}`}
             onClick={() => handleTabChange('pending')}
           >
             ⏳ Pending ({pendingDoctors.length})
           </button>
-          <button 
+          <button
             className={`tab ${activeTab === 'approved' ? 'active' : ''}`}
             onClick={() => handleTabChange('approved')}
           >
             ✅ Approved
           </button>
-          <button 
+          <button
             className={`tab ${activeTab === 'rejected' ? 'active' : ''}`}
             onClick={() => handleTabChange('rejected')}
           >
             ❌ Rejected
           </button>
-          <button 
+          <button
             className={`tab ${activeTab === 'all' ? 'active' : ''}`}
             onClick={() => handleTabChange('all')}
           >
@@ -467,7 +467,7 @@ const AdminDoctorVerification = () => {
                     <p><strong>Qualifications:</strong> {doctor.doctor_info?.qualifications?.join(', ') || 'Not provided'}</p>
                     <p><strong>Clinic/Hospital:</strong> {doctor.doctor_info?.clinic_or_hospital || 'Not specified'}</p>
                   </div>
-                  
+
                   <div className="detail-section">
                     <h4>Contact Information</h4>
                     <p><strong>Phone:</strong> {doctor.user_info?.contact_number || 'Not provided'}</p>
@@ -498,7 +498,7 @@ const AdminDoctorVerification = () => {
                       📄 View License Document
                     </button>
                   )}
-                  
+
                   {doctor.status === 'pending' && (
                     <div className="action-buttons">
                       <button
@@ -525,19 +525,19 @@ const AdminDoctorVerification = () => {
         {activeTab !== 'pending' && pagination.pages > 1 && (
           <div className="pagination">
             <button
-              onClick={() => setPagination({...pagination, page: pagination.page - 1})}
+              onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
               disabled={pagination.page <= 1}
               className="pagination-btn"
             >
               ← Previous
             </button>
-            
+
             <span className="pagination-info">
               Page {pagination.page} of {pagination.pages}
             </span>
-            
+
             <button
-              onClick={() => setPagination({...pagination, page: pagination.page + 1})}
+              onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
               disabled={pagination.page >= pagination.pages}
               className="pagination-btn"
             >
@@ -557,7 +557,7 @@ const AdminDoctorVerification = () => {
               </h2>
               <button onClick={closeModal} className="modal-close">×</button>
             </div>
-            
+
             <div className="modal-body">
               <p>
                 You are about to <strong>{isRejectMode ? 'REJECT' : 'APPROVE'}</strong>:
@@ -595,7 +595,7 @@ const AdminDoctorVerification = () => {
                 </div>
               )}
             </div>
-            
+
             <div className="modal-footer">
               <button onClick={closeModal} className="btn-cancel">
                 Cancel

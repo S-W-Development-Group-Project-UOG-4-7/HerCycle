@@ -1,8 +1,9 @@
 {
-  "name": "celestial-cosmic",
+  "name": "hercycle-client",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "description": "HerCycle - Women's Health & Wellness Platform (Frontend)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -13,12 +14,11 @@
     "@stripe/react-stripe-js": "^5.4.1",
     "@stripe/stripe-js": "^8.6.1",
     "axios": "^1.13.2",
-    "crypto": "^1.0.1",
     "lucide-react": "^0.562.0",
-    "nodemailer": "^7.0.12",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.12.0"
+    "react-router-dom": "^7.12.0",
+    "recharts": "^3.7.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
