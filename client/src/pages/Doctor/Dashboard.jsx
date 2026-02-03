@@ -154,6 +154,10 @@ const DoctorDashboard = ({ pending = false }) => {
         </nav>
 
         <div className="sidebar-footer">
+          <button className="switch-dashboard-btn" onClick={() => navigate('/dashboard')}>
+            <span>👥</span>
+            <span>Switch to Community</span>
+          </button>
           <button className="logout-button" onClick={handleLogout}>
             <span className="logout-icon">🚪</span>
             <span>Logout</span>

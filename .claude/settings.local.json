@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm run dev:*)",
+      "Bash(ls:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTY5YzFiMjYwMDQxMWY0OWZkOTBlYjMiLCJOSUMiOiJBRE1JTjEyMzQ1Njc4OSIsImVtYWlsIjoiYWRtaW5AaGVyY3ljbGUuY29tIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzY5ODc3MzAxLCJleHAiOjE3NzA0ODIxMDF9.3qLeRBOqpkRs9m7iuziJQyO8Nc9FIpPOFvxgjhK0cG4\")"
+    ]
+  }
+}
