@@ -55,11 +55,9 @@ const Login = () => {
         const userRole = userData.role || userData.user_type;
 
         if (userRole === 'doctor') {
-          console.log('🔄 Doctor detected — showing role selection popup');
-          setPendingUserData(userData);
-          setPendingToken(data.token);
-          setShowRolePopup(true);
-          setLoading(false);
+          localStorage.setItem('authToken', data.token);
+          localStorage.setItem('user', JSON.stringify(userData));
+          navigate('/doctor-dashboard');
           return;
         }
 

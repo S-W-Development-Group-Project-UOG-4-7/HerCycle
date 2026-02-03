@@ -2707,6 +2707,643 @@ const optionalAuth = (req, res, next) => {
   next();
 };
 
+// ========== DOCTOR DASHBOARD HELPERS ==========
+const slugify = (value) => {
+  if (!value) return '';
+  return value
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+};
+
+const getDoctorCategoryModel = () => {
+  try {
+    return mongoose.model('Category');
+  } catch {
+    const categorySchema = new mongoose.Schema({
+      name: { type: String, required: true, trim: true, unique: true },
+      slug: { type: String, lowercase: true, unique: true },
+      description: { type: String },
+      icon: { type: String },
+      color: { type: String, default: '#6366f1' },
+      isActive: { type: Boolean, default: true },
+      createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor' },
+      createdAt: { type: Date, default: Date.now },
+      updatedAt: { type: Date, default: Date.now }
+    }, { collection: 'categories' });
+
+    categorySchema.pre('save', function(next) {
+      if (this.isModified('name')) {
+        this.slug = slugify(this.name);
+      }
+      this.updatedAt = new Date();
+      next();
+    });
+
+    return mongoose.model('Category', categorySchema);
+  }
+};
+
+const getDoctorArticleModel = () => {
+  try {
+    return mongoose.model('DoctorArticle');
+  } catch {
+    const doctorArticleSchema = new mongoose.Schema({
+      title: { type: String, required: true, trim: true, maxlength: 200 },
+      slug: { type: String, lowercase: true },
+      content: { type: String, required: true },
+      excerpt: { type: String, maxlength: 300 },
+      featuredImage: { type: String, default: '' },
+      author: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
+      categories: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }],
+      tags: [{ type: String, trim: true }],
+      status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft' },
+      views: { type: Number, default: 0 },
+      likes: { type: Number, default: 0 },
+      comments: [{
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        text: { type: String, required: true },
+        createdAt: { type: Date, default: Date.now }
+      }],
+      publishedAt: { type: Date },
+      createdAt: { type: Date, default: Date.now },
+      updatedAt: { type: Date, default: Date.now }
+    }, { collection: 'articles' });
+
+    doctorArticleSchema.pre('save', function(next) {
+      if (this.isModified('title')) {
+        this.slug = slugify(this.title);
+      }
+      if (this.isModified('status') && this.status === 'published' && !this.publishedAt) {
+        this.publishedAt = new Date();
+      }
+      this.updatedAt = new Date();
+      next();
+    });
+
+    return mongoose.model('DoctorArticle', doctorArticleSchema);
+  }
+};
+
+const getDoctorNotificationModel = () => {
+  try {
+    return mongoose.model('DoctorNotification');
+  } catch {
+    const notificationSchema = new mongoose.Schema({
+      doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
+      article: { type: mongoose.Schema.Types.ObjectId, ref: 'DoctorArticle' },
+      actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      type: { type: String, enum: ['comment', 'like', 'system'], default: 'system' },
+      title: { type: String, default: '' },
+      message: { type: String, default: '' },
+      isRead: { type: Boolean, default: false },
+      createdAt: { type: Date, default: Date.now }
+    }, { collection: 'doctor_notifications' });
+
+    return mongoose.model('DoctorNotification', notificationSchema);
+  }
+};
+
+const ensureDoctor = async (req, res, next) => {
+  if (!req.user || req.user.role !== 'doctor') {
+    return res.status(403).json({ success: false, message: 'Doctor access required' });
+  }
+
+  const Doctor = getModel('Doctor');
+  if (!Doctor) {
+    return res.status(500).json({ success: false, message: 'Server configuration error' });
+  }
+
+  let doctor = await Doctor.findOne({ NIC: req.user.NIC });
+  if (!doctor) {
+    doctor = new Doctor({
+      NIC: req.user.NIC,
+      specialty: 'General',
+      qualifications: [],
+      clinic_or_hospital: '',
+      bio: '',
+      is_approved: false,
+      verified: false,
+      activated_at: null,
+      experience_years: 0
+    });
+    await doctor.save();
+  }
+
+  req.doctor = doctor;
+  next();
+};
+// ========== END DOCTOR DASHBOARD HELPERS ==========
+
+// ========== DOCTOR DASHBOARD ROUTES ==========
+// Categories
+app.get('/api/categories', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Category = getDoctorCategoryModel();
+    const categories = await Category.find({ isActive: true }).sort({ name: 1 });
+    res.json({ success: true, categories });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.get('/api/categories/:id', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Category = getDoctorCategoryModel();
+    const category = await Category.findById(req.params.id);
+    if (!category) {
+      return res.status(404).json({ message: 'Category not found' });
+    }
+    res.json({ success: true, category });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.post('/api/categories', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Category = getDoctorCategoryModel();
+    const { name, description, icon, color } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: 'Category name is required' });
+    }
+
+    const existing = await Category.findOne({ name: name.trim() });
+    if (existing) {
+      return res.status(400).json({ message: 'Category already exists' });
+    }
+
+    const category = await Category.create({
+      name: name.trim(),
+      description,
+      icon,
+      color,
+      createdBy: req.doctor._id
+    });
+
+    res.status(201).json({ success: true, category });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.put('/api/categories/:id', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Category = getDoctorCategoryModel();
+    const { name, description, icon, color, isActive } = req.body;
+
+    const updateData = {};
+    if (name) {
+      updateData.name = name;
+      updateData.slug = slugify(name);
+    }
+    if (description !== undefined) updateData.description = description;
+    if (icon !== undefined) updateData.icon = icon;
+    if (color !== undefined) updateData.color = color;
+    if (isActive !== undefined) updateData.isActive = isActive;
+    updateData.updatedAt = new Date();
+
+    const category = await Category.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!category) {
+      return res.status(404).json({ message: 'Category not found' });
+    }
+
+    res.json({ success: true, category });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.delete('/api/categories/:id', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Category = getDoctorCategoryModel();
+    const category = await Category.findById(req.params.id);
+    if (!category) {
+      return res.status(404).json({ message: 'Category not found' });
+    }
+    await Category.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Category deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Articles
+app.get('/api/articles', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Article = getDoctorArticleModel();
+    const { status, page = 1, limit = 10 } = req.query;
+
+    const query = { author: req.doctor._id };
+    if (status) {
+      query.status = status;
+    }
+
+    const articles = await Article.find(query)
+      .populate('categories', 'name slug color')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit, 10))
+      .skip((parseInt(page, 10) - 1) * parseInt(limit, 10));
+
+    const total = await Article.countDocuments(query);
+
+    res.json({
+      success: true,
+      articles,
+      totalPages: Math.ceil(total / parseInt(limit, 10)),
+      currentPage: parseInt(page, 10),
+      total
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.get('/api/articles/:id', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Article = getDoctorArticleModel();
+    const article = await Article.findOne({
+      _id: req.params.id,
+      author: req.doctor._id
+    }).populate('categories', 'name slug color');
+
+    if (!article) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
+
+    res.json({ success: true, article });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.post('/api/articles', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Article = getDoctorArticleModel();
+    const { title, content, excerpt, featuredImage, categories, tags, status } = req.body;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({ message: 'Title is required' });
+    }
+    if (!content || !content.trim()) {
+      return res.status(400).json({ message: 'Content is required' });
+    }
+
+    const tagList = Array.isArray(tags)
+      ? tags.map(tag => tag.toString().trim()).filter(Boolean)
+      : (tags || '').toString().split(',').map(tag => tag.trim()).filter(Boolean);
+
+    const finalExcerpt = excerpt && excerpt.trim()
+      ? excerpt.trim()
+      : content.trim().substring(0, 280);
+
+    const article = await Article.create({
+      title: title.trim(),
+      content: content.trim(),
+      excerpt: finalExcerpt,
+      featuredImage: featuredImage || '',
+      categories: Array.isArray(categories) ? categories : [],
+      tags: tagList,
+      status: status || 'draft',
+      author: req.doctor._id
+    });
+
+    const populatedArticle = await Article.findById(article._id).populate('categories', 'name slug color');
+    res.status(201).json({ success: true, article: populatedArticle });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.put('/api/articles/:id', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Article = getDoctorArticleModel();
+    const { title, content, excerpt, featuredImage, categories, tags, status } = req.body;
+
+    const article = await Article.findOne({
+      _id: req.params.id,
+      author: req.doctor._id
+    });
+
+    if (!article) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
+
+    const updateData = {};
+    if (title) {
+      updateData.title = title;
+      updateData.slug = slugify(title);
+    }
+    if (content) updateData.content = content;
+    if (excerpt !== undefined) updateData.excerpt = excerpt;
+    if (featuredImage !== undefined) updateData.featuredImage = featuredImage;
+    if (categories) updateData.categories = categories;
+    if (tags !== undefined) {
+      updateData.tags = Array.isArray(tags)
+        ? tags.map(tag => tag.toString().trim()).filter(Boolean)
+        : tags.toString().split(',').map(tag => tag.trim()).filter(Boolean);
+    }
+    if (status) {
+      updateData.status = status;
+      if (status === 'published' && !article.publishedAt) {
+        updateData.publishedAt = new Date();
+      }
+    }
+    updateData.updatedAt = new Date();
+
+    const updated = await Article.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    ).populate('categories', 'name slug color');
+
+    res.json({ success: true, article: updated });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.delete('/api/articles/:id', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Article = getDoctorArticleModel();
+    const article = await Article.findOne({
+      _id: req.params.id,
+      author: req.doctor._id
+    });
+
+    if (!article) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
+
+    await Article.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Article deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.post('/api/articles/:id/comments', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    const Article = getDoctorArticleModel();
+    const Notification = getDoctorNotificationModel();
+    const User = getModel('User');
+    const { text } = req.body;
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ message: 'Comment text is required' });
+    }
+
+    const article = await Article.findById(req.params.id);
+    if (!article) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
+
+    const comment = {
+      user: req.user.userId,
+      text: text.trim()
+    };
+
+    article.comments.push(comment);
+    await article.save();
+
+    if (Notification && User) {
+      const actor = await User.findById(req.user.userId).lean();
+      const actorName = actor?.full_name || 'Someone';
+      if (article.author && article.author.toString() !== req.doctor?._id?.toString()) {
+        await Notification.create({
+          doctor: article.author,
+          article: article._id,
+          actor: req.user.userId,
+          type: 'comment',
+          title: 'New comment',
+          message: `${actorName} commented on "${article.title}".`
+        });
+      }
+    }
+
+    res.status(201).json({ success: true, comment });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.post('/api/articles/:id/likes', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    const Article = getDoctorArticleModel();
+    const Notification = getDoctorNotificationModel();
+    const User = getModel('User');
+
+    const article = await Article.findById(req.params.id);
+    if (!article) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
+
+    article.likes += 1;
+    await article.save();
+
+    if (Notification && User) {
+      const actor = await User.findById(req.user.userId).lean();
+      const actorName = actor?.full_name || 'Someone';
+      if (article.author && article.author.toString() !== req.doctor?._id?.toString()) {
+        await Notification.create({
+          doctor: article.author,
+          article: article._id,
+          actor: req.user.userId,
+          type: 'like',
+          title: 'New like',
+          message: `${actorName} liked "${article.title}".`
+        });
+      }
+    }
+
+    res.json({ success: true, likes: article.likes });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Doctor profile + stats
+app.get('/api/doctors/profile', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const User = getModel('User');
+    const user = await User.findById(req.user.userId).lean();
+
+    const doctor = req.doctor.toObject();
+    const qualifications = Array.isArray(doctor.qualifications)
+      ? doctor.qualifications.join(', ')
+      : doctor.qualifications || '';
+
+    res.json({
+      success: true,
+      doctor: {
+        ...doctor,
+        specialization: doctor.specialty || doctor.specialization || 'General',
+        qualifications,
+        experience: doctor.experience_years || doctor.experience || 0,
+        bio: doctor.bio || '',
+        contactNumber: user?.contact_number || '',
+        clinicAddress: doctor.clinic_or_hospital || '',
+        profileImage: user?.profile_picture || '',
+        user: user ? { full_name: user.full_name, email: user.email, name: user.full_name } : null
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.put('/api/doctors/profile', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const User = getModel('User');
+    const { name, email, specialization, qualifications, experience, bio, contactNumber, clinicAddress, profileImage } = req.body;
+
+    if (name || email || contactNumber || profileImage) {
+      const updateUser = {};
+      if (name) updateUser.full_name = name;
+      if (email) updateUser.email = email;
+      if (contactNumber !== undefined) updateUser.contact_number = contactNumber;
+      if (profileImage !== undefined) updateUser.profile_picture = profileImage;
+      await User.findByIdAndUpdate(req.user.userId, updateUser);
+    }
+
+    const doctorUpdate = {};
+    if (specialization) doctorUpdate.specialty = specialization;
+    if (qualifications !== undefined) {
+      doctorUpdate.qualifications = Array.isArray(qualifications)
+        ? qualifications
+        : qualifications.toString().split(',').map(q => q.trim()).filter(Boolean);
+    }
+    if (experience !== undefined) doctorUpdate.experience_years = Number(experience) || 0;
+    if (bio !== undefined) doctorUpdate.bio = bio;
+    if (clinicAddress !== undefined) doctorUpdate.clinic_or_hospital = clinicAddress;
+
+    const Doctor = getModel('Doctor');
+    const updatedDoctor = await Doctor.findOneAndUpdate(
+      { NIC: req.user.NIC },
+      doctorUpdate,
+      { new: true, runValidators: true }
+    );
+
+    const updatedUser = await User.findById(req.user.userId).lean();
+    const qualificationsText = Array.isArray(updatedDoctor.qualifications)
+      ? updatedDoctor.qualifications.join(', ')
+      : updatedDoctor.qualifications || '';
+
+    res.json({
+      success: true,
+      doctor: {
+        ...updatedDoctor.toObject(),
+        specialization: updatedDoctor.specialty || updatedDoctor.specialization || 'General',
+        qualifications: qualificationsText,
+        experience: updatedDoctor.experience_years || updatedDoctor.experience || 0,
+        bio: updatedDoctor.bio || '',
+        contactNumber: updatedUser?.contact_number || '',
+        clinicAddress: updatedDoctor.clinic_or_hospital || '',
+        profileImage: updatedUser?.profile_picture || '',
+        user: updatedUser ? { full_name: updatedUser.full_name, email: updatedUser.email, name: updatedUser.full_name } : null
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.get('/api/doctors/stats', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Article = getDoctorArticleModel();
+    const totalArticles = await Article.countDocuments({ author: req.doctor._id });
+    const publishedArticles = await Article.countDocuments({ author: req.doctor._id, status: 'published' });
+    const draftArticles = await Article.countDocuments({ author: req.doctor._id, status: 'draft' });
+
+    const articles = await Article.find({ author: req.doctor._id }).lean();
+    const totalViews = articles.reduce((sum, article) => sum + (article.views || 0), 0);
+    const totalComments = articles.reduce((sum, article) => sum + (article.comments ? article.comments.length : 0), 0);
+    const totalLikes = articles.reduce((sum, article) => sum + (article.likes || 0), 0);
+
+    res.json({
+      success: true,
+      stats: {
+        totalArticles,
+        publishedArticles,
+        draftArticles,
+        totalViews,
+        totalComments,
+        totalLikes
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Notifications
+app.get('/api/notifications', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Notification = getDoctorNotificationModel();
+    const limit = Math.max(1, parseInt(req.query.limit || '20', 10));
+    const notifications = await Notification.find({ doctor: req.doctor._id })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate('actor', 'full_name');
+
+    res.json({ success: true, notifications });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.put('/api/notifications/:id/read', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Notification = getDoctorNotificationModel();
+    const notification = await Notification.findOneAndUpdate(
+      { _id: req.params.id, doctor: req.doctor._id },
+      { isRead: true },
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+
+    res.json({ success: true, notification });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.put('/api/notifications/read-all', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Notification = getDoctorNotificationModel();
+    await Notification.updateMany(
+      { doctor: req.doctor._id, isRead: false },
+      { $set: { isRead: true } }
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+app.delete('/api/notifications/clear', authenticateToken, checkDatabaseReady, ensureDoctor, async (req, res) => {
+  try {
+    const Notification = getDoctorNotificationModel();
+    await Notification.deleteMany({ doctor: req.doctor._id });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+// ========== END DOCTOR DASHBOARD ROUTES ==========
+
 // ========== COMMUNITY POSTS ROUTES ==========
 const resolvePostByParam = async (Post, idParam) => {
   if (mongoose.Types.ObjectId.isValid(idParam)) {
@@ -3106,6 +3743,8 @@ const getArticleModel = () => {
     return mongoose.model('Article');
   } catch {
     const articleSchema = new mongoose.Schema({}, { strict: false, collection: 'articles' });
+
+
     return mongoose.model('Article', articleSchema);
   }
 };
