@@ -7,7 +7,7 @@ const stripe = require('stripe')('sk_test_51Sohz3HEwvbtqHzUuV4TF924emk7sIbNJ9lcs
 const { setupDatabase } = require('./setup.js');
 const fs = require('fs');
 const path = require('path');
-const multer = require('multer'); // Added for file uploads
+const multer = require('multer'); 
 
 const app = express();
 const JWT_SECRET = 'your-secret-key-change-this-in-production';
@@ -53,7 +53,7 @@ app.use(cors({
     // Allow requests with no origin (mobile apps, CURL, server-to-server)
     if (!origin) return callback(null, true);
 
-    // Allow any localhost or 127.0.0.1 origin (any port) - helpful for frontend dev on different ports
+    // Allow any localhost or 127.0.0.1 origin (any port)
     try {
       const url = new URL(origin);
       const hostname = url.hostname;
@@ -61,7 +61,7 @@ app.use(cors({
         return callback(null, true);
       }
     } catch (e) {
-      // ignore invalid origin parsing and fall through to explicit check below
+      // ignore invalid origin parsing
     }
 
     const allowedOrigins = [
@@ -107,10 +107,11 @@ const getModel = (modelName) => {
 };
 // ========== END HELPER FUNCTION ==========
 
-// ========== WEB MANAGER MODEL (ensure available at runtime) ==========
+// ========== WEB MANAGER MODEL (FIXED) ==========
 if (!mongoose.models.WebManager) {
   const webManagerSchema = new mongoose.Schema({
-    W_ID: { type: String, required: true, unique: true },
+    // Changed to required: false so we can auto-generate it in the pre-save hook
+    W_ID: { type: String, required: false, unique: true }, 
     NIC: { type: String, required: true, unique: true, ref: 'User' },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     full_name: { type: String, default: '' },
@@ -136,10 +137,17 @@ if (!mongoose.models.WebManager) {
     updated_at: { type: Date, default: Date.now }
   });
 
+  // Pre-save hook to generate W_ID if missing
+  webManagerSchema.pre('save', function(next) {
+    if (!this.W_ID) {
+      this.W_ID = `WM-${Date.now()}`;
+    }
+    next();
+  });
+
   mongoose.model('WebManager', webManagerSchema);
   console.log('ℹ️ WebManager model registered in server.js');
 }
-
 // ========== END WEB MANAGER MODEL ==========
 
 // ========== BASIC ROUTES ==========
@@ -1737,13 +1745,13 @@ app.post('/api/seed', async (req, res) => {
     await landingPage.save();
     
     res.json({ 
-      success: true,
-      message: 'Database seeded successfully!'
+      success: true, 
+      message: 'Database seeded successfully!' 
     });
     
   } catch (error) {
     res.json({ 
-      success: false,
+      success: false, 
       error: error.message 
     });
   }
@@ -1972,13 +1980,13 @@ app.post('/api/fundraising/seed', async (req, res) => {
     await fundraising.save();
     
     res.json({ 
-      success: true,
-      message: 'Fundraising database seeded successfully!'
+      success: true, 
+      message: 'Fundraising database seeded successfully!' 
     });
     
   } catch (error) {
     res.json({ 
-      success: false,
+      success: false, 
       error: error.message 
     });
   }
@@ -2423,12 +2431,12 @@ app.post('/api/auth/verify-reset-code', checkDatabaseReady, async (req, res) => 
     // Example:
     // const user = await db.collection('users').findOne({ email });
     // if (!user || user.resetCode !== resetCode) {
-    //   return res.status(400).json({ success: false, message: 'Invalid reset code' });
+    //    return res.status(400).json({ success: false, message: 'Invalid reset code' });
     // }
     
     // Check if reset code is expired (optional)
     // if (user.resetCodeExpires < new Date()) {
-    //   return res.status(400).json({ success: false, message: 'Reset code has expired' });
+    //    return res.status(400).json({ success: false, message: 'Reset code has expired' });
     // }
 
     // If valid
@@ -2451,7 +2459,7 @@ app.post('/api/auth/verify-reset-code', checkDatabaseReady, async (req, res) => 
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || '0.0.0.0';
 
-// ========== WEB MANAGER ROUTES ==========
+// ========== WEB MANAGER ROUTES (FIXED) ==========
 
 // GET Web Manager Profile
 app.get('/api/web-manager/profile', authenticateToken, checkDatabaseReady, async (req, res) => {
@@ -2474,8 +2482,8 @@ app.get('/api/web-manager/profile', authenticateToken, checkDatabaseReady, async
       });
     }
 
-    // Find user
-    const user = await User.findOne({ email: req.user.email });
+    // Find user - Ensure email is lowercase
+    const user = await User.findOne({ email: req.user.email.toLowerCase() });
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -2489,14 +2497,21 @@ app.get('/api/web-manager/profile', authenticateToken, checkDatabaseReady, async
     });
 
     if (!webManager) {
+      // 🟢 FIX 1: Validate Gender against Enum
+      const validGenders = ['male', 'female', 'other', 'prefer-not-to-say'];
+      const userGender = validGenders.includes(user.gender) ? user.gender : 'prefer-not-to-say';
+
+      // 🟢 FIX 2: Validate Date of Birth (Handle empty string)
+      const userDOB = user.date_of_birth ? user.date_of_birth : null;
+
       // Create a default web manager record if not exists
       const newWebManager = new WebManager({
         NIC: user.NIC,
         email: user.email,
         full_name: user.full_name,
         contact_number: user.contact_number || "",
-        gender: user.gender || "",
-        date_of_birth: user.date_of_birth || "",
+        gender: userGender,
+        date_of_birth: userDOB,
         department: "Web Management",
         location: "Colombo, Sri Lanka",
         profile_picture: user.profile_picture || "",
@@ -2514,7 +2529,7 @@ app.get('/api/web-manager/profile', authenticateToken, checkDatabaseReady, async
       
       return res.json({
         success: true,
-        message: 'Web manager profile loaded',
+        message: 'Web manager profile loaded (new)',
         data: responseData
       });
     }
@@ -2574,7 +2589,7 @@ app.put('/api/web-manager/profile/update', authenticateToken, checkDatabaseReady
     } = req.body;
 
     // Find user
-    const user = await User.findOne({ email: req.user.email });
+    const user = await User.findOne({ email: req.user.email.toLowerCase() });
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -2587,11 +2602,12 @@ app.put('/api/web-manager/profile/update', authenticateToken, checkDatabaseReady
     if (full_name) userUpdates.full_name = full_name;
     if (contact_number) userUpdates.contact_number = contact_number;
     if (gender) userUpdates.gender = gender;
-    if (date_of_birth) userUpdates.date_of_birth = date_of_birth;
+    // Only update DOB if it is a valid value
+    if (date_of_birth) userUpdates.date_of_birth = date_of_birth; 
     if (avatar_url) userUpdates.profile_picture = avatar_url;
     userUpdates.updated_at = new Date();
 
-    await User.updateOne({ email: req.user.email }, { $set: userUpdates });
+    await User.updateOne({ email: req.user.email.toLowerCase() }, { $set: userUpdates });
 
     // Update WebManager model
     const webManagerUpdates = {};
@@ -2611,7 +2627,7 @@ app.put('/api/web-manager/profile/update', authenticateToken, checkDatabaseReady
     );
 
     // Get updated user data
-    const updatedUser = await User.findOne({ email: req.user.email });
+    const updatedUser = await User.findOne({ email: req.user.email.toLowerCase() });
     const updatedWebManager = await WebManager.findOne({ 
       $or: [{ NIC: user.NIC }, { email: user.email }] 
     });
@@ -2674,7 +2690,7 @@ app.put('/api/web-manager/change-password', authenticateToken, checkDatabaseRead
     }
 
     // Find user
-    const user = await User.findOne({ email: req.user.email });
+    const user = await User.findOne({ email: req.user.email.toLowerCase() });
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -2697,7 +2713,7 @@ app.put('/api/web-manager/change-password', authenticateToken, checkDatabaseRead
 
     // Update password
     await User.updateOne(
-      { email: req.user.email },
+      { email: req.user.email.toLowerCase() },
       { 
         $set: { 
           password_hash: newPasswordHash,
@@ -2762,6 +2778,44 @@ app.post('/api/upload/avatar', authenticateToken, upload.single('avatar'), async
 });
 // ========== END WEB MANAGER ROUTES ==========
 
+// DELETE Web Manager Account
+app.delete('/api/web-manager/delete-account', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    // Ensure the requester is a web manager
+    if (req.user.role !== 'web_manager') {
+      return res.status(403).json({ success: false, message: 'Web manager access required' });
+    }
+
+    const User = getModel('User');
+    const WebManager = getModel('WebManager');
+
+    if (!User || !WebManager) {
+      return res.status(500).json({ success: false, message: 'Server configuration error' });
+    }
+
+    // Find the user record
+    const user = await User.findOne({ email: req.user.email.toLowerCase() });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Remove WebManager record if exists
+    await WebManager.deleteOne({ $or: [{ NIC: user.NIC }, { email: user.email }] });
+
+    // Soft-delete the User record (preserve for audits) and mark inactive
+    await User.updateOne(
+      { email: user.email },
+      { $set: { isExisting: 'deleted', is_active: false, updated_at: new Date() } }
+    );
+
+    console.log(`🗑️ Web manager account deleted: ${user.email}`);
+
+    res.json({ success: true, message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('❌ Delete web manager account error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete account', error: error.message });
+  }
+});
 
 app.listen(PORT, HOST, () => {
   console.log(`🚀 HerCycle backend listening on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);

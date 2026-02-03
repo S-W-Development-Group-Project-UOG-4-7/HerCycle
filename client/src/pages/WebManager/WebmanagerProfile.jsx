@@ -714,7 +714,7 @@ const WebmanagerProfile = () => {
       }
 
       // Note: You might want to create a specific endpoint for web manager account deletion
-      const res = await fetch("http://localhost:5000/api/user/delete-account", {
+      const res = await fetch("http://localhost:5000/api/web-manager/delete-account", {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`
@@ -1344,43 +1344,7 @@ const WebmanagerProfile = () => {
                   </div>
                 </div>
 
-                <div className="wm-pro-preference-section">
-                  <h3>🎨 Display Settings</h3>
-                  
-                  <div className="wm-pro-form-group">
-                    <label htmlFor="theme">Theme</label>
-                    <select 
-                      id="theme"
-                      className="wm-pro-input"
-                      value={preferences.theme}
-                      onChange={(e) => setPreferences({
-                        ...preferences,
-                        theme: e.target.value
-                      })}
-                    >
-                      <option value="light">Light Theme</option>
-                      <option value="dark">Dark Theme</option>
-                      <option value="system">System Default</option>
-                    </select>
-                  </div>
-                  
-                  <div className="wm-pro-form-group">
-                    <label htmlFor="language">Language</label>
-                    <select 
-                      id="language"
-                      className="wm-pro-input"
-                      value={preferences.language}
-                      onChange={(e) => setPreferences({
-                        ...preferences,
-                        language: e.target.value
-                      })}
-                    >
-                      <option value="english">English</option>
-                      <option value="sinhala">Sinhala</option>
-                      <option value="tamil">Tamil</option>
-                    </select>
-                  </div>
-                </div>
+                
 
                 <div className="wm-pro-form-actions">
                   <button 
