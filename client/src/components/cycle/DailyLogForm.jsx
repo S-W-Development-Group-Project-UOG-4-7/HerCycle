@@ -1,5 +1,4 @@
-import { useMemo, useState } from "react";
-import { upsertCycleProfile, addCycleTracker } from "../../services/cycleApi";
+import { useMemo, useState, useEffect } from "react";
 
 
 
@@ -24,11 +23,17 @@ const MOODS = ["happy", "calm", "stressed", "sad", "angry", "anxious"];
  */
 function DailyLogForm({ initialDate, onSave, saving = false }) {
   const defaultDate = useMemo(
-    () => initialDate || new Date().toISOString().slice(0, 10),
+    () =>
+      initialDate ||
+      new Date().toLocaleDateString("en-CA"), // YYYY-MM-DD in LOCAL time
     [initialDate]
   );
 
   const [date, setDate] = useState(defaultDate);
+  useEffect(() => {
+    setDate(defaultDate);
+  }, [defaultDate]);
+
   const [flow, setFlow] = useState("none");
   const [pain_level, setPainLevel] = useState(0); // backend expects pain_level
   const [mood, setMood] = useState("");
@@ -71,6 +76,7 @@ function DailyLogForm({ initialDate, onSave, saving = false }) {
     setEnergyLevel("");
   };
 
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
@@ -82,26 +88,32 @@ function DailyLogForm({ initialDate, onSave, saving = false }) {
     }
 
     try {
-      // Only send fields the backend is most likely to accept.
-      // Keep sleepHours/energyLevel out unless your backend supports them.
-      await onSave({
+      const result = await onSave({
         date,
         flow,
         pain_level: Number(pain_level),
         mood: mood || "",
         symptoms,
         notes: notes || "",
-        // If you later add backend support, you can include:
-        // sleepHours: sleepHours === "" ? undefined : Number(sleepHours),
-        // energyLevel: energyLevel === "" ? undefined : Number(energyLevel),
       });
+
+      // ✅ If parent returns { success: false, message: "..." }
+      if (result && result.success === false) {
+        setError(result.message || "Failed to save daily log.");
+        return; // ⛔ STOP, don't show success
+      }
 
       setMessage("Daily log saved successfully 🌷");
       resetForm();
     } catch (err) {
-      setError(err?.message || "Failed to save daily log");
+      setError(
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to save daily log"
+      );
     }
   };
+
 
   return (
     <div style={styles.card}>

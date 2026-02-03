@@ -2779,3 +2779,40 @@
     right: -40px;
   }
 }
+
+/* Daily log warning card */
+.dailylog-warning {
+  margin-top: 12px;
+  padding: 14px 14px;
+  border-radius: 12px;
+
+  background: #fff0f6;          /* soft pink */
+  border: 1px solid #ffb3d1;    /* visible border */
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dailylog-warning-title {
+  font-weight: 700;
+  color: #7a0037;              /* dark text for contrast */
+  line-height: 1.2;
+}
+
+.dailylog-warning-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-weight: 700;
+
+  background: #ff4d94;
+  color: white;
+}
+
+.dailylog-warning-btn:hover {
+  filter: brightness(0.95);
+}

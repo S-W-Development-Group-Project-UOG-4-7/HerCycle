@@ -2,17 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Dashboard.css";
 
-import DailyLogForm from "../../components/cycle/DailyLogForm";
-import HistoryPanel from "../../components/cycle/HistoryPanel";
-import InsightsPanel from "../../components/cycle/InsightsPanel";
-import CycleTrackingForm from "../../components/cycle/CycleTrackingForm";
-import {
-  getCycleProfile,
-  getCycleHistory,
-  saveDailyLog,
-  deleteDailyLog,
-  deleteCycleTracker
-} from "../../services/cycleApi";
+import { getCycleProfile, getCycleHistory } from "../../services/cycleApi";
+import CycleOverviewWidget from "../../components/cycle/CycleOverviewWidget";
+import CycleTrackingTab from "./tabs/CycleTrackingTab";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -57,8 +49,11 @@ const Dashboard = () => {
     setUser(userData);
 
     // Check if user has cycle tracking enabled
-    if (userData.is_cycle_user) {
-      fetchCycleProfile(userData.NIC);
+    const nic = userData?.NIC || userData?.nic || userData?.user_nic;
+
+    if (userData.is_cycle_user && nic) {
+      fetchCycleProfile(nic);
+      fetchCycleHistory(nic);
     }
 
     setLoading(false);
@@ -83,6 +78,33 @@ const Dashboard = () => {
       document.removeEventListener('keydown', handleEscape);
     };
   }, [isNotificationsOpen]);
+
+  const [dailyLogs, setDailyLogs] = useState([]);
+  const [cycleTrackers, setCycleTrackers] = useState([]);
+
+  const fetchCycleHistory = async (nic) => {
+    try {
+      const history = await getCycleHistory(nic);
+      setDailyLogs(history?.daily_logs || []);
+      setCycleTrackers(history?.cycle_trackers || []);
+    } catch (e) {
+      console.error("Error fetching cycle history:", e);
+    }
+  };
+
+  const periodFormRef = useRef(null);
+  const dailyLogRef = useRef(null);
+
+  const goToPeriodForm = () => {
+    setActiveTab("cycle-tracking");
+    setTimeout(() => periodFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  };
+
+  const goToDailyLog = () => {
+    setActiveTab("cycle-tracking");
+    setTimeout(() => dailyLogRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  };
+
 
   const fetchCycleProfile = async (nic) => {
     try {
@@ -345,28 +367,17 @@ const Dashboard = () => {
               </div>
 
               {/* Cycle Tracking Widget (if enabled) */}
-              {user?.is_cycle_user && cycleProfile && (
-                <div className="cycle-widget">
-                  <h2>Cycle Tracking</h2>
-                  <div className="cycle-status">
-                    <div className="cycle-phase">
-                      <span className="phase-label">Current Phase:</span>
-                      <span className="phase-value">Follicular</span>
-                    </div>
-                    <div className="cycle-days">
-                      <span className="days-label">Cycle Day:</span>
-                      <span className="days-value">14</span>
-                    </div>
-                    <div className="next-period">
-                      <span className="next-label">Next Period:</span>
-                      <span className="next-value">In 14 days</span>
-                    </div>
-                  </div>
-                  <button className="log-day-btn" onClick={() => setActiveTab("cycle-tracking")}>
-                    Log Today's Entry
-                  </button>
-                </div>
+              {user?.is_cycle_user && (
+                <CycleOverviewWidget
+                  cycleProfile={cycleProfile}
+                  cycleTrackers={cycleTrackers}
+                  dailyLogs={dailyLogs}
+                  onGoToPeriod={goToPeriodForm}
+                  onGoToDailyLog={goToDailyLog}
+                />
               )}
+
+
 
               {/* Recent Activity */}
               <div className="recent-activity">
@@ -393,7 +404,17 @@ const Dashboard = () => {
 
           {/* Cycle Tracking Tab (only visible if enabled) */}
           {activeTab === "cycle-tracking" && user?.is_cycle_user && (
-            <CycleTrackingTab user={user} cycleProfile={cycleProfile} />
+            <CycleTrackingTab
+              user={user}
+              cycleProfile={cycleProfile}
+              periodFormRef={periodFormRef}
+              dailyLogRef={dailyLogRef}
+              dailyLogs={dailyLogs}
+              setDailyLogs={setDailyLogs}
+              cycleTrackers={cycleTrackers}
+              setCycleTrackers={setCycleTrackers}
+            />
+
           )}
 
           {/* Community Tab */}
@@ -418,108 +439,6 @@ const Dashboard = () => {
 };
 
 // Sub-components for different tabs
-const CycleTrackingTab = ({ user, cycleProfile }) => {
-  const [dailyLogs, setDailyLogs] = useState([]);
-  const [cycleTrackers, setCycleTrackers] = useState([]);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!user?.NIC) return;
-    (async () => {
-      try {
-        const history = await getCycleHistory(user.NIC);
-        setDailyLogs(history?.daily_logs || []);
-        setCycleTrackers(history?.cycle_trackers || []);
-      } catch (e) {
-        console.error("Error fetching cycle history:", e);
-      }
-    })();
-  }, [user?.NIC]);
-
-  const refreshHistory = async () => {
-    const history = await getCycleHistory(user.NIC);
-    setDailyLogs(history?.daily_logs || []);
-    setCycleTrackers(history?.cycle_trackers || []);
-  };
-
-  const handleSaveDailyLog = async (formData) => {
-    try {
-      setSaving(true);
-      await saveDailyLog({ NIC: user.NIC, ...formData });
-      await refreshHistory();
-    } catch (e) {
-      console.error("Error saving log:", e);
-      alert(e.message || "Failed to save daily log");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDeleteDailyLog = async (logId) => {
-    await deleteDailyLog(logId);
-    await refreshHistory();
-  };
-
-  const handleDeleteCycleTracker = async (trackerId) => {
-    await deleteCycleTracker(trackerId);
-    await refreshHistory();
-  };
-
-  return (
-    <div className="cycle-tracking-tab">
-      <h2>Track Your Cycle</h2>
-
-      <div className="cycle-overview">
-        <div className="cycle-stats">
-          <div className="cycle-stat">
-            <span className="stat-label">Cycle Length</span>
-            <span className="stat-value">{cycleProfile?.cycle_length || 28} days</span>
-          </div>
-          <div className="cycle-stat">
-            <span className="stat-label">Period Length</span>
-            <span className="stat-value">{cycleProfile?.period_length || 5} days</span>
-          </div>
-          <div className="cycle-stat">
-            <span className="stat-label">Last Period</span>
-            <span className="stat-value">
-              {cycleProfile?.last_period_start
-                ? new Date(cycleProfile.last_period_start).toLocaleDateString()
-                : "Not recorded"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <CycleTrackingForm
-        nic={user?.NIC}
-        onSaved={async () => {
-          try {
-            await refreshHistory();
-          } catch (e) {
-            console.error("Error refreshing history:", e);
-          }
-        }}
-      />
-
-      <DailyLogForm
-        initialDate={new Date().toISOString().split("T")[0]}
-        onSave={handleSaveDailyLog}
-        saving={saving}
-      />
-
-      <HistoryPanel
-        dailyLogs={dailyLogs}
-        cycleTrackers={cycleTrackers}
-        usePopupMessages={true}
-        onDeleteDailyLog={handleDeleteDailyLog}
-        onDeleteCycleTracker={handleDeleteCycleTracker}
-      />
-
-      <InsightsPanel cycleProfile={cycleProfile} dailyLogs={dailyLogs} />
-    </div>
-  );
-};
-
 const CommunityTab = ({ user }) => {
   const [contentMode, setContentMode] = useState('articles');
   const [articles, setArticles] = useState([]);
@@ -1819,8 +1738,8 @@ const ArticleDetail = ({ article, onBack, onLike, onSave, timeAgo, token, header
                 {modalMode === 'edit'
                   ? 'Edit Comment'
                   : modalMode === 'reply'
-                  ? 'Reply'
-                  : 'Add Comment'}
+                    ? 'Reply'
+                    : 'Add Comment'}
               </h4>
               <button className="comment-modal-close" onClick={closeModal}>Close</button>
             </div>
@@ -1842,8 +1761,8 @@ const ArticleDetail = ({ article, onBack, onLike, onSave, timeAgo, token, header
                 {modalMode === 'edit'
                   ? 'Save'
                   : modalMode === 'reply'
-                  ? 'Reply'
-                  : 'Post'}
+                    ? 'Reply'
+                    : 'Post'}
               </button>
             </div>
           </div>
@@ -1998,7 +1917,9 @@ const PostDetail = ({ post, onBack, onLike, onCommentAdded, timeAgo, token, head
                     <span className="reddit-separator">-</span>
                     <span className="reddit-comment-time">{timeAgo(comment.created_at)}</span>
                   </div>
-                  <p className="reddit-comment-text">{comment.comment_text}</p>
+                  <p className="reddit-comment-text">
+                    {comment.text ?? comment.comment_text ?? ""}
+                  </p>
                 </div>
               </div>
             ))
@@ -2296,7 +2217,7 @@ const ProfileTab = ({ user }) => {
                       <div className="profile-list-info">
                         <span className="profile-list-title">{item.title}</span>
                         <span className="profile-list-meta">
-                          by {item.author || 'Doctor'} � {formatSavedTime(item.time)}
+                          by {item.author || 'Doctor'} • {formatSavedTime(item.time)}
                         </span>
                         {item.tags && item.tags.length > 0 && (
                           <div className="profile-list-tags">

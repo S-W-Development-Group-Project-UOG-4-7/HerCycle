@@ -69,21 +69,34 @@ router.post("/daily-log", async (req, res) => {
   try {
     const payload = req.body;
 
-    if (!payload?.NIC || !payload?.date) {
+    // accept both NIC and nic (frontend sometimes sends nic)
+    const NIC = payload?.NIC || payload?.nic;
+
+    if (!NIC || !payload?.date) {
       return res.status(400).json({ success: false, message: "NIC and date are required" });
     }
 
-    // normalize date (store as Date)
+    // Normalize date to start of day (UTC) so "same day" always matches
+    const d = new Date(payload.date);
+    if (isNaN(d.getTime())) {
+      return res.status(400).json({ success: false, message: "Invalid date" });
+    }
+    d.setUTCHours(0, 0, 0, 0);
+
+    // Build the doc we want to store
     const doc = {
       ...payload,
-      date: new Date(payload.date),
+      NIC,          // ensure correct field name in DB
+      date: d,
       is_deleted: false,
       deleted_at: null,
     };
 
-    // Upsert daily log by NIC+date (if already exists, update it)
+    // ✅ IMPORTANT CHANGE:
+    // Upsert by NIC + date (regardless of deleted status)
+    // This "revives" a soft-deleted log instead of inserting a duplicate.
     const saved = await DailyLog.findOneAndUpdate(
-      { NIC: doc.NIC, date: doc.date, is_deleted: false },
+      { NIC: doc.NIC, date: doc.date },   // removed is_deleted: false
       { $set: doc },
       { new: true, upsert: true }
     );
@@ -100,7 +113,6 @@ router.post("/daily-log", async (req, res) => {
 
     res.json({ success: true, message: "Daily log saved successfully", data: saved });
   } catch (error) {
-    // If unique index conflict happens
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
@@ -110,6 +122,7 @@ router.post("/daily-log", async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
 
 /**
  * GET /api/cycle/history/:nic

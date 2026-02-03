@@ -53,11 +53,18 @@ export async function addCycleTracker(payload) {
 }
 
 export async function saveDailyLog(payload) {
+  const fixedPayload = {
+    ...payload,
+    NIC: payload.NIC ?? payload.nic, // support both
+  };
+  delete fixedPayload.nic;
+
   const res = await fetch(`${BASE_URL}/api/cycle/daily-log`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(fixedPayload),
   });
+  
   const data = await safeJson(res);
   if (!res.ok) throw new Error(data?.message || "Failed to save daily log");
   return data.data;
