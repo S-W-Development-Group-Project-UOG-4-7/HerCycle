@@ -9,6 +9,7 @@ const { setupDatabase } = require('./setup.js');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer'); // Added for file uploads
+const nodemailer = require('nodemailer'); // Added for email notifications
 
 const app = express();
 const JWT_SECRET = 'your-secret-key-change-this-in-production';
@@ -85,6 +86,82 @@ const getModel = (modelName) => {
   }
 };
 // ========== END HELPER FUNCTION ==========
+
+// ========== EMAIL HELPER FUNCTION ==========
+// Configure Nodemailer transporter (optional)
+let emailTransporter = null;
+try {
+  emailTransporter = nodemailer.createTransporter({
+    service: 'gmail',
+    auth: {
+      user: 'hercyle806@gmail.com',
+      pass: 'your-app-password-here' // TODO: Replace with actual Gmail app password
+    }
+  });
+  console.log('✅ Email transporter configured');
+} catch (error) {
+  console.warn('⚠️ Email disabled:', error.message);
+}
+
+// Send Warning Email
+async function sendWarningEmail(userEmail, userName, warningDetails) {
+  if (!emailTransporter) {
+    console.log('📧 Email skipped (transporter not available)');
+    return false;
+  }
+  try {
+    const emailContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); padding: 20px; text-align: center;">
+          <h1 style="color: white; margin: 0;">⚠️ Warning Issued</h1>
+        </div>
+        <div style="padding: 30px; background: #f9f9f9;">
+          <p>Dear ${userName},</p>
+          <p>You have received a warning from the HerCycle Admin Team.</p>
+          
+          <div style="background: white; border-left: 4px solid #ff6b6b; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0; font-weight: bold; color: #ff6b6b;">Warning Details:</p>
+            <p style="margin: 10px 0;"><strong>Severity:</strong> ${warningDetails.severity.toUpperCase()}</p>
+            <p style="margin: 10px 0;"><strong>Reason:</strong> ${warningDetails.reason}</p>
+            ${warningDetails.notes ? `<p style="margin: 10px 0;"><strong>Additional Notes:</strong> ${warningDetails.notes}</p>` : ''}
+            <p style="margin: 10px 0;"><strong>Expires:</strong> ${new Date(warningDetails.expires_at).toLocaleDateString()}</p>
+          </div>
+
+          <div style="background: #fff3e0; border: 2px solid #ffecb3; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0; color: #f57c00;"><strong>⚠️ Important:</strong></p>
+            <ul style="color: #666; margin: 10px 0;">
+              <li>This is warning ${warningDetails.warning_count || 1} for your account</li>
+              <li>Users with 3 or more warnings will be automatically suspended</li>
+              <li>Please review our community guidelines and ensure future compliance</li>
+            </ul>
+          </div>
+
+          <p>If you believe this warning was issued in error, please contact our support team.</p>
+          
+          <p style="margin-top: 30px;">Best regards,<br>HerCycle Admin Team</p>
+        </div>
+        <div style="background: #333; color: white; padding: 15px; text-align: center; font-size: 12px;">
+          <p style="margin: 0;">© 2026 HerCycle. All rights reserved.</p>
+        </div>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: '"HerCycle Team" <hercyle806@gmail.com>',
+      to: userEmail,
+      subject: `⚠️ Warning Issued - HerCycle`,
+      html: emailContent
+    };
+
+    await emailTransporter.sendMail(mailOptions);
+    console.log(`✅ Warning email sent to ${userEmail}`);
+    return true;
+  } catch (error) {
+    console.error(`❌ Failed to send warning email to ${userEmail}:`, error);
+    return false;
+  }
+}
+// ========== END EMAIL HELPER ==========
 
 // ========== BASIC ROUTES ==========
 app.get('/', (req, res) => {
@@ -1695,32 +1772,7 @@ app.put('/api/admin/web-manager/:nic/permissions', authenticateToken, checkDatab
 });
 
 // Get all web managers with permissions
-app.get('/api/admin/web-managers', authenticateToken, checkDatabaseReady, async (req, res) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Admin access required' });
-    }
 
-    const WebManager = mongoose.model('WebManager');
-    const User = mongoose.model('User');
-
-    const webManagers = await WebManager.find({ is_active: true });
-
-    // Get user info for each web manager
-    const enrichedData = await Promise.all(webManagers.map(async (wm) => {
-      const user = await User.findOne({ NIC: wm.NIC }, 'full_name email');
-      return {
-        ...wm.toObject(),
-        user_info: user
-      };
-    }));
-
-    res.json({ success: true, data: enrichedData });
-  } catch (error) {
-    console.error('❌ Fetch web managers error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch web managers', error: error.message });
-  }
-});
 
 // Update role-based privileges (for all users of a role)
 app.put('/api/admin/role-privileges/:role', authenticateToken, checkDatabaseReady, async (req, res) => {
@@ -1747,71 +1799,6 @@ app.put('/api/admin/role-privileges/:role', authenticateToken, checkDatabaseRead
   } catch (error) {
     console.error('❌ Update role privileges error:', error);
     res.status(500).json({ success: false, message: 'Failed to update role privileges', error: error.message });
-  }
-});
-
-// Suspend User endpoint
-app.post('/api/admin/suspend-user', authenticateToken, checkDatabaseReady, async (req, res) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Admin access required' });
-    }
-
-    const { user_nic, duration } = req.body;
-
-    if (!user_nic || !duration) {
-      return res.status(400).json({ success: false, message: 'User NIC and duration are required' });
-    }
-
-    // Calculate suspension end date based on duration
-    const now = new Date();
-    let suspension_until = new Date(now);
-
-    switch (duration) {
-      case '1week':
-        suspension_until.setDate(now.getDate() + 7);
-        break;
-      case '3weeks':
-        suspension_until.setDate(now.getDate() + 21);
-        break;
-      case '1month':
-        suspension_until.setMonth(now.getMonth() + 1);
-        break;
-      case '3months':
-        suspension_until.setMonth(now.getMonth() + 3);
-        break;
-      default:
-        return res.status(400).json({ success: false, message: 'Invalid duration' });
-    }
-
-    const User = mongoose.model('User');
-
-    // Update user to set is_active to false and set suspension_until date
-    const user = await User.findOneAndUpdate(
-      { NIC: user_nic },
-      {
-        $set: {
-          is_active: false,
-          suspension_until: suspension_until,
-          suspended_at: now
-        }
-      },
-      { new: true }
-    );
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    console.log(`✅ User ${user_nic} suspended until ${suspension_until.toISOString()}`);
-    res.json({
-      success: true,
-      message: `User suspended until ${suspension_until.toLocaleDateString()}`,
-      data: { suspension_until }
-    });
-  } catch (error) {
-    console.error('❌ Suspend user error:', error);
-    res.status(500).json({ success: false, message: 'Failed to suspend user', error: error.message });
   }
 });
 
@@ -1922,7 +1909,7 @@ app.get('/api/admin/recent-activity', authenticateToken, checkDatabaseReady, asy
     const limit = parseInt(req.query.limit) || 10;
     const activities = [];
 
-    // Use correct model name: 'Warning' not 'WarningHistory'
+    // Get recent warnings from database
     const Warning = getModel('Warning');
     if (Warning) {
       const recentWarnings = await Warning.find()
@@ -1935,12 +1922,13 @@ app.get('/api/admin/recent-activity', authenticateToken, checkDatabaseReady, asy
           type: 'warning',
           message: `Warning issued to user ${w.user_nic || 'Unknown'}`,
           timestamp: w.given_at,
-          severity: w.severity
+          severity: w.severity,
+          user_nic: w.user_nic
         });
       });
     }
 
-    // Get recent doctor approvals (last 7 days)
+    // Get recent doctor approvals from database (last 7 days)
     const Doctor = getModel('Doctor');
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -1953,7 +1941,57 @@ app.get('/api/admin/recent-activity', authenticateToken, checkDatabaseReady, asy
       activities.push({
         type: 'doctor_approval',
         message: `Doctor verified: ${d.NIC}`,
-        timestamp: d.verified_at
+        timestamp: d.verified_at,
+        user_nic: d.NIC
+      });
+    });
+
+    // Get recent user suspensions from database
+    const User = getModel('User');
+    const recentSuspensions = await User.find({
+      isExisting: 'suspended',
+      updated_at: { $gte: sevenDaysAgo }
+    }).sort({ updated_at: -1 }).limit(5);
+
+    recentSuspensions.forEach(u => {
+      activities.push({
+        type: 'suspension',
+        message: `User suspended: ${u.full_name || u.NIC}`,
+        timestamp: u.updated_at,
+        user_nic: u.NIC
+      });
+    });
+
+    // Get recent user registrations from database
+    const recentUsers = await User.find()
+      .sort({ created_at: -1 })
+      .limit(5)
+      .lean();
+
+    recentUsers.forEach(u => {
+      activities.push({
+        type: 'user_registration',
+        message: `New user registered: ${u.full_name || u.email}`,
+        timestamp: u.created_at,
+        user_nic: u.NIC
+      });
+    });
+
+    // Get recent posts from database (last 3 days)
+    const Post = getModel('Post');
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+    const recentPosts = await Post.find({
+      created_at: { $gte: threeDaysAgo }
+    }).sort({ created_at: -1 }).limit(5);
+
+    recentPosts.forEach(p => {
+      activities.push({
+        type: 'post_created',
+        message: `New post: ${p.title?.substring(0, 50)}...`,
+        timestamp: p.created_at,
+        user_nic: p.author_nic
       });
     });
 
@@ -1967,36 +2005,631 @@ app.get('/api/admin/recent-activity', authenticateToken, checkDatabaseReady, asy
   }
 });
 
-// ===== PHASE 8: ADVANCED FEATURES =====
+// ===== ADMIN ANALYTICS ENDPOINTS (DATABASE CONNECTED) =====
 
-// UPDATE WEB MANAGER PERMISSIONS
-app.put('/api/admin/web-manager/:nic/permissions', authenticateToken, checkDatabaseReady, async (req, res) => {
+// DONATION ANALYTICS
+app.get('/api/admin/analytics/donations', authenticateToken, checkDatabaseReady, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Admin access required' });
     }
 
-    const { nic } = req.params;
-    const { permissions } = req.body;
+    const CampaignDonation = mongoose.model('CampaignDonation');
+    const Campaign = mongoose.model('Campaign');
 
-    const WebManager = getModel('WebManager');
-    const webManager = await WebManager.findOneAndUpdate(
-      { NIC: nic },
-      { $set: { permissions } },
+    // Get total donations and amount
+    const totalStats = await CampaignDonation.aggregate([
+      {
+        $group: {
+          _id: null,
+          total_donations: { $sum: 1 },
+          total_amount: { $sum: '$amount' }
+        }
+      }
+    ]);
+
+    // Get donations by campaign
+    const donationsByCampaign = await CampaignDonation.aggregate([
+      {
+        $group: {
+          _id: '$campaign_id',
+          total_amount: { $sum: '$amount' },
+          donor_count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { total_amount: -1 }
+      }
+    ]);
+
+    // Get campaign titles
+    const campaignIds = donationsByCampaign.map(d => d._id);
+    const campaigns = await Campaign.find({ campaign_id: { $in: campaignIds } });
+    const campaignMap = {};
+    campaigns.forEach(c => campaignMap[c.campaign_id] = c.title);
+
+    // Add campaign titles to results
+    const donationsWithTitles = donationsByCampaign.map(d => ({
+      campaign_id: d._id,
+      campaign_title: campaignMap[d._id] || 'Unknown Campaign',
+      total_amount: d.total_amount,
+      donor_count: d.donor_count
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        total_donations: totalStats[0]?.total_donations || 0,
+        total_amount: totalStats[0]?.total_amount || 0,
+        donations_by_campaign: donationsWithTitles
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching donation analytics:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch donation analytics', error: error.message });
+  }
+});
+
+// USER ANALYTICS
+app.get('/api/admin/analytics/users', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const User = getModel('User');
+    const Doctor = getModel('Doctor');
+    const CycleProfile = getModel('CycleProfile');
+
+    // Total users count
+    const total_users = await User.countDocuments();
+
+    // Active users (logged in within last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const active_users = await User.countDocuments({
+      last_login: { $gte: thirtyDaysAgo }
+    });
+
+    // Cycle tracking users
+    const cycle_users = await CycleProfile.countDocuments({ is_active: true });
+
+    // Verified doctors
+    const verified_doctors = await Doctor.countDocuments({
+      is_approved: true,
+      verified: true
+    });
+
+    // New users this month
+    const firstDayOfMonth = new Date();
+    firstDayOfMonth.setDate(1);
+    firstDayOfMonth.setHours(0, 0, 0, 0);
+    const new_users_this_month = await User.countDocuments({
+      created_at: { $gte: firstDayOfMonth }
+    });
+
+    // Users by role distribution
+    const users_by_role = await User.aggregate([
+      {
+        $group: {
+          _id: '$role',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        total_users,
+        active_users,
+        cycle_users,
+        verified_doctors,
+        new_users_this_month,
+        users_by_role
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user analytics:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch user analytics', error: error.message });
+  }
+});
+
+// USER GROWTH ANALYTICS
+app.get('/api/admin/analytics/user-growth', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const days = parseInt(req.query.days) || 30;
+    const User = getModel('User');
+
+    let startDate;
+    if (days === 'all' || days > 365) {
+      // Get the earliest user registration date
+      const earliestUser = await User.findOne().sort({ created_at: 1 });
+      startDate = earliestUser ? earliestUser.created_at : new Date();
+    } else {
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+    }
+
+    // Aggregate users by day
+    const growthData = await User.aggregate([
+      {
+        $match: {
+          created_at: { $gte: startDate }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$created_at' }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { _id: 1 }
+      }
+    ]);
+
+    // Calculate cumulative count
+    let cumulative = 0;
+    const growth = growthData.map(item => {
+      cumulative += item.count;
+      return {
+        date: item._id,
+        count: item.count,
+        cumulative: cumulative
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        growth
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user growth:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch user growth', error: error.message });
+  }
+});
+
+// POST/COMMENT ANALYTICS
+app.get('/api/admin/analytics/posts', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const Post = getModel('Post');
+    const Comment = getModel('Comment');
+    const Report = getModel('Report');
+
+    // Total posts
+    const total_posts = await Post.countDocuments();
+
+    // Total comments
+    const total_comments = await Comment.countDocuments();
+
+    // Total reports
+    const total_reports = await Report.countDocuments();
+
+    // Comment to post ratio
+    const comment_to_post_ratio = total_posts > 0 ? total_comments / total_posts : 0;
+
+    // Posts by status
+    const posts_by_status = await Post.aggregate([
+      {
+        $group: {
+          _id: '$approval_status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        total_posts,
+        total_comments,
+        total_reports,
+        comment_to_post_ratio,
+        posts_by_status
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching post analytics:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch post analytics', error: error.message });
+  }
+});
+
+// GET ALL WARNINGS (with filters)
+app.get('/api/admin/warnings', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const Warning = getModel('Warning');
+    const User = getModel('User');
+    const { severity, user_nic, is_active } = req.query;
+
+    // Build query
+    let query = {};
+    if (severity) query.severity = severity;
+    if (user_nic) query.user_nic = user_nic;
+    if (is_active) query.is_active = is_active === 'true';
+
+    const warnings = await Warning.find(query).sort({ given_at: -1 }).limit(100);
+
+    // Get user info for each warning
+    const warningsWithUserInfo = await Promise.all(
+      warnings.map(async (warning) => {
+        const user = await User.findOne({ NIC: warning.user_nic });
+        return {
+          ...warning.toObject(),
+          user_info: user ? {
+            full_name: user.full_name,
+            email: user.email
+          } : null
+        };
+      })
+    );
+
+    res.json({ success: true, data: warningsWithUserInfo });
+  } catch (error) {
+    console.error('Error fetching warnings:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch warnings', error: error.message });
+  }
+});
+
+// GET SUSPENDED USERS
+app.get('/api/admin/suspended-users', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const User = getModel('User');
+    const Warning = getModel('Warning');
+
+    // Find users with isExisting = 'suspended'
+    const suspendedUsers = await User.find({
+      isExisting: 'suspended'
+    }).select('NIC full_name email suspension_end created_at');
+
+    // Get warning count for each suspended user
+    const usersWithWarnings = await Promise.all(
+      suspendedUsers.map(async (user) => {
+        const warning_count = await Warning.countDocuments({ user_nic: user.NIC });
+        return {
+          NIC: user.NIC,
+          full_name: user.full_name,
+          email: user.email,
+          suspension_end: user.suspension_end,
+          warning_count
+        };
+      })
+    );
+
+    res.json({ success: true, data: usersWithWarnings });
+  } catch (error) {
+    console.error('Error fetching suspended users:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch suspended users', error: error.message });
+  }
+});
+
+// SUSPEND USER
+app.post('/api/admin/suspend-user', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { user_nic, duration } = req.body;
+    const User = getModel('User');
+
+    // Calculate suspension end date based on duration
+    const now = new Date();
+    let suspension_end = new Date(now);
+
+    switch (duration) {
+      case '1week':
+        suspension_end.setDate(suspension_end.getDate() + 7);
+        break;
+      case '3weeks':
+        suspension_end.setDate(suspension_end.getDate() + 21);
+        break;
+      case '1month':
+        suspension_end.setMonth(suspension_end.getMonth() + 1);
+        break;
+      case '3months':
+        suspension_end.setMonth(suspension_end.getMonth() + 3);
+        break;
+      default:
+        suspension_end.setDate(suspension_end.getDate() + 7); // Default to 1 week
+    }
+
+    // Update user status
+    const user = await User.findOneAndUpdate(
+      { NIC: user_nic },
+      {
+        $set: {
+          isExisting: 'suspended',
+          suspension_end: suspension_end,
+          updated_at: new Date()
+        }
+      },
       { new: true }
     );
 
-    if (!webManager) {
-      return res.status(404).json({ success: false, message: 'Web Manager not found' });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    console.log(`✅ Permissions updated for Web Manager: ${nic}`);
-    res.json({ success: true, message: 'Permissions updated', data: webManager });
+    console.log(`✅ User ${user_nic} suspended until ${suspension_end} by ${req.user.email}`);
+    res.json({
+      success: true,
+      message: `User suspended for ${duration}`,
+      data: { suspension_end }
+    });
   } catch (error) {
-    console.error('Error updating permissions:', error);
-    res.status(500).json({ success: false, message: 'Failed to update permissions' });
+    console.error('Error suspending user:', error);
+    res.status(500).json({ success: false, message: 'Failed to suspend user', error: error.message });
   }
 });
+
+// UNSUSPEND USER
+app.post('/api/admin/unsuspend-user', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { user_nic } = req.body;
+    const User = getModel('User');
+
+    const user = await User.findOneAndUpdate(
+      { NIC: user_nic },
+      {
+        $set: {
+          isExisting: 'active',
+          suspension_end: null,
+          updated_at: new Date()
+        }
+      },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    console.log(`✅ User ${user_nic} unsuspended by ${req.user.email}`);
+    res.json({ success: true, message: 'User unsuspended successfully' });
+  } catch (error) {
+    console.error('Error unsuspending user:', error);
+    res.status(500).json({ success: false, message: 'Failed to unsuspend user', error: error.message });
+  }
+});
+
+// GIVE WARNING
+app.post('/api/admin/give-warning', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { user_nic, reason, severity, notes, post_id, comment_id } = req.body;
+    const Warning = getModel('Warning');
+    const User = getModel('User');
+
+    // Calculate expiration (warnings expire after 90 days by default)
+    const expires_at = new Date();
+    expires_at.setDate(expires_at.getDate() + 90);
+
+    // Create warning
+    const warning = new Warning({
+      warning_id: `WARN_${Date.now()}_${user_nic}`,
+      user_nic,
+      reason,
+      severity: severity || 'medium',
+      given_by: req.user.email,
+      expires_at,
+      notes,
+      post_id,
+      comment_id,
+      is_active: true,
+      given_at: new Date()
+    });
+
+    await warning.save();
+
+    // Send warning email if available
+    const user = await User.findOne({ NIC: user_nic });
+    if (user && user.email) {
+      const warningCount = await Warning.countDocuments({ user_nic });
+      try {
+        await sendWarningEmail(user.email, user.full_name, {
+          severity,
+          reason,
+          notes,
+          expires_at,
+          warning_count: warningCount
+        });
+      } catch (emailError) {
+        console.log('Warning email failed:', emailError.message);
+      }
+    }
+
+    console.log(`✅ Warning issued to ${user_nic} by ${req.user.email}`);
+    res.json({ success: true, message: 'Warning issued successfully', data: warning });
+  } catch (error) {
+    console.error('Error giving warning:', error);
+    res.status(500).json({ success: false, message: 'Failed to give warning', error: error.message });
+  }
+});
+
+// GET SUSPENDED USERS
+app.get('/api/admin/suspended-users', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const User = getModel('User');
+    const Warning = getModel('Warning');
+
+    // Find users who are currently suspended
+    const suspendedUsers = await User.find({
+      isExisting: 'suspended',
+      suspension_end: { $exists: true, $ne: null }
+    }).select('NIC full_name email isExisting suspension_end created_at').lean();
+
+    // Attach warning count to each user
+    const usersWithWarnings = await Promise.all(
+      suspendedUsers.map(async (user) => {
+        const warningCount = await Warning.countDocuments({ user_nic: user.NIC, is_active: true });
+        return {
+          ...user,
+          warning_count: warningCount
+        };
+      })
+    );
+
+    res.json({ success: true, data: usersWithWarnings });
+  } catch (error) {
+    console.error('Error fetching suspended users:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch suspended users', error: error.message });
+  }
+});
+
+// GET RECENT ADMIN ACTIVITY
+app.get('/api/admin/recent-activity', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const limit = parseInt(req.query.limit) || 10;
+    const Warning = getModel('Warning');
+    const User = getModel('User');
+    const Doctor = getModel('Doctor');
+
+    const activities = [];
+
+    // Get recent warnings (not for suspended users)
+    const recentWarnings = await Warning.find({ is_active: true })
+      .sort({ given_at: -1 })
+      .limit(limit)
+      .lean();
+
+    for (const warning of recentWarnings) {
+      const user = await User.findOne({ NIC: warning.user_nic }).select('full_name isExisting');
+
+      // Skip if user is suspended
+      if (user && user.isExisting !== 'suspended') {
+        activities.push({
+          type: 'warning',
+          message: `Warning issued to ${user.full_name || warning.user_nic} - ${warning.reason}`,
+          timestamp: warning.given_at
+        });
+      }
+    }
+
+    // Get recent doctor approvals
+    if (Doctor) {
+      const recentDoctorApprovals = await Doctor.find({
+        verification_status: { $in: ['approved', 'rejected'] }
+      })
+        .sort({ verification_date: -1 })
+        .limit(5)
+        .lean();
+
+      for (const doctor of recentDoctorApprovals) {
+        const user = await User.findOne({ NIC: doctor.NIC }).select('full_name');
+        activities.push({
+          type: doctor.verification_status === 'approved' ? 'doctor_approval' : 'doctor_rejection',
+          message: `Doctor ${user?.full_name || doctor.NIC} ${doctor.verification_status}`,
+          timestamp: doctor.verification_date || doctor.registered_at
+        });
+      }
+    }
+
+    // Get recent suspensions
+    const recentSuspensions = await User.find({
+      isExisting: 'suspended',
+      updated_at: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Last 30 days
+    })
+      .sort({ updated_at: -1 })
+      .limit(5)
+      .select('full_name NIC updated_at')
+      .lean();
+
+    for (const user of recentSuspensions) {
+      activities.push({
+        type: 'suspension',
+        message: `User ${user.full_name || user.NIC} suspended`,
+        timestamp: user.updated_at
+      });
+    }
+
+    // Sort all activities by timestamp and limit
+    activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const limitedActivities = activities.slice(0, limit);
+
+    res.json({ success: true, data: limitedActivities });
+  } catch (error) {
+    console.error('Error fetching recent activity:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch activity', error: error.message });
+  }
+});
+
+// TOP TOPICS (for widget)
+app.get('/api/admin/top-topics', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const Post = getModel('Post');
+
+    // Get top categories/tags by post count
+    const topCategories = await Post.aggregate([
+      {
+        $group: {
+          _id: '$category',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { count: -1 }
+      },
+      {
+        $limit: 5
+      }
+    ]);
+
+    // Format for widget
+    const topics = topCategories.map(cat => ({
+      name: cat._id || 'General',
+      count: cat.count
+    }));
+
+    res.json({ success: true, data: topics });
+  } catch (error) {
+    console.error('Error fetching top topics:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch top topics', error: error.message });
+  }
+});
+
+// ===== PHASE 8: ADVANCED FEATURES =====
+
+
 
 // BULK SUSPEND USERS
 app.post('/api/admin/bulk-suspend', authenticateToken, checkDatabaseReady, async (req, res) => {
@@ -2365,6 +2998,77 @@ app.put('/api/admin/web-managers/:nic', authenticateToken, checkDatabaseReady, a
   }
 });
 
+// DELETE WEB MANAGER (Cascade delete from both collections)
+app.delete('/api/admin/web-managers/:nic', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const WebManager = getModel('WebManager');
+    const User = getModel('User');
+
+    // Delete from WebManager collection
+    const webManager = await WebManager.findOneAndDelete({ NIC: req.params.nic });
+
+    if (!webManager) {
+      return res.status(404).json({ success: false, message: 'Web manager not found' });
+    }
+
+    // Cascade delete from User collection
+    await User.findOneAndDelete({ NIC: req.params.nic });
+
+    console.log(`✅ Deleted web manager: ${req.params.nic}`);
+    res.json({
+      success: true,
+      message: 'Web manager deleted successfully',
+      deleted_nic: req.params.nic
+    });
+  } catch (error) {
+    console.error('❌ Delete web manager error:', error);
+    res.status(500).json({ success: false, message: 'Delete failed', error: error.message });
+  }
+});
+
+// REACTIVATE WEB MANAGER
+app.post('/api/admin/web-managers/:nic/reactivate', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const WebManager = getModel('WebManager');
+    const User = getModel('User');
+
+    // Reactivate in WebManager collection
+    const webManager = await WebManager.findOneAndUpdate(
+      { NIC: req.params.nic },
+      { $set: { is_active: true } },
+      { new: true }
+    );
+
+    if (!webManager) {
+      return res.status(404).json({ success: false, message: 'Web manager not found' });
+    }
+
+    // Reactivate in User collection
+    await User.findOneAndUpdate(
+      { NIC: req.params.nic },
+      { $set: { isExisting: 'active' } }
+    );
+
+    console.log(`✅ Reactivated web manager: ${req.params.nic}`);
+    res.json({
+      success: true,
+      message: 'Web manager reactivated successfully',
+      data: webManager
+    });
+  } catch (error) {
+    console.error('❌ Reactivate web manager error:', error);
+    res.status(500).json({ success: false, message: 'Reactivation failed', error: error.message });
+  }
+});
+
 // CHECK WEB MANAGER STATUS
 app.get('/api/admin/check-web-manager-status/:nic', authenticateToken, checkDatabaseReady, async (req, res) => {
   try {
@@ -2409,17 +3113,52 @@ app.put('/api/admin/profile', authenticateToken, checkDatabaseReady, async (req,
 app.get('/api/admin/analytics/users', authenticateToken, checkDatabaseReady, async (req, res) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ success: false, message: 'Admin access required' });
+
     const User = getModel('User');
     const CycleProfile = getModel('CycleProfile');
-    const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const [totalUsers, usersByRole, activeUsers, cycleUsers, userGrowth] = await Promise.all([
+    const Doctor = getModel('Doctor');
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const firstDayOfMonth = new Date();
+    firstDayOfMonth.setDate(1);
+    firstDayOfMonth.setHours(0, 0, 0, 0);
+
+    const [
+      totalUsers,
+      usersByRole,
+      activeUsers,
+      cycleUsers,
+      verifiedDoctors,
+      newUsersThisMonth,
+      userGrowth
+    ] = await Promise.all([
       User.countDocuments({}),
       User.aggregate([{ $group: { _id: '$role', count: { $sum: 1 } } }]),
       User.countDocuments({ isExisting: 'active' }),
       CycleProfile ? CycleProfile.countDocuments({ is_active: true }) : 0,
-      User.aggregate([{ $match: { created_at: { $gte: thirtyDaysAgo } } }, { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$created_at' } }, count: { $sum: 1 } } }, { $sort: { _id: 1 } }])
+      Doctor ? Doctor.countDocuments({}) : 0,
+      User.countDocuments({ created_at: { $gte: firstDayOfMonth } }),
+      User.aggregate([
+        { $match: { created_at: { $gte: thirtyDaysAgo } } },
+        { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$created_at' } }, count: { $sum: 1 } } },
+        { $sort: { _id: 1 } }
+      ])
     ]);
-    res.json({ success: true, data: { total_users: totalUsers, active_users: activeUsers, cycle_users: cycleUsers, users_by_role: usersByRole, user_growth: userGrowth } });
+
+    res.json({
+      success: true,
+      data: {
+        total_users: totalUsers,
+        active_users: activeUsers,
+        cycle_users: cycleUsers,
+        verified_doctors: verifiedDoctors,
+        new_users_this_month: newUsersThisMonth,
+        users_by_role: usersByRole,
+        user_growth: userGrowth
+      }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Analytics failed', error: error.message });
   }
@@ -2490,6 +3229,381 @@ app.get('/api/admin/warnings', authenticateToken, checkDatabaseReady, async (req
     res.status(500).json({ success: false, message: 'Fetch failed', error: error.message });
   }
 });
+
+// ========== HYBRID WARNING SYSTEM (Approach 4) ==========
+
+// HELPER FUNCTION: Issue Auto-Warning
+async function issueAutoWarning(userNic, reason, severity = 'low', sourceType = 'auto', sourceId = null) {
+  try {
+    const Warning = getModel('Warning');
+    const CommunityMember = getModel('CommunityMember');
+    const User = getModel('User');
+
+    if (!Warning || !CommunityMember || !User) {
+      console.error('❌ Models not available for auto-warning');
+      return null;
+    }
+
+    // Create warning
+    const warning = new Warning({
+      warning_id: `WARN_${Date.now()}_${userNic}`,
+      user_nic: userNic,
+      reason: reason,
+      severity: severity,
+      given_by: sourceType === 'auto' ? 'SYSTEM' : sourceId,
+      is_active: true,
+      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      notes: sourceType === 'auto' ? 'Auto-generated warning based on system rules' : null
+    });
+
+    await warning.save();
+    console.log(`✅ Auto-warning issued to ${userNic}: ${reason}`);
+
+    // Update warning count in CommunityMember
+    const member = await CommunityMember.findOne({ NIC: userNic });
+    if (member) {
+      member.warning_count = (member.warning_count || 0) + 1;
+      await member.save();
+
+      // Check for auto-suspension (3 warnings = suspend)
+      if (member.warning_count >= 3) {
+        await User.findOneAndUpdate(
+          { NIC: userNic },
+          { isExisting: 'suspended' }
+        );
+        console.log(`⚠️ User ${userNic} auto-suspended (3+ warnings)`);
+
+        // TODO: Send suspension email notification
+      }
+    }
+
+    return warning;
+  } catch (error) {
+    console.error('❌ Auto-warning error:', error);
+    return null;
+  }
+}
+
+// MANUAL WARNING CREATION
+app.post('/api/admin/give-warning', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { user_nic, reason, severity, post_id, comment_id, notes, duration_days } = req.body;
+
+    if (!user_nic || !reason || !severity) {
+      return res.status(400).json({ success: false, message: 'user_nic, reason, and severity are required' });
+    }
+
+    const Warning = getModel('Warning');
+    const CommunityMember = getModel('CommunityMember');
+    const User = getModel('User');
+
+    // Verify user exists
+    const user = await User.findOne({ NIC: user_nic });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Calculate expiration
+    const expiresAt = duration_days
+      ? new Date(Date.now() + duration_days * 24 * 60 * 60 * 1000)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // Default 30 days
+
+    // Create warning
+    const warning = new Warning({
+      warning_id: `WARN_${Date.now()}_${user_nic}`,
+      user_nic: user_nic,
+      post_id: post_id || undefined,
+      comment_id: comment_id || undefined,
+      reason: reason,
+      severity: severity,
+      given_by: req.user.email,
+      is_active: true,
+      expires_at: expiresAt,
+      notes: notes || ''
+    });
+
+    await warning.save();
+
+    // Update warning count
+    const member = await CommunityMember.findOne({ NIC: user_nic });
+    if (member) {
+      member.warning_count = (member.warning_count || 0) + 1;
+      await member.save();
+
+      // Check for auto-suspension
+      if (member.warning_count >= 3) {
+        await User.findOneAndUpdate(
+          { NIC: user_nic },
+          { isExisting: 'suspended' }
+        );
+        console.log(`⚠️ User ${user_nic} suspended (3+ warnings)`);
+      }
+    } else {
+      // Create community member if doesn't exist
+      const newMember = new CommunityMember({
+        NIC: user_nic,
+        warning_count: 1,
+        is_active: true
+      });
+      await newMember.save();
+    }
+
+    console.log(`✅ Manual warning issued to ${user_nic} by ${req.user.email}`);
+
+    // Send warning email  notification
+    await sendWarningEmail(user.email, user.full_name, {
+      severity: warning.severity,
+      reason: warning.reason,
+      notes: warning.notes,
+      expires_at: warning.expires_at,
+      warning_count: member ? member.warning_count : 1
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Warning issued successfully',
+      data: warning
+    });
+
+  } catch (error) {
+    console.error('❌ Issue warning error:', error);
+    res.status(500).json({ success: false, message: 'Failed to issue warning', error: error.message });
+  }
+});
+
+// SUSPEND USER ENDPOINT
+app.post('/api/admin/suspend-user', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { user_nic, duration } = req.body;
+
+    if (!user_nic || !duration) {
+      return res.status(400).json({ success: false, message: 'user_nic and duration are required' });
+    }
+
+    const User = getModel('User');
+    const user = await User.findOne({ NIC: user_nic });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Calculate suspension end date
+    const durationMap = {
+      '1week': 7,
+      '3weeks': 21,
+      '1month': 30,
+      '3months': 90
+    };
+
+    const days = durationMap[duration] || 7;
+    const suspensionEnd = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+    // Update user status
+    user.isExisting = 'suspended';
+    user.suspension_end = suspensionEnd; // Note: This field may not exist in schema, but won't cause error
+    await user.save();
+
+    console.log(`✅ User ${user_nic} suspended for ${duration} by ${req.user.email}`);
+
+    res.json({
+      success: true,
+      message: `User suspended for ${duration}`,
+      data: {
+        user_nic: user_nic,
+        suspended_until: suspensionEnd
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Suspend user error:', error);
+    res.status(500).json({ success: false, message: 'Failed to suspend user', error: error.message });
+  }
+});
+
+// REPORT-TO-WARNING CONVERSION
+app.post('/api/admin/reports/:id/issue-warning', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'web_manager') {
+      return res.status(403).json({ success: false, message: 'Admin or Web Manager access required' });
+    }
+
+    const { severity, notes, duration_days } = req.body;
+    const reportId = req.params.id;
+
+    const Report = getModel('Report');
+    const Warning = getModel('Warning');
+    const CommunityMember = getModel('CommunityMember');
+    const User = getModel('User');
+
+    // Get the report
+    const report = await Report.findOne({ report_id: reportId });
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Report not found' });
+    }
+
+    // Determine target user NIC based on report type
+    let targetNic = null;
+    if (report.target_type === 'user') {
+      targetNic = report.target_id;
+    } else if (report.target_type === 'post') {
+      const Post = getModel('Post');
+      const post = await Post.findOne({ post_id: report.target_id });
+      targetNic = post?.author_nic;
+    } else if (report.target_type === 'comment') {
+      const Comment = getModel('Comment');
+      const comment = await Comment.findOne({ comment_id: report.target_id });
+      targetNic = comment?.nic;
+    }
+
+    if (!targetNic) {
+      return res.status(400).json({ success: false, message: 'Could not determine target user from report' });
+    }
+
+    // Calculate expiration
+    const expiresAt = duration_days
+      ? new Date(Date.now() + duration_days * 24 * 60 * 60 * 1000)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    // Create warning linked to report
+    const warning = new Warning({
+      warning_id: `WARN_${Date.now()}_${targetNic}`,
+      user_nic: targetNic,
+      post_id: report.target_type === 'post' ? report.target_id : undefined,
+      comment_id: report.target_type === 'comment' ? report.target_id : undefined,
+      reason: `Report action: ${report.reason}`,
+      severity: severity || 'medium',
+      given_by: req.user.email,
+      is_active: true,
+      expires_at: expiresAt,
+      notes: notes || `Issued from report ${reportId}`
+    });
+
+    await warning.save();
+
+    // Update report status
+    report.status = 'resolved';
+    report.action_taken = `Warning issued (${severity || 'medium'} severity)`;
+    report.reviewed_by = req.user.NIC;
+    report.reviewed_at = new Date();
+    await report.save();
+
+    // Update warning count
+    const member = await CommunityMember.findOne({ NIC: targetNic });
+    if (member) {
+      member.warning_count = (member.warning_count || 0) + 1;
+      await member.save();
+
+      // Check for auto-suspension
+      if (member.warning_count >= 3) {
+        await User.findOneAndUpdate(
+          { NIC: targetNic },
+          { isExisting: 'suspended' }
+        );
+        console.log(`⚠️ User ${targetNic} suspended (3+ warnings)`);
+      }
+    }
+
+    console.log(`✅ Warning issued from report ${reportId} to user ${targetNic}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Warning issued from report',
+      data: { warning, report }
+    });
+
+  } catch (error) {
+    console.error('❌ Report-to-warning error:', error);
+    res.status(500).json({ success: false, message: 'Failed to issue warning from report', error: error.message });
+  }
+});
+
+// ========== END HYBRID WARNING SYSTEM ==========
+
+// GET SUSPENDED USERS
+app.get('/api/admin/suspended-users', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const User = getModel('User');
+    const CommunityMember = getModel('CommunityMember');
+
+    if (!User) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // Find all suspended users
+    const suspendedUsers = await User.find({ isExisting: 'suspended' })
+      .select('NIC full_name email suspension_end created_at')
+      .lean();
+
+    // Get warning counts for each user
+    const usersWithWarnings = await Promise.all(
+      suspendedUsers.map(async (user) => {
+        const member = await CommunityMember.findOne({ NIC: user.NIC });
+        return {
+          ...user,
+          warning_count: member?.warning_count || 0,
+          suspension_end: user.suspension_end || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // Default 7 days if not set
+        };
+      })
+    );
+
+    res.json({ success: true, data: usersWithWarnings });
+  } catch (error) {
+    console.error('❌ Fetch suspended users error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch suspended users', error: error.message });
+  }
+});
+
+// UNSUSPEND USER (Auto or Manual)
+app.post('/api/admin/unsuspend-user', authenticateToken, checkDatabaseReady, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+
+    const { user_nic } = req.body;
+
+    if (!user_nic) {
+      return res.status(400).json({ success: false, message: 'user_nic is required' });
+    }
+
+    const User = getModel('User');
+    const user = await User.findOne({ NIC: user_nic });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Unsuspend user
+    user.isExisting = 'existing';
+    user.suspension_end = null;
+    await user.save();
+
+    console.log(`✅ User ${user_nic} unsuspended by ${req.user.email}`);
+
+    res.json({
+      success: true,
+      message: 'User unsuspended successfully',
+      data: { user_nic: user_nic }
+    });
+
+  } catch (error) {
+    console.error('❌ Unsuspend user error:', error);
+    res.status(500).json({ success: false, message: 'Failed to unsuspend user', error: error.message });
+  }
+});
+
 
 // GET USERS BY ROLE
 app.get('/api/admin/roles', authenticateToken, checkDatabaseReady, async (req, res) => {

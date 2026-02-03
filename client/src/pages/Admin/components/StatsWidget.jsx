@@ -1,15 +1,11 @@
 // StatsWidget.jsx - Reusable widget for simple stats
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const StatsWidget = ({ endpoint, title, icon, color = 'blue', renderValue }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        fetchData();
-    }, [endpoint]);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             const token = localStorage.getItem('authToken') || localStorage.getItem('token');
             const res = await fetch(`http://localhost:5000${endpoint}`, {
@@ -22,7 +18,11 @@ const StatsWidget = ({ endpoint, title, icon, color = 'blue', renderValue }) => 
         } finally {
             setLoading(false);
         }
-    };
+    }, [endpoint, title]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     if (loading) {
         return (

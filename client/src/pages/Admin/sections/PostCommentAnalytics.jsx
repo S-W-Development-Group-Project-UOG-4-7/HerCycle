@@ -8,6 +8,13 @@ const PostCommentAnalytics = () => {
 
     useEffect(() => {
         fetchAnalytics();
+
+        // Auto-refresh every 60 seconds
+        const refreshInterval = setInterval(() => {
+            fetchAnalytics();
+        }, 60000);
+
+        return () => clearInterval(refreshInterval);
     }, []);
 
     const fetchAnalytics = async () => {

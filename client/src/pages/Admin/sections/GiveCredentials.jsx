@@ -7,6 +7,7 @@ const GiveCredentials = () => {
         NIC: '', full_name: '', email: '', password: ''
     });
     const [webManagers, setWebManagers] = useState([]);
+    const [activeTab, setActiveTab] = useState('active'); // 'active' or 'deactivated'
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
     const [validationErrors, setValidationErrors] = useState({});
@@ -136,7 +137,7 @@ const GiveCredentials = () => {
     const handleDeleteUser = async (nic) => {
         try {
             const token = localStorage.getItem('authToken');
-            const res = await fetch(`http://localhost:5000/api/admin/users/${nic}`, {
+            const res = await fetch(`http://localhost:5000/api/admin/web-managers/${nic}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -145,17 +146,39 @@ const GiveCredentials = () => {
             if (data.success) {
                 setMessage({
                     type: 'success',
-                    text: `User ${data.data?.full_name || nic} has been deleted successfully`
+                    text: `Web manager deleted successfully`
                 });
                 setDeleteModalUser(null);
                 fetchWebManagers();
                 setTimeout(() => setMessage({ type: '', text: '' }), 5000);
             } else {
-                setMessage({ type: 'error', text: data.message || 'Failed to delete user' });
+                setMessage({ type: 'error', text: data.message || 'Failed to delete' });
             }
         } catch (error) {
-            console.error('Error deleting user:', error);
-            setMessage({ type: 'error', text: 'Failed to delete user' });
+            console.error('Error deleting web manager:', error);
+            setMessage({ type: 'error', text: 'Failed to delete' });
+        }
+    };
+
+    const handleReactivate = async (nic) => {
+        try {
+            const token = localStorage.getItem('authToken');
+            const res = await fetch(`http://localhost:5000/api/admin/web-managers/${nic}/reactivate`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                setMessage({ type: 'success', text: 'Web manager reactivated!' });
+                fetchWebManagers();
+                setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+            } else {
+                setMessage({ type: 'error', text: data.message });
+            }
+        } catch (error) {
+            console.error('Error reactivating:', error);
+            setMessage({ type: 'error', text: 'Failedto reactivate' });
         }
     };
 
@@ -359,7 +382,41 @@ const GiveCredentials = () => {
 
             <div className="section-card">
                 <div className="section-header">
-                    <h2 className="section-title"><span className="section-icon"></span>Existing Web Managers</h2>
+                    <h2 className="section-title"><span className="section-icon"></span>Web Manager Credentials</h2>
+                </div>
+
+                {/* Tabs */}
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '2px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>
+                    <button
+                        onClick={() => setActiveTab('active')}
+                        style={{
+                            padding: '0.75rem 1.5rem',
+                            background: activeTab === 'active' ? 'rgba(219, 39, 119, 0.3)' : 'transparent',
+                            border: 'none',
+                            borderBottom: activeTab === 'active' ? '3px solid #db2777' : '3px solid transparent',
+                            color: activeTab === 'active' ? '#fff' : 'rgba(255,255,255,0.6)',
+                            fontWeight: activeTab === 'active' ? 600 : 400,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        ✅ Active
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('deactivated')}
+                        style={{
+                            padding: '0.75rem 1.5rem',
+                            background: activeTab === 'deactivated' ? 'rgba(239, 68, 68, 0.3)' : 'transparent',
+                            border: 'none',
+                            borderBottom: activeTab === 'deactivated' ? '3px solid #ef4444' : '3px solid transparent',
+                            color: activeTab === 'deactivated' ? '#fff' : 'rgba(255,255,255,0.6)',
+                            fontWeight: activeTab === 'deactivated' ? 600 : 400,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        ⊘ Deactivated
+                    </button>
                 </div>
                 <div className="table-responsive">
                     <table className="data-table">
@@ -373,59 +430,97 @@ const GiveCredentials = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {webManagers.map(wm => (
-                                <tr key={wm.NIC}>
-                                    <td data-label="Name">{wm.user_info?.full_name || 'N/A'}</td>
-                                    <td data-label="Email">{wm.user_info?.email || 'N/A'}</td>
-                                    <td data-label="NIC">{wm.NIC}</td>
-                                    <td data-label="Status"><span className={`badge ${wm.is_active ? 'badge-success' : 'badge-danger'}`}>{wm.is_active ? 'Active' : 'Inactive'}</span></td>
-                                    <td data-label="Actions">
-                                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'nowrap', alignItems: 'center' }}>
-                                            <button
-                                                onClick={() => updateWebManager(wm.NIC, !wm.is_active)}
-                                                className="action-btn"
-                                                style={{
-                                                    fontSize: '0.8rem',
-                                                    padding: '0.4rem 0.8rem',
-                                                    whiteSpace: 'nowrap',
-                                                    background: wm.is_active ? 'rgba(239, 68, 68, 0.25)' : 'rgba(16, 185, 129, 0.25)',
-                                                    border: wm.is_active ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(16, 185, 129, 0.4)'
-                                                }}
-                                            >
-                                                {wm.is_active ? '⊘' : '✓'}
-                                            </button>
-                                            <button
-                                                onClick={() => setResetPasswordModalUser(wm)}
-                                                className="action-btn"
-                                                style={{
-                                                    fontSize: '0.8rem',
-                                                    padding: '0.4rem 0.8rem',
-                                                    whiteSpace: 'nowrap',
-                                                    background: 'rgba(16, 185, 129, 0.25)',
-                                                    border: '1px solid rgba(16, 185, 129, 0.4)'
-                                                }}
-                                                title="Reset Password"
-                                            >
-                                                🔑
-                                            </button>
-                                            <button
-                                                onClick={() => setDeleteModalUser(wm)}
-                                                className="action-btn"
-                                                style={{
-                                                    fontSize: '0.8rem',
-                                                    padding: '0.4rem 0.8rem',
-                                                    whiteSpace: 'nowrap',
-                                                    background: 'rgba(239, 68, 68, 0.25)',
-                                                    border: '1px solid rgba(239, 68, 68, 0.4)'
-                                                }}
-                                                title="Delete User"
-                                            >
-                                                🗑️
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                            {webManagers
+                                .filter(wm => activeTab === 'active' ? wm.is_active : !wm.is_active)
+                                .map(wm => (
+                                    <tr key={wm.NIC}>
+                                        <td data-label="Name">{wm.user_info?.full_name || 'N/A'}</td>
+                                        <td data-label="Email">{wm.user_info?.email || 'N/A'}</td>
+                                        <td data-label="NIC">{wm.NIC}</td>
+                                        <td data-label="Status"><span className={`badge ${wm.is_active ? 'badge-success' : 'badge-danger'}`}>{wm.is_active ? 'Active' : 'Inactive'}</span></td>
+                                        <td data-label="Actions">
+                                            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'nowrap', alignItems: 'center' }}>
+                                                {wm.is_active ? (
+                                                    <>
+                                                        <button
+                                                            onClick={() => updateWebManager(wm.NIC, false)}
+                                                            className="action-btn"
+                                                            style={{
+                                                                fontSize: '0.8rem',
+                                                                padding: '0.4rem 0.8rem',
+                                                                whiteSpace: 'nowrap',
+                                                                background: 'rgba(239, 68, 68, 0.25)',
+                                                                border: '1px solid rgba(239, 68, 68, 0.4)'
+                                                            }}
+                                                            title="Deactivate"
+                                                        >
+                                                            ⊘ Deactivate
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setResetPasswordModalUser(wm)}
+                                                            className="action-btn"
+                                                            style={{
+                                                                fontSize: '0.8rem',
+                                                                padding: '0.4rem 0.8rem',
+                                                                whiteSpace: 'nowrap',
+                                                                background: 'rgba(16, 185, 129, 0.25)',
+                                                                border: '1px solid rgba(16, 185, 129, 0.4)'
+                                                            }}
+                                                            title="Reset Password"
+                                                        >
+                                                            🔑 Reset
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setDeleteModalUser(wm)}
+                                                            className="action-btn"
+                                                            style={{
+                                                                fontSize: '0.8rem',
+                                                                padding: '0.4rem 0.8rem',
+                                                                whiteSpace: 'nowrap',
+                                                                background: 'rgba(239, 68, 68, 0.25)',
+                                                                border: '1px solid rgba(239, 68, 68, 0.4)'
+                                                            }}
+                                                            title="Delete Permanently"
+                                                        >
+                                                            🗑️ Delete
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleReactivate(wm.NIC)}
+                                                            className="action-btn"
+                                                            style={{
+                                                                fontSize: '0.8rem',
+                                                                padding: '0.4rem 0.8rem',
+                                                                whiteSpace: 'nowrap',
+                                                                background: 'rgba(16, 185, 129, 0.25)',
+                                                                border: '1px solid rgba(16, 185, 129, 0.4)'
+                                                            }}
+                                                            title="Reactivate"
+                                                        >
+                                                            ✓ Reactivate
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setDeleteModalUser(wm)}
+                                                            className="action-btn"
+                                                            style={{
+                                                                fontSize: '0.8rem',
+                                                                padding: '0.4rem 0.8rem',
+                                                                whiteSpace: 'nowrap',
+                                                                background: 'rgba(239, 68, 68, 0.25)',
+                                                                border: '1px solid rgba(239, 68, 68, 0.4)'
+                                                            }}
+                                                            title="Delete Permanently"
+                                                        >
+                                                            🗑️ Delete
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
                         </tbody>
                     </table>
                 </div>

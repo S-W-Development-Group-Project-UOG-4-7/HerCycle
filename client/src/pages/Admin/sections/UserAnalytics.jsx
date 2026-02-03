@@ -46,6 +46,14 @@ const UserAnalytics = () => {
     useEffect(() => {
         fetchAnalytics();
         fetchGrowthData();
+
+        // Auto-refresh every 60 seconds
+        const refreshInterval = setInterval(() => {
+            fetchAnalytics();
+            fetchGrowthData();
+        }, 60000);
+
+        return () => clearInterval(refreshInterval);
     }, [fetchGrowthData]);
 
     if (loading) return <div>Loading analytics...</div>;
@@ -109,7 +117,7 @@ const UserAnalytics = () => {
                         <div style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
                             {analytics?.verified_doctors || 0}
                         </div>
-                        <div style={{ opacity: 0.9, marginBottom: '0.25rem' }}>Verified Doctors</div>
+                        <div style={{ opacity: 0.9, marginBottom: '0.25rem' }}>Doctors</div>
                         <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>👨‍⚕️ Medical professionals</div>
                     </div>
 
@@ -122,7 +130,7 @@ const UserAnalytics = () => {
                         <div style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
                             {analytics?.new_users_this_month || 0}
                         </div>
-                        <div style={{ opacity: 0.9, marginBottom: '0.25rem' }}>New This Month</div>
+                        <div style={{ opacity: 0.9, marginBottom: '0.25rem' }}>New Users This Month</div>
                         <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>📈 Monthly growth</div>
                     </div>
 

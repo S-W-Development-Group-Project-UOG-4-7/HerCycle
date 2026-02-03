@@ -8,12 +8,19 @@ const TopTopicsWidget = () => {
 
     useEffect(() => {
         fetchTopics();
+
+        // Auto-refresh every 60 seconds
+        const refreshInterval = setInterval(() => {
+            fetchTopics();
+        }, 60000);
+
+        return () => clearInterval(refreshInterval);
     }, []);
 
     const fetchTopics = async () => {
         try {
             const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-            const res = await fetch('http://localhost:5000/api/admin/stats/top-topics?limit=5', {
+            const res = await fetch('http://localhost:5000/api/admin/top-topics', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -39,12 +46,11 @@ const TopTopicsWidget = () => {
                     <div key={index} className="topic-item">
                         <div>
                             <div className="topic-name">
-                                #{index + 1} {topic.category || topic._id}
+                                #{index + 1} {topic.name}
                             </div>
                         </div>
                         <div className="topic-stats">
-                            <span>📝 {topic.post_count} posts</span>
-                            <span>❤️ {topic.engagement} engagement</span>
+                            <span>📝 {topic.count} posts</span>
                         </div>
                     </div>
                 ))}

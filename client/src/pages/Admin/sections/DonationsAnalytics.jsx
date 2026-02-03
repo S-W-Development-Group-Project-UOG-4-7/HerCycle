@@ -11,6 +11,13 @@ const DonationsAnalytics = () => {
 
     useEffect(() => {
         fetchAnalytics();
+
+        // Auto-refresh every 60 seconds
+        const refreshInterval = setInterval(() => {
+            fetchAnalytics();
+        }, 60000);
+
+        return () => clearInterval(refreshInterval);
     }, []);
 
     const fetchAnalytics = async () => {
@@ -150,7 +157,7 @@ const DonationsAnalytics = () => {
                             {analytics?.donations_by_campaign?.map(campaign => (
                                 <tr key={campaign.campaign_id}>
                                     <td data-label="Campaign">{campaign.campaign_title || campaign.campaign_id}</td>
-                                    <td data-label="Total">${campaign.total_amount?.toLocaleString()}</td>
+                                    <td data-label="Total">Rs.{campaign.total_amount?.toLocaleString()}</td>
                                     <td data-label="Donors">{campaign.donor_count}</td>
                                 </tr>
                             ))}
