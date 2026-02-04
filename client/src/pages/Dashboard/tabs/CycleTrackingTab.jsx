@@ -10,6 +10,7 @@ import {
     deleteCycleTracker,
 } from "../../../services/cycleApi";
 import { getCycleSummaryUsingAverage } from "../../../utils/cycleSummary";
+import CollapsibleCard from "../../../components/cycle/CollapsibleCard";
 
 const CycleTrackingTab = ({
     user,
@@ -105,52 +106,86 @@ const CycleTrackingTab = ({
     };
 
     return (
-        <div className="cycle-tracking-tab">
-            <h2>Track Your Cycle</h2>
+        <div className="cycle-page">
+            <div className="cycle-page-header">
+                <div>
+                    <h2 className="cycle-page-title">Cycle Tracking</h2>
+                    <p className="cycle-page-sub">
+                        Log period starts, daily symptoms, and view your history & insights.
+                    </p>
+                </div>
 
-            <div className="cycle-overview">
-                <div className="cycle-stats">
-                    <div className="cycle-stat">
-                        <span className="stat-label">Cycle Length</span>
-                        <span className="stat-value">{cycleLengthText}</span>
-                    </div>
+                {/* optional quick phase badge */}
+                {summary?.hasData && (
+                    <span className={`phase-badge ${String(summary.currentPhase || "").toLowerCase()}`}>
+                        {summary.currentPhase} • Day {summary.currentCycleDay}
+                    </span>
+                )}
+            </div>
 
-                    <div className="cycle-stat">
-                        <span className="stat-label">Period Length</span>
-                        <span className="stat-value">{periodLengthText}</span>
-                    </div>
-
-                    <div className="cycle-stat">
-                        <span className="stat-label">Last Period</span>
-                        <span className="stat-value">{lastPeriodText}</span>
-                    </div>
+            {/* overview cards */}
+            <div className="cycle-kpis">
+                <div className="cycle-kpi">
+                    <div className="kpi-label">Cycle Length</div>
+                    <div className="kpi-value">{cycleLengthText}</div>
+                </div>
+                <div className="cycle-kpi">
+                    <div className="kpi-label">Period Length</div>
+                    <div className="kpi-value">{periodLengthText}</div>
+                </div>
+                <div className="cycle-kpi">
+                    <div className="kpi-label">Last Period</div>
+                    <div className="kpi-value">{lastPeriodText}</div>
                 </div>
             </div>
 
+            {/* two-column layout */}
+            <div className="cycle-grid">
+                <div className="cycle-col">
+                    <div className="cycle-card" ref={periodFormRef}>
+                        <div className="cycle-card-head">
+                            <h3>Log Period</h3>
+                        </div>
+                        <CycleTrackingForm nic={user?.NIC} onSaved={refreshHistory} />
+                    </div>
 
-            <div ref={periodFormRef}>
-                <CycleTrackingForm nic={user?.NIC} onSaved={refreshHistory} />
+                    <div className="cycle-card">
+                        <div className="cycle-card-head">
+                            <h3>History</h3>
+                        </div>
+                        <HistoryPanel
+                            dailyLogs={dailyLogs}
+                            cycleTrackers={cycleTrackers}
+                            usePopupMessages={true}
+                            onDeleteDailyLog={handleDeleteDailyLog}
+                            onDeleteCycleTracker={handleDeleteCycleTracker}
+                        />
+                    </div>
+                </div>
+
+                <div className="cycle-col">
+                    <div className="cycle-card" ref={dailyLogRef}>
+                        <div className="cycle-card-head">
+                            <h3>Daily Log</h3>
+                        </div>
+                        <DailyLogForm
+                            initialDate={new Date().toLocaleDateString("en-CA")}
+                            onSave={handleSaveDailyLog}
+                            saving={saving}
+                        />
+                    </div>
+
+                    <div className="cycle-card">
+                        <div className="cycle-card-head">
+                            <h3>Insights</h3>
+                        </div>
+                        <InsightsPanel cycleProfile={cycleProfile} dailyLogs={dailyLogs} />
+                    </div>
+                </div>
             </div>
-
-            <div ref={dailyLogRef}>
-                <DailyLogForm
-                    initialDate={new Date().toLocaleDateString("en-CA")}
-                    onSave={handleSaveDailyLog}
-                    saving={saving}
-                />
-            </div>
-
-            <HistoryPanel
-                dailyLogs={dailyLogs}
-                cycleTrackers={cycleTrackers}
-                usePopupMessages={true}
-                onDeleteDailyLog={handleDeleteDailyLog}
-                onDeleteCycleTracker={handleDeleteCycleTracker}
-            />
-
-            <InsightsPanel cycleProfile={cycleProfile} dailyLogs={dailyLogs} />
         </div>
     );
+
 };
 
 export default CycleTrackingTab;

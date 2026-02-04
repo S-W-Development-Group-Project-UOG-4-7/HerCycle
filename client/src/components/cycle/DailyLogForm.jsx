@@ -117,10 +117,6 @@ function DailyLogForm({ initialDate, onSave, saving = false }) {
 
   return (
     <div style={styles.card}>
-      <div style={styles.headerRow}>
-        <h3 style={styles.title}>Daily Log</h3>
-      </div>
-
       {error && <p style={styles.error}>{error}</p>}
       {message && <p style={styles.success}>{message}</p>}
 

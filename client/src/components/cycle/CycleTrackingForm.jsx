@@ -61,8 +61,6 @@ function CycleTrackingForm({ nic, onSaved }) {
 
   return (
     <div style={styles.card}>
-      <h3 style={styles.title}>Log Your Period</h3>
-
       {error && <p style={styles.error}>{error}</p>}
       {message && <p style={styles.success}>{message}</p>}
 
@@ -112,13 +110,17 @@ function CycleTrackingForm({ nic, onSaved }) {
 
 const styles = {
   card: {
-    background: "#fff",
-    padding: "1.5rem",
-    borderRadius: "14px",
-    boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
-    maxWidth: "420px",
-    marginTop: "2rem",
-  },
+  background: "#fff",
+  padding: "1.5rem",
+  borderRadius: "14px",
+  boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
+
+  width: "100%",          
+  maxWidth: "520px",      
+  margin: "0 auto",       
+  marginTop: "0",         
+},
+
   title: {
     color: "#7b2cbf",
     marginBottom: "1rem",

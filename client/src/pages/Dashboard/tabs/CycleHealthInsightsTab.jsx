@@ -158,7 +158,7 @@ export default function CycleHealthInsightsTab({ cycleProfile, cycleTrackers = [
                     <p>Add at least 2 period start dates to see cycle length variation.</p>
                 </div>
             ) : (
-                <div className="cycle-insights-card">
+                <div className="cycle-insights-card cycle-card--pink">
                     <div className="cycle-insights-header">
                         <div>
                             <h3 className="cycle-insights-title">Cycle length variation</h3>
@@ -266,7 +266,7 @@ export default function CycleHealthInsightsTab({ cycleProfile, cycleTrackers = [
                     </div>
                 </div>
             )}
-            <div className="cycle-insights-card" style={{ marginTop: 12 }}>
+            <div className="cycle-insights-card cycle-card--purple" style={{ marginTop: 12 }}>
                 <div className="cycle-insights-header">
                     <div>
                         <h3 className="cycle-insights-title">Hormone Pattern (Estimated)</h3>

@@ -219,7 +219,7 @@ export default function CycleSexualInsightsCard({ summary }) {
 
       {/* Main guidance */}
       <div className="two-col">
-        <div className="mini-card">
+        <div className="mini-card mini-card--conceive">
           <div className="mini-title">If trying to conceive</div>
           <div className="mini-text">{info.conceiveTip}</div>
           <div className="mini-sub">
@@ -227,7 +227,7 @@ export default function CycleSexualInsightsCard({ summary }) {
           </div>
         </div>
 
-        <div className="mini-card">
+        <div className="mini-card mini-card--avoid">
           <div className="mini-title">If avoiding pregnancy</div>
           <div className="mini-text">{info.avoidTip}</div>
           <div className="mini-sub">
@@ -247,7 +247,7 @@ export default function CycleSexualInsightsCard({ summary }) {
 
       {/* Hormones */}
       <div className="insight-section">
-        <div className="insight-section-title">🧠 Hormone snapshot (general)</div>
+        <div className="insight-section-title">💗 Hormone snapshot (general)</div>
         <div className="hormone-grid">
           {info.phaseInfo.hormones.map((h) => (
             <div key={h.name} className="hormone-chip">
@@ -260,20 +260,20 @@ export default function CycleSexualInsightsCard({ summary }) {
 
       {/* Symptoms */}
       <div className="insight-section">
-        <div className="insight-section-title">✨ Common symptoms this phase</div>
+        <div className="insight-section-title">💗 Common symptoms this phase</div>
         <ul className="insight-list">
           {info.phaseInfo.symptoms.map((s, idx) => (
             <li key={idx}>{s}</li>
           ))}
         </ul>
         <div className="insight-note">
-          🍫 <strong>Cravings:</strong> {info.phaseInfo.cravings}
+          <strong>Cravings:</strong> {info.phaseInfo.cravings}
         </div>
       </div>
 
       {/* Safety */}
       <div className="insight-section safety-box">
-        <div className="insight-section-title">✅ Safe guidance (when to check / when to get help)</div>
+        <div className="insight-section-title">💗 Safe guidance (when to check / when to get help)</div>
         <ul className="insight-list">
           <li>
             <strong>Dizziness + heavy bleeding</strong> (soaking pads, large clots, fainting) → seek medical care urgently.

@@ -129,8 +129,6 @@ function HistoryPanel({
 
   return (
     <div style={styles.wrap}>
-      <h3 style={styles.title}>Your History 📚</h3>
-
       {/* Inline message area (only used if usePopupMessages = false) */}
       {!usePopupMessages && (
         <>
