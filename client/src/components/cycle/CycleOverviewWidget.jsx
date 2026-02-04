@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { getCycleSummary } from "../../utils/cycleSummary";
+import { getCycleSummaryUsingAverage } from "../../utils/cycleSummary";
 
 function toYmd(d) {
     if (!d) return null;
@@ -20,10 +20,12 @@ export default function CycleOverviewWidget({
     onGoToPeriod,
     onGoToDailyLog,
 }) {
+
     const summary = useMemo(
-        () => getCycleSummary(cycleProfile, cycleTrackers, new Date()),
+        () => getCycleSummaryUsingAverage(cycleProfile, cycleTrackers, new Date()),
         [cycleProfile, cycleTrackers]
     );
+
 
     const todayYmd = toYmd(new Date());
     const hasTodayLog = Array.isArray(dailyLogs)
@@ -67,10 +69,25 @@ export default function CycleOverviewWidget({
 
                 <div className="next-period">
                     <span className="next-label">Next Period:</span>
+                    {summary.usedAverage && summary.avgCycleLength ? (
+                        <div style={{ fontSize: 12, opacity: 0.75, marginTop: 4 }}>
+                            Based on your average ({summary.avgCycleLength} days)
+                        </div>
+                    ) : null}
                     <span className="next-value">
-                        In {summary.daysUntilNextPeriod} day{summary.daysUntilNextPeriod === 1 ? "" : "s"}
+                        {summary.daysUntilNextPeriod === null || summary.daysUntilNextPeriod === undefined
+                            ? "Not recorded"
+                            : summary.daysUntilNextPeriod > 1
+                                ? `In ${summary.daysUntilNextPeriod} days`
+                                : summary.daysUntilNextPeriod === 1
+                                    ? "In 1 day"
+                                    : summary.daysUntilNextPeriod === 0
+                                        ? "Today"
+                                        : `${Math.abs(summary.daysUntilNextPeriod)} days late`}
                     </span>
                 </div>
+
+
             </div>
 
             {!hasTodayLog && (

@@ -67,3 +67,98 @@ export function getCycleSummary(cycleProfile, cycleTrackers = [], today = new Da
     nextPeriodDate: nextDate,
   };
 }
+
+function toMidnight(d) {
+  const x = new Date(d);
+  if (Number.isNaN(x.getTime())) return null;
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function diffDays(a, b) {
+  return Math.round((a - b) / 86400000);
+}
+
+/**
+ * cycleTrackers: array of logs containing at least period_start_date
+ * returns: { avgCycleLength, lastStart, predictedNextStart, daysToNext }
+ */
+export function getCycleAveragesAndPrediction(cycleTrackers = []) {
+  const starts = (Array.isArray(cycleTrackers) ? cycleTrackers : [])
+    .map((t) => t?.period_start_date)
+    .filter(Boolean)
+    .map(toMidnight)
+    .filter(Boolean)
+    .sort((a, b) => a - b);
+
+  if (starts.length < 2) {
+    // Not enough to compute an average cycle length
+    const lastStart = starts.length === 1 ? starts[0] : null;
+    return {
+      avgCycleLength: null,
+      lastStart,
+      predictedNextStart: null,
+      daysToNext: null,
+    };
+  }
+
+  const lengths = [];
+  for (let i = 1; i < starts.length; i++) {
+    const d = diffDays(starts[i], starts[i - 1]);
+    if (d > 0 && d <= 120) lengths.push(d); // guard
+  }
+
+  if (lengths.length === 0) {
+    return {
+      avgCycleLength: null,
+      lastStart: starts[starts.length - 1],
+      predictedNextStart: null,
+      daysToNext: null,
+    };
+  }
+
+  const avg = lengths.reduce((a, b) => a + b, 0) / lengths.length;
+  const avgRounded = Math.round(avg);
+
+  const lastStart = starts[starts.length - 1];
+  const predictedNextStart = new Date(lastStart);
+  predictedNextStart.setDate(predictedNextStart.getDate() + avgRounded);
+  predictedNextStart.setHours(0, 0, 0, 0);
+
+  const today = toMidnight(new Date());
+  const daysToNext = today ? diffDays(predictedNextStart, today) : null;
+
+  return {
+    avgCycleLength: avgRounded,
+    lastStart,
+    predictedNextStart,
+    daysToNext,
+  };
+}
+
+export function getCycleSummaryUsingAverage(cycleProfile, cycleTrackers = [], today = new Date()) {
+  // base summary (phase + cycle day) using profile/default cycle length
+  const base = getCycleSummary(cycleProfile, cycleTrackers, today);
+
+  // prediction from actual tracker average (if possible)
+  const pred = getCycleAveragesAndPrediction(cycleTrackers);
+
+  // If average prediction is available, override next period fields
+  if (pred?.avgCycleLength && pred?.predictedNextStart) {
+    // daysToNext can be negative if late; UI can show "late"
+    return {
+      ...base,
+      avgCycleLength: pred.avgCycleLength,
+      nextPeriodDate: pred.predictedNextStart,
+      daysUntilNextPeriod: pred.daysToNext,
+      usedAverage: true,
+    };
+  }
+
+  // Otherwise keep base prediction
+  return {
+    ...base,
+    avgCycleLength: null,
+    usedAverage: false,
+  };
+}
