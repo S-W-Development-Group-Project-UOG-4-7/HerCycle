@@ -120,6 +120,19 @@ export function getCycleAveragesAndPrediction(cycleTrackers = []) {
   const avg = lengths.reduce((a, b) => a + b, 0) / lengths.length;
   const avgRounded = Math.round(avg);
 
+  const min = Math.min(...lengths);
+  const max = Math.max(...lengths);
+  const variabilityDays = max - min;
+
+  // simple, explainable rule:
+  const isIrregular = variabilityDays > 7;
+
+  // confidence based on number of usable cycles (lengths count)
+  let confidence = "low";
+  if (lengths.length >= 6) confidence = "high";
+  else if (lengths.length >= 3) confidence = "medium";
+
+
   const lastStart = starts[starts.length - 1];
   const predictedNextStart = new Date(lastStart);
   predictedNextStart.setDate(predictedNextStart.getDate() + avgRounded);
@@ -133,7 +146,13 @@ export function getCycleAveragesAndPrediction(cycleTrackers = []) {
     lastStart,
     predictedNextStart,
     daysToNext,
+
+    cycleCount: lengths.length,        // how many computed cycle lengths
+    variabilityDays,                   // max-min
+    isIrregular,                       // variabilityDays > 7
+    confidence,                        // low/medium/high
   };
+
 }
 
 export function getCycleSummaryUsingAverage(cycleProfile, cycleTrackers = [], today = new Date()) {
@@ -152,6 +171,11 @@ export function getCycleSummaryUsingAverage(cycleProfile, cycleTrackers = [], to
       nextPeriodDate: pred.predictedNextStart,
       daysUntilNextPeriod: pred.daysToNext,
       usedAverage: true,
+
+      cycleCount: pred.cycleCount,
+      variabilityDays: pred.variabilityDays,
+      isIrregular: pred.isIrregular,
+      confidence: pred.confidence,
     };
   }
 
@@ -160,5 +184,10 @@ export function getCycleSummaryUsingAverage(cycleProfile, cycleTrackers = [], to
     ...base,
     avgCycleLength: null,
     usedAverage: false,
+
+    cycleCount: null,
+    variabilityDays: null,
+    isIrregular: false,
+    confidence: null,
   };
 }

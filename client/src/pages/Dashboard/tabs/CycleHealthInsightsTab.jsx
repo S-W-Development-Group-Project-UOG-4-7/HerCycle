@@ -70,6 +70,21 @@ export default function CycleHealthInsightsTab({ cycleTrackers = [] }) {
         const lengths = data.map((p) => p.cycleLength);
         return getStats(lengths);
     }, [data]);
+    const quality = useMemo(() => {
+        const lengths = data.map((p) => p.cycleLength);
+        if (!lengths.length) return null;
+
+        const min = Math.min(...lengths);
+        const max = Math.max(...lengths);
+        const variabilityDays = max - min;
+        const isIrregular = variabilityDays > 7;
+
+        let confidence = "low";
+        if (lengths.length >= 6) confidence = "high";
+        else if (lengths.length >= 3) confidence = "medium";
+
+        return { confidence, variabilityDays, isIrregular, cycleCount: lengths.length };
+    }, [data]);
 
 
 
@@ -87,7 +102,27 @@ export default function CycleHealthInsightsTab({ cycleTrackers = [] }) {
                             <p className="cycle-insights-sub">
                                 Each point = days between two period start dates.
                             </p>
+
+                            {quality ? (
+                                <div className="cycle-prediction-meta" style={{ marginTop: 6 }}>
+                                    <div className="cycle-prediction-confidence">
+                                        Confidence:
+                                        <span className={`cycle-confidence-pill ${quality.confidence}`}>
+                                            {quality.confidence}
+                                        </span>
+                                        (based on {quality.cycleCount} cycles)
+                                    </div>
+
+                                    {quality.isIrregular ? (
+                                        <div className="cycle-irregular-warning">
+                                            ⚠ Cycle length variability detected (~{quality.variabilityDays} days).
+                                        </div>
+                                    ) : null}
+                                </div>
+                            ) : null}
+
                         </div>
+
 
                         {stats && (
                             <div className="cycle-insights-metrics">

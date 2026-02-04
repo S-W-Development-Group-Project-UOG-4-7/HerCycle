@@ -9,6 +9,7 @@ import {
     deleteDailyLog,
     deleteCycleTracker,
 } from "../../../services/cycleApi";
+import { getCycleSummaryUsingAverage } from "../../../utils/cycleSummary";
 
 const CycleTrackingTab = ({
     user,
@@ -21,6 +22,37 @@ const CycleTrackingTab = ({
     setCycleTrackers,
 }) => {
     const [saving, setSaving] = useState(false);
+    // ✅ Summary for average-based cycle length + next period (if available)
+    const summary = getCycleSummaryUsingAverage(cycleProfile, cycleTrackers, new Date());
+
+    // ✅ Find last period start (latest tracker date OR profile fallback)
+    const lastStart = (() => {
+        const trackerStarts = (Array.isArray(cycleTrackers) ? cycleTrackers : [])
+            .map((t) => t?.period_start_date)
+            .filter(Boolean)
+            .map((d) => new Date(d))
+            .filter((d) => !Number.isNaN(d.getTime()))
+            .sort((a, b) => b - a); // latest first
+
+        const profileStartRaw =
+            cycleProfile?.last_period_start ?? cycleProfile?.lastPeriodStart;
+        const profileStart = profileStartRaw ? new Date(profileStartRaw) : null;
+
+        return trackerStarts[0] ||
+            (profileStart && !Number.isNaN(profileStart.getTime()) ? profileStart : null);
+    })();
+
+    // ✅ Display strings (no fake values)
+    const cycleLengthText =
+        summary?.usedAverage && summary?.avgCycleLength
+            ? `${summary.avgCycleLength} days (avg)`
+            : `${Number(cycleProfile?.cycle_length ?? 28) || 28} days`;
+
+    const periodLengthText = `${Number(cycleProfile?.period_length ?? 5) || 5} days`;
+
+    const lastPeriodText = lastStart
+        ? lastStart.toLocaleDateString()
+        : "Not recorded";
 
     useEffect(() => {
         if (!user?.NIC) return;
@@ -80,22 +112,21 @@ const CycleTrackingTab = ({
                 <div className="cycle-stats">
                     <div className="cycle-stat">
                         <span className="stat-label">Cycle Length</span>
-                        <span className="stat-value">{cycleProfile?.cycle_length || 28} days</span>
+                        <span className="stat-value">{cycleLengthText}</span>
                     </div>
+
                     <div className="cycle-stat">
                         <span className="stat-label">Period Length</span>
-                        <span className="stat-value">{cycleProfile?.period_length || 5} days</span>
+                        <span className="stat-value">{periodLengthText}</span>
                     </div>
+
                     <div className="cycle-stat">
                         <span className="stat-label">Last Period</span>
-                        <span className="stat-value">
-                            {cycleProfile?.last_period_start
-                                ? new Date(cycleProfile.last_period_start).toLocaleDateString()
-                                : "Not recorded"}
-                        </span>
+                        <span className="stat-value">{lastPeriodText}</span>
                     </div>
                 </div>
             </div>
+
 
             <div ref={periodFormRef}>
                 <CycleTrackingForm nic={user?.NIC} onSaved={refreshHistory} />

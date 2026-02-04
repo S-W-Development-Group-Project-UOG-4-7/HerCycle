@@ -86,10 +86,33 @@ export default function CycleOverviewWidget({
                                         : `${Math.abs(summary.daysUntilNextPeriod)} days late`}
                     </span>
                 </div>
-
-
+                
             </div>
+            {/* Prediction context (only when using average) */}
+            {summary.usedAverage ? (
+                <div className="cycle-prediction-meta">
+                    <div className="cycle-prediction-confidence">
+                        Prediction confidence:
+                        <span
+                            className={`cycle-confidence-pill ${summary.confidence}`}
+                        >
+                            {summary.confidence}
+                        </span>
+                        {summary.cycleCount ? `(based on ${summary.cycleCount} cycles)` : ""}
+                    </div>
 
+                    {summary.isIrregular ? (
+                        <div className="cycle-irregular-warning">
+                            ⚠ Your cycle length varies by about{" "}
+                            <strong>{summary.variabilityDays}</strong> days (Predictions may be less reliable.)
+                        </div>
+                    ) : null}
+                </div>
+            ) : (
+                <div className="cycle-prediction-hint">
+                    Log at least 2 period starts to enable personalized prediction.
+                </div>
+            )}
             {!hasTodayLog && (
                 <div className="dailylog-warning">
                     <div className="dailylog-warning-title">
