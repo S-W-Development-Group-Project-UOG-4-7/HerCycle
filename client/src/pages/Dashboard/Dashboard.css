@@ -2816,3 +2816,88 @@
 .dailylog-warning-btn:hover {
   filter: brightness(0.95);
 }
+
+.cycle-chart-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+.cycle-chart-wrap {
+  width: 100%;
+  height: 280px;
+}
+
+.cycle-insights-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+  margin-top: 10px;
+}
+
+.cycle-insights-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.cycle-insights-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.cycle-insights-sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.cycle-insights-metrics {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.metric {
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 12px;
+  padding: 8px 10px;
+  min-width: 90px;
+  text-align: center;
+}
+
+.metric-label {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.metric-value {
+  font-weight: 700;
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+.cycle-chart-wrap {
+  width: 100%;
+  height: 320px;
+}
+
+.cycle-insights-footer {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.pill {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.05);
+}
+

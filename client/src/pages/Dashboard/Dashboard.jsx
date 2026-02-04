@@ -5,6 +5,7 @@ import "./Dashboard.css";
 import { getCycleProfile, getCycleHistory } from "../../services/cycleApi";
 import CycleOverviewWidget from "../../components/cycle/CycleOverviewWidget";
 import CycleTrackingTab from "./tabs/CycleTrackingTab";
+import CycleHealthInsightsTab from "./tabs/CycleHealthInsightsTab";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -421,7 +422,10 @@ const Dashboard = () => {
           {activeTab === "community" && <CommunityTab user={user} />}
 
           {/* Health Insights Tab (only visible if cycle tracking enabled) */}
-          {activeTab === "health-insights" && user?.is_cycle_user && <HealthInsightsTab />}
+          {activeTab === "health-insights" && user?.is_cycle_user && (
+            <HealthInsightsTab cycleTrackers={cycleTrackers} />
+          )}
+
 
           {/* Fundraising Tab */}
           {activeTab === "fundraising" && <FundraisingTab />}
@@ -1930,7 +1934,7 @@ const PostDetail = ({ post, onBack, onLike, onCommentAdded, timeAgo, token, head
   );
 };
 
-const HealthInsightsTab = () => {
+const HealthInsightsTab = ({ cycleTrackers }) => {
   return (
     <div className="health-insights-tab">
       <h2>Health Insights</h2>
@@ -1963,10 +1967,9 @@ const HealthInsightsTab = () => {
 
       <div className="charts-section">
         <h3>Cycle History</h3>
-        <div className="chart-placeholder">
-          <p>Graph showing cycle length variations over time</p>
-        </div>
+        <CycleHealthInsightsTab cycleTrackers={cycleTrackers} />
       </div>
+
     </div>
   );
 };
