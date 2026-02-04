@@ -34,7 +34,7 @@ const PHASE_INFO = {
     ],
     cravings: "Cravings can happen; some people want salty or sugary comfort foods.",
     comfort:
-      "Gentle movement, heat pack, hydration may help. If sex is uncomfortable, go slow and use lubrication.",
+      "Gentle movement, heat pack, hydration may help. If sexual intercourse is uncomfortable, go slow and use lubrication.",
   },
   Follicular: {
     accent: "follicular",
@@ -152,15 +152,15 @@ export default function CycleSexualInsightsCard({ summary }) {
         "If avoiding pregnancy: this is typically the highest-risk window—use reliable contraception.";
     } else {
       comfortNote =
-        "PMS symptoms (bloating, breast tenderness) can make sex less comfortable for some.";
+        "PMS symptoms (bloating, breast tenderness) can make sexual intercourse less comfortable for some.";
       libidoNote = "Libido may dip for some; others feel no change.";
-      conceiveTip = "If you already had sex in the fertile window, now is mostly “wait and see.”";
+      conceiveTip = "If you already had an intercourse in the fertile window, now is mostly “wait and see.”";
       avoidTip =
         "Pregnancy is less likely than the ovulatory window, but still possible—use contraception if avoiding.";
     }
 
     const isPainRedFlag =
-      "If you have severe pain, bleeding after sex, unusual discharge/odor, fever, or burning, get medical advice.";
+      "If you have severe pain, bleeding after an intercourse, unusual discharge/odor, fever, or burning, get medical advice.";
 
     return {
       phase,
@@ -283,7 +283,7 @@ export default function CycleSexualInsightsCard({ summary }) {
             <strong>iron levels (ferritin/hemoglobin)</strong>.
           </li>
           <li>
-            Severe pelvic pain, fever, foul discharge, or bleeding after sex → get checked (can be infection or other causes).
+            Severe pelvic pain, fever, foul discharge, or bleeding after a sexual intercourse → get checked (can be infection or other causes).
           </li>
           <li>
             If cycles suddenly change a lot, or you miss periods for 3+ months (not pregnant) → medical review is a good idea.

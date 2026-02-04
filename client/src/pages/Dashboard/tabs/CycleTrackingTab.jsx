@@ -176,9 +176,7 @@ const CycleTrackingTab = ({
                     </div>
 
                     <div className="cycle-card">
-                        <div className="cycle-card-head">
-                            <h3>Insights</h3>
-                        </div>
+                        <h3>Summary</h3>
                         <InsightsPanel cycleProfile={cycleProfile} dailyLogs={dailyLogs} />
                     </div>
                 </div>
