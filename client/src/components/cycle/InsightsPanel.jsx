@@ -112,7 +112,7 @@ function InsightsPanel({ cycleProfile, dailyLogs = [] }) {
 
   return (
     <div style={styles.wrapper}>
-      <h3 style={styles.title}>Insights ✨</h3>
+      <h3 style={styles.title}>Summary✨</h3>
 
       {insights.map((it, idx) => (
         <div key={idx} style={styles.card}>

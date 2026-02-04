@@ -11,7 +11,8 @@ import {
     ReferenceArea,
     ReferenceLine,
 } from "recharts";
-
+import { getCycleSummaryUsingAverage } from "../../../utils/cycleSummary";
+import CycleSexualInsightsCard from "../../../components/cycle/CycleSexualInsightsCard";
 
 function toMidnight(d) {
     const x = new Date(d);
@@ -37,7 +38,12 @@ function getStats(values) {
     return { avg, min, max, count: values.length };
 }
 
-export default function CycleHealthInsightsTab({ cycleTrackers = [] }) {
+export default function CycleHealthInsightsTab({ cycleProfile, cycleTrackers = [] }) {
+    const summary = useMemo(
+        () => getCycleSummaryUsingAverage(cycleProfile, cycleTrackers, new Date()),
+        [cycleProfile, cycleTrackers]
+    );
+
     const data = useMemo(() => {
         const starts = (Array.isArray(cycleTrackers) ? cycleTrackers : [])
             .map((t) => t?.period_start_date)
@@ -90,6 +96,7 @@ export default function CycleHealthInsightsTab({ cycleTrackers = [] }) {
 
     return (
         <div style={{ marginTop: 16 }}>
+            <CycleSexualInsightsCard summary={summary} />
             {data.length === 0 ? (
                 <div className="chart-placeholder">
                     <p>Add at least 2 period start dates to see cycle length variation.</p>
@@ -151,8 +158,7 @@ export default function CycleHealthInsightsTab({ cycleTrackers = [] }) {
                                 <CartesianGrid strokeDasharray="3 3" />
 
                                 {/* Typical range shading */}
-                                <ReferenceArea y1={21} y2={35} />
-
+                                <ReferenceArea y1={21} y2={35} fillOpacity={0.08} />
                                 {/* Average reference line */}
                                 {stats && (
                                     <ReferenceLine

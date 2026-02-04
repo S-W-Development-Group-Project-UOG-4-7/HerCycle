@@ -423,8 +423,9 @@ const Dashboard = () => {
 
           {/* Health Insights Tab (only visible if cycle tracking enabled) */}
           {activeTab === "health-insights" && user?.is_cycle_user && (
-            <HealthInsightsTab cycleTrackers={cycleTrackers} />
+            <HealthInsightsTab cycleProfile={cycleProfile} cycleTrackers={cycleTrackers} />
           )}
+
 
 
           {/* Fundraising Tab */}
@@ -1934,42 +1935,13 @@ const PostDetail = ({ post, onBack, onLike, onCommentAdded, timeAgo, token, head
   );
 };
 
-const HealthInsightsTab = ({ cycleTrackers }) => {
+const HealthInsightsTab = ({ cycleProfile, cycleTrackers }) => {
   return (
     <div className="health-insights-tab">
-      <h2>Health Insights</h2>
-
-      <div className="insights-grid">
-        <div className="insight-card">
-          <div className="insight-icon">📊</div>
-          <h3>Cycle Patterns</h3>
-          <p>Your cycles have been regular for the past 3 months</p>
-        </div>
-
-        <div className="insight-card">
-          <div className="insight-icon">💡</div>
-          <h3>Symptom Trends</h3>
-          <p>Headaches tend to occur 2 days before your period starts</p>
-        </div>
-
-        <div className="insight-card">
-          <div className="insight-icon">🎯</div>
-          <h3>Predictions</h3>
-          <p>Next ovulation predicted in 5 days</p>
-        </div>
-
-        <div className="insight-card">
-          <div className="insight-icon">💭</div>
-          <h3>Mood Analysis</h3>
-          <p>You're most energetic during your follicular phase</p>
-        </div>
-      </div>
-
-      <div className="charts-section">
-        <h3>Cycle History</h3>
-        <CycleHealthInsightsTab cycleTrackers={cycleTrackers} />
-      </div>
-
+      <CycleHealthInsightsTab
+        cycleProfile={cycleProfile}
+        cycleTrackers={cycleTrackers}
+      />
     </div>
   );
 };
