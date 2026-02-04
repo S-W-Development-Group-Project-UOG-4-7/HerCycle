@@ -14,6 +14,52 @@ import {
 import { getCycleSummaryUsingAverage } from "../../../utils/cycleSummary";
 import CycleSexualInsightsCard from "../../../components/cycle/CycleSexualInsightsCard";
 
+function clamp(n, a, b) {
+    return Math.max(a, Math.min(b, n));
+}
+
+function gauss(x, mu, sigma) {
+    const z = (x - mu) / sigma;
+    return Math.exp(-0.5 * z * z);
+}
+
+// returns 0..100 values across cycle days 1..cycleLen
+function buildHormoneSeries(cycleLen = 28) {
+    const len = clamp(Number(cycleLen) || 28, 20, 60);
+    const ov = clamp(len - 14, 1, len); // estimated ovulation day
+
+    const days = Array.from({ length: len }, (_, i) => i + 1);
+
+    return days.map((day) => {
+        // Estrogen: rises in follicular, peaks pre-ovulation, smaller luteal bump
+        const e2 = 0.15
+            + 0.75 * gauss(day, ov - 1, 3.2)
+            + 0.25 * gauss(day, ov + 7, 5.0);
+
+        // LH: sharp surge around ovulation
+        const lh = 0.05 + 1.1 * gauss(day, ov, 0.9);
+
+        // FSH: smaller bump around ovulation + early follicular
+        const fsh = 0.08 + 0.35 * gauss(day, 2, 2.5) + 0.45 * gauss(day, ov, 1.4);
+
+        // Progesterone: rises after ovulation, peaks mid-luteal, then falls
+        const p4 = 0.05 + 1.05 * gauss(day, ov + 7, 4.0);
+
+        // normalize-ish to 0..100
+        const toPct = (v, max) => Math.round(clamp((v / max) * 100, 0, 100));
+
+        return {
+            day,
+            Estrogen: toPct(e2, 1.05),
+            Progesterone: toPct(p4, 1.10),
+            LH: toPct(lh, 1.15),
+            FSH: toPct(fsh, 0.90),
+        };
+    });
+}
+
+
+
 function toMidnight(d) {
     const x = new Date(d);
     if (Number.isNaN(x.getTime())) return null;
@@ -43,6 +89,16 @@ export default function CycleHealthInsightsTab({ cycleProfile, cycleTrackers = [
         () => getCycleSummaryUsingAverage(cycleProfile, cycleTrackers, new Date()),
         [cycleProfile, cycleTrackers]
     );
+
+    const hormoneData = useMemo(() => {
+        const cycleLen =
+            summary?.avgCycleLength ||
+            Number(cycleProfile?.cycle_length ?? cycleProfile?.cycleLength ?? 28) ||
+            28;
+
+        return buildHormoneSeries(cycleLen);
+    }, [summary, cycleProfile]);
+
 
     const data = useMemo(() => {
         const starts = (Array.isArray(cycleTrackers) ? cycleTrackers : [])
@@ -155,7 +211,7 @@ export default function CycleHealthInsightsTab({ cycleProfile, cycleTrackers = [
                                 data={data}
                                 margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
                             >
-                                <CartesianGrid strokeDasharray="3 3" />
+                                <CartesianGrid strokeDasharray="2 6" opacity={0.5} />
 
                                 {/* Typical range shading */}
                                 <ReferenceArea y1={21} y2={35} fillOpacity={0.08} />
@@ -204,14 +260,92 @@ export default function CycleHealthInsightsTab({ cycleProfile, cycleTrackers = [
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
-
                     <div className="cycle-insights-footer">
                         <span className="pill">Typical range: 21–35 days</span>
                         <span className="pill">Points shown: {stats ? stats.count : 0}</span>
                     </div>
                 </div>
             )}
+            <div className="cycle-insights-card" style={{ marginTop: 12 }}>
+                <div className="cycle-insights-header">
+                    <div>
+                        <h3 className="cycle-insights-title">Hormone Pattern (Estimated)</h3>
+                        <p className="cycle-insights-sub">
+                            Relative hormone level index (0–100).
+                            Shows how hormone levels typically rise and fall across the cycle.
+                            <strong> Not lab values.</strong>
+                        </p>
+
+                    </div>
+                </div>
+
+                <div className="cycle-chart-wrap">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={hormoneData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="day" tickLine={false} />
+                            <YAxis domain={[0, 100]} tickLine={false} />
+                            <Tooltip
+                                formatter={(value, name) => {
+                                    let label = "Low";
+                                    if (value >= 70) label = "High";
+                                    else if (value >= 35) label = "Moderate";
+                                    return [`${label} (${value}/100)`, name];
+                                }}
+                                labelFormatter={(label) => `Cycle Day ${label}`}
+                                contentStyle={{
+                                    borderRadius: 10,
+                                    border: "none",
+                                    boxShadow: "0 6px 16px rgba(0,0,0,0.12)",
+                                }}
+                            />
+
+
+                            <Legend
+                                verticalAlign="top"
+                                height={36}
+                                iconType="circle"
+                            />
+
+                            <Line
+                                type="monotone"
+                                dataKey="Estrogen"
+                                stroke="#e85d75"
+                                strokeWidth={3}
+                                dot={false}
+                            />
+
+                            <Line
+                                type="monotone"
+                                dataKey="Progesterone"
+                                stroke="#8b6cff"
+                                strokeWidth={3}
+                                dot={false}
+                            />
+
+                            <Line
+                                type="monotone"
+                                dataKey="LH"
+                                stroke="#2bb673"
+                                strokeWidth={2.5}
+                                dot={false}
+                            />
+
+                            <Line
+                                type="monotone"
+                                dataKey="FSH"
+                                stroke="#5aa9e6"
+                                strokeWidth={2.5}
+                                dot={false}
+                            />
+
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+                <p className="cycle-insights-sub">
+                    X-axis shows <strong>cycle day</strong> (Day 1 = first day of your period).
+                </p>
+            </div>
         </div>
     );
-
 }
